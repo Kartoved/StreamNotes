@@ -6,6 +6,7 @@ export const schema = [
       author_id TEXT,
       content TEXT,
       sort_key TEXT,
+      properties TEXT DEFAULT '{}',
       view_mode TEXT DEFAULT 'list',
       created_at INTEGER,
       updated_at INTEGER,

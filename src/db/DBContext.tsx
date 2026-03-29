@@ -26,7 +26,7 @@ export const AppDBProvider: React.FC<{children: React.ReactNode}> = ({ children 
                 // Подключение к БД (сохраняется в Origin Private File System)
                 // Это дает практически нативную скорость диска
                 console.log("Открываем БД в OPFS...");
-                const database = await sqlite.open('streamnotes_v3.db');
+                const database = await sqlite.open('streamnotes_v4.db');
                 
                 // Накатываем структуру таблиц (для MVP прямо при загрузке)
                 for (const query of schema) {
