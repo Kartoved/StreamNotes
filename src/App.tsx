@@ -1,0 +1,107 @@
+import React, { useState, useRef } from 'react';
+import { useDB } from './db/DBContext';
+import { Feed } from './components/Feed';
+import './index.css';
+
+function App() {
+  const db = useDB();
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  const [focusedTweetId, setFocusedTweetId] = useState<string | null>(null);
+  const [replyingToTweetId, setReplyingToTweetId] = useState<string | null>(null);
+
+  // Глобальный твит (в корень ленты или в корень ветки)
+  const insertRootNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputRef.current?.value) return;
+
+    const text = inputRef.current.value;
+    const id = "note-" + Math.random().toString(36).substring(2, 9);
+    const now = Date.now();
+    
+    await db.exec(`
+      INSERT INTO notes (id, parent_id, author_id, content, sort_key, created_at, updated_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?)`, 
+      [id, focusedTweetId, 'local-user', JSON.stringify({ text }), Date.now().toString(), now, now]
+    );
+
+    inputRef.current.value = '';
+  };
+
+  // Инлайн твит (ответ конкретно под выбранным элементом)
+  const handleInlineReply = async (parentId: string, text: string) => {
+    const id = "note-" + Math.random().toString(36).substring(2, 9);
+    const now = Date.now();
+    await db.exec(`
+      INSERT INTO notes (id, parent_id, author_id, content, sort_key, created_at, updated_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?)`, 
+      [id, parentId, 'local-user', JSON.stringify({ text }), Date.now().toString(), now, now]
+    );
+    setReplyingToTweetId(null);
+  };
+
+  return (
+    <div className="app-container">
+      <header style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem' }}>
+        {focusedTweetId && (
+          <button 
+             onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }}
+             style={{ marginRight: '1rem', background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer' }}
+          >
+            ← В корень
+          </button>
+        )}
+        <div>
+           <h1 style={{ margin: 0, fontSize: '1.8rem' }}>
+             StreamNotes
+           </h1>
+           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+             {focusedTweetId ? 'Ветка обсуждения' : 'Главная лента'}
+           </p>
+        </div>
+      </header>
+      
+      <main>
+        <div style={{ 
+          marginBottom: '2rem', padding: '1.5rem', borderRadius: '16px',
+          background: 'var(--card-bg)', backdropFilter: 'blur(12px)',
+          border: '1px solid var(--border)' 
+        }}>
+          <form onSubmit={insertRootNote} style={{ display: 'flex', gap: '1rem' }}>
+             <input 
+                ref={inputRef}
+                placeholder={focusedTweetId ? "Твитнуть в этой ветке..." : "Что происходит?"}
+                style={{
+                  flex: 1, padding: '1rem', borderRadius: '8px', 
+                  background: 'rgba(0,0,0,0.4)', border: 'none',
+                  color: 'white', fontSize: '1rem', outline: 'none'
+                }}
+             />
+             <button 
+                type="submit"
+                style={{ 
+                  background: 'var(--accent)', 
+                  border: 'none', color: 'white', 
+                  padding: '0 2rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s'
+                }}
+             >
+               Твитнуть
+             </button>
+          </form>
+        </div>
+
+        <Feed 
+            parentId={focusedTweetId} 
+            onNoteClick={(id) => { setFocusedTweetId(id); setReplyingToTweetId(null); }}
+            replyingToId={replyingToTweetId}
+            onStartReply={(id) => setReplyingToTweetId(id)} 
+            onCancelReply={() => setReplyingToTweetId(null)}
+            onSubmitReply={handleInlineReply}
+        />
+
+      </main>
+    </div>
+  );
+}
+
+export default App;
