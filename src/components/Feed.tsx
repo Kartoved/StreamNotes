@@ -8,23 +8,31 @@ interface FeedProps {
   parentId?: string | null;
   onNoteClick?: (id: string) => void;
   replyingToId?: string | null;
+  editingNote?: any | null;
   onStartReply?: (id: string) => void;
   onCancelReply?: () => void;
   onSubmitReply?: (parentId: string, text: string, propsJson: string) => void;
+  onStartEdit?: (note: any) => void;
+  onCancelEdit?: () => void;
+  onSubmitEdit?: (id: string, text: string, propsJson: string) => void;
 }
 
-const STATUSES = ['неразобранное', 'todo', 'doing', 'done', 'cancelled', 'archived'];
+const STATUSES = ['неразобранное', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['tweet', 'task', 'document'];
 const PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
 
-export const Feed: React.FC<FeedProps> = ({ 
-   parentId = null, 
-   onNoteClick, 
-   replyingToId, 
-   onStartReply, 
-   onCancelReply, 
-   onSubmitReply 
-}) => {
+export const Feed = ({ 
+  parentId = null, 
+  onNoteClick, 
+  replyingToId, 
+  editingNote,
+  onStartReply, 
+  onCancelReply, 
+  onSubmitReply,
+  onStartEdit,
+  onCancelEdit,
+  onSubmitEdit
+}: FeedProps) => {
   const db = useDB();
   const notes = useNotes(parentId);
   const parentRef = useRef<HTMLDivElement>(null);
@@ -129,6 +137,15 @@ export const Feed: React.FC<FeedProps> = ({
           const isDragOverCenter = dragOverInfo?.id === note.id && dragOverInfo.zone === 'center';
           const isDragOverBottom = dragOverInfo?.id === note.id && dragOverInfo.zone === 'bottom';
 
+          let baseBg = 'rgba(255,255,255,0.02)';
+          if (status === 'done') baseBg = 'rgba(34, 197, 94, 0.1)';
+          else if (status === 'todo') baseBg = 'rgba(239, 68, 68, 0.15)';
+          else if (status === 'doing') baseBg = 'rgba(59, 130, 246, 0.1)';
+          else if (status === 'archived') baseBg = '#0f172a';
+
+          let finalBg = isReplying ? 'rgba(167, 139, 250, 0.1)' : baseBg;
+          if (isDragOverCenter) finalBg = 'rgba(96, 165, 250, 0.2)';
+
           return (
             <div
               key={virtualItem.key}
@@ -141,7 +158,6 @@ export const Feed: React.FC<FeedProps> = ({
               }}
               onDragOver={(e) => {
                  e.preventDefault();
-                 // Вычисляем где находится мышка внутри элемента, чтобы разделить на 3 зоны
                  const rect = e.currentTarget.getBoundingClientRect();
                  const y = e.clientY - rect.top;
                  if (y < rect.height * 0.25) setDragOverInfo({ id: note.id, zone: 'top' });
@@ -164,9 +180,11 @@ export const Feed: React.FC<FeedProps> = ({
                 width: '100%',
                 transform: `translateY(${virtualItem.start}px)`,
                 padding: `1rem 1rem 1rem calc(1rem + ${indent}px)`, 
-                borderBottom: isDragOverBottom ? '3px solid var(--accent)' : '1px solid var(--border)',
-                borderTop: isDragOverTop ? '3px solid var(--accent)' : 'none',
-                background: isReplying ? 'rgba(167, 139, 250, 0.05)' : (isDragOverCenter ? 'rgba(96, 165, 250, 0.1)' : 'transparent'),
+                borderBottom: isDragOverBottom ? '3px solid var(--accent)' : '1px solid transparent',
+                borderTop: isDragOverTop ? '3px solid var(--accent)' : '1px solid transparent',
+                background: finalBg,
+                borderRadius: '8px',
+                marginBottom: '8px',
                 transition: 'background 0.2s',
                 opacity: draggedId === note.id ? 0.3 : 1, 
                 cursor: 'grab'
@@ -197,7 +215,7 @@ export const Feed: React.FC<FeedProps> = ({
                        onChange={(e) => updateProperty(note.id, note.properties, 'type', e.target.value)}
                        style={{ background: 'rgba(255,255,255,0.05)', color: '#93c5fd', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.75rem', padding: '2px 4px', cursor: 'pointer' }}
                     >
-                       {TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+                       {TYPES.map(s => <option key={s} value={s} style={{backgroundColor: '#1e293b', color: '#e2e8f0'}}>{s}</option>)}
                     </select>
 
                     <select 
@@ -205,7 +223,7 @@ export const Feed: React.FC<FeedProps> = ({
                        onChange={(e) => updateProperty(note.id, note.properties, 'status', e.target.value)}
                        style={{ background: 'rgba(255,255,255,0.05)', color: '#dcfce7', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.75rem', padding: '2px 4px', cursor: 'pointer' }}
                     >
-                       {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                       {STATUSES.map(s => <option key={s} value={s} style={{backgroundColor: '#1e293b', color: '#e2e8f0'}}>{s}</option>)}
                     </select>
 
                     <select 
@@ -213,7 +231,7 @@ export const Feed: React.FC<FeedProps> = ({
                        onChange={(e) => updateProperty(note.id, note.properties, 'priority', e.target.value)}
                        style={{ background: 'rgba(255,255,255,0.05)', color: priority === 'urgent' ? '#fca5a5' : '#fde047', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.75rem', padding: '2px 4px', cursor: 'pointer' }}
                     >
-                       {PRIORITIES.map(s => <option key={s} value={s}>{s}</option>)}
+                       {PRIORITIES.map(s => <option key={s} value={s} style={{backgroundColor: '#1e293b', color: '#e2e8f0'}}>{s}</option>)}
                     </select>
 
                     <input 
@@ -230,9 +248,49 @@ export const Feed: React.FC<FeedProps> = ({
                 </div>
               </div>
 
-              {/* Убрали старый try/catch парсер и вставили наш супербыстрый LexicalRender */}
-              <div style={{ lineHeight: 1.5, color: '#e2e8f0', cursor: 'text' }}>
-                <LexicalRender astString={note.content} />
+              {/* Edit Mode vs View Mode */}
+              {editingNote?.id === note.id ? (
+                 <div style={{ marginTop: '0.5rem', marginBottom: '1rem' }} onClick={(e:any) => e.stopPropagation()}>
+                    <TweetEditor 
+                       initialAst={note.content}
+                       initialPropsStr={note.properties}
+                       placeholder="Редактировать..."
+                       buttonText="Сохранить"
+                       onCancel={() => onCancelEdit && onCancelEdit()}
+                       onSubmit={(ast, propsJson) => {
+                          if (onSubmitEdit) onSubmitEdit(note.id, ast, propsJson);
+                       }}
+                    />
+                 </div>
+              ) : (
+                 <div className="note-content" style={{ marginTop: '0.5rem', fontSize: '15px', lineHeight: 1.5, color: '#e2e8f0' }} onClick={(e) => {
+                    // Prevent navigating if clicking on interactive checkbox
+                    if ((e.target as any).tagName?.toLowerCase() === 'input' || (e.target as HTMLElement).closest('[style*="border-color"]')) {
+                        return; // Handle in LexicalRender
+                    }
+                 }}>
+                   <LexicalRender 
+                      astString={note.content} 
+                      onUpdateAST={(newAst) => {
+                         // Interactive Checkbox updating DB!
+                         db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [newAst, note.id]);
+                      }} 
+                   />
+                 </div>
+              )}
+
+              {/* Actions */}
+              <div className="note-actions" style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', color: '#718096', fontSize: '13px' }}>
+                 {!isReplying && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); if (onStartReply) onStartReply(note.id); }} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                       💬 Ответить
+                    </button>
+                 )}
+                 {!editingNote && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); if (onStartEdit) onStartEdit(note); }} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                       ✏️ Изменить
+                    </button>
+                 )}
               </div>
 
               {isReplying && (

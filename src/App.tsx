@@ -35,6 +35,18 @@ function App() {
     setReplyingToTweetId(null);
   };
 
+  const [editingTweet, setEditingTweet] = useState<any>(null); // Note type
+
+  const handleEditSubmit = async (noteId: string, astText: string, propsJson: string) => {
+    const now = Date.now();
+    await db.exec(`
+      UPDATE notes SET content = ?, properties = ?, updated_at = ?
+      WHERE id = ?`, 
+      [astText, propsJson, now, noteId]
+    );
+    setEditingTweet(null);
+  };
+
   return (
     <div className="app-container">
       <header style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem' }}>
@@ -73,9 +85,13 @@ function App() {
             parentId={focusedTweetId} 
             onNoteClick={(id) => { setFocusedTweetId(id); setReplyingToTweetId(null); }}
             replyingToId={replyingToTweetId}
-            onStartReply={(id) => setReplyingToTweetId(id)} 
-            onCancelReply={() => setReplyingToTweetId(null)}
-            onSubmitReply={handleInlineReply}
+          editingNote={editingTweet}
+          onStartReply={setReplyingToTweetId}
+          onCancelReply={() => setReplyingToTweetId(null)}
+          onSubmitReply={handleInlineReply}
+          onStartEdit={setEditingTweet}
+          onCancelEdit={() => setEditingTweet(null)}
+          onSubmitEdit={handleEditSubmit}
         />
 
       </main>
