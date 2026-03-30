@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useDB } from './db/DBContext';
 import { Feed } from './components/Feed';
+import { TweetEditor } from './components/LexicalEditor';
 import './index.css';
 
 function App() {
@@ -11,31 +12,25 @@ function App() {
   const [replyingToTweetId, setReplyingToTweetId] = useState<string | null>(null);
 
   // Глобальный твит (в корень ленты или в корень ветки)
-  const insertRootNote = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputRef.current?.value) return;
-
-    const text = inputRef.current.value;
+  const insertRootNote = async (astText: string, propsJson: string) => {
     const id = "note-" + Math.random().toString(36).substring(2, 9);
     const now = Date.now();
     
     await db.exec(`
-      INSERT INTO notes (id, parent_id, author_id, content, sort_key, created_at, updated_at) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)`, 
-      [id, focusedTweetId, 'local-user', JSON.stringify({ text }), Date.now().toString(), now, now]
+      INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, created_at, updated_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
+      [id, focusedTweetId, 'local-user', astText, Date.now().toString(), propsJson, now, now]
     );
-
-    inputRef.current.value = '';
   };
 
   // Инлайн твит (ответ конкретно под выбранным элементом)
-  const handleInlineReply = async (parentId: string, text: string) => {
+  const handleInlineReply = async (parentId: string, astText: string, propsJson: string) => {
     const id = "note-" + Math.random().toString(36).substring(2, 9);
     const now = Date.now();
     await db.exec(`
-      INSERT INTO notes (id, parent_id, author_id, content, sort_key, created_at, updated_at) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)`, 
-      [id, parentId, 'local-user', JSON.stringify({ text }), Date.now().toString(), now, now]
+      INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, created_at, updated_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
+      [id, parentId, 'local-user', astText, Date.now().toString(), propsJson, now, now]
     );
     setReplyingToTweetId(null);
   };
@@ -67,27 +62,11 @@ function App() {
           background: 'var(--card-bg)', backdropFilter: 'blur(12px)',
           border: '1px solid var(--border)' 
         }}>
-          <form onSubmit={insertRootNote} style={{ display: 'flex', gap: '1rem' }}>
-             <input 
-                ref={inputRef}
-                placeholder={focusedTweetId ? "Твитнуть в этой ветке..." : "Что происходит?"}
-                style={{
-                  flex: 1, padding: '1rem', borderRadius: '8px', 
-                  background: 'rgba(0,0,0,0.4)', border: 'none',
-                  color: 'white', fontSize: '1rem', outline: 'none'
-                }}
-             />
-             <button 
-                type="submit"
-                style={{ 
-                  background: 'var(--accent)', 
-                  border: 'none', color: 'white', 
-                  padding: '0 2rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s'
-                }}
-             >
-               Твитнуть
-             </button>
-          </form>
+          <TweetEditor 
+             placeholder={focusedTweetId ? "Оставить ответ в ветке..." : "Что происходит?"}
+             buttonText="Твитнуть"
+             onSubmit={insertRootNote}
+          />
         </div>
 
         <Feed 

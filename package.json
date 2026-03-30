@@ -10,6 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@lexical/code": "latest",
+    "@lexical/link": "latest",
+    "@lexical/list": "latest",
+    "@lexical/markdown": "latest",
+    "@lexical/react": "latest",
+    "@lexical/rich-text": "latest",
     "@tanstack/react-virtual": "latest",
     "@vlcn.io/crsqlite-wasm": "latest",
     "@vlcn.io/react": "latest",

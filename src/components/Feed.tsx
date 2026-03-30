@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotes } from '../db/hooks';
 import { useDB } from '../db/DBContext';
+import { TweetEditor, LexicalRender } from './LexicalEditor';
 
 interface FeedProps {
   parentId?: string | null;
@@ -9,7 +10,7 @@ interface FeedProps {
   replyingToId?: string | null;
   onStartReply?: (id: string) => void;
   onCancelReply?: () => void;
-  onSubmitReply?: (parentId: string, text: string) => void;
+  onSubmitReply?: (parentId: string, text: string, propsJson: string) => void;
 }
 
 const STATUSES = ['неразобранное', 'todo', 'doing', 'done', 'cancelled', 'archived'];
@@ -152,6 +153,10 @@ export const Feed: React.FC<FeedProps> = ({
                  e.preventDefault();
                  if(dragOverInfo) handleDrop(note.id, dragOverInfo.zone);
               }}
+              onDragEnd={() => {
+                 setDraggedId(null);
+                 setDragOverInfo(null);
+              }}
               style={{
                 position: 'absolute',
                 top: 0,
@@ -225,26 +230,22 @@ export const Feed: React.FC<FeedProps> = ({
                 </div>
               </div>
 
+              {/* Убрали старый try/catch парсер и вставили наш супербыстрый LexicalRender */}
               <div style={{ lineHeight: 1.5, color: '#e2e8f0', cursor: 'text' }}>
-                {text}
+                <LexicalRender astString={note.content} />
               </div>
 
               {isReplying && (
-                 <form 
-                    style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}
-                    onSubmit={(e) => {
-                       e.preventDefault();
-                       const input = e.currentTarget.elements.namedItem('replyText') as HTMLInputElement;
-                       if (input.value.trim() && onSubmitReply) onSubmitReply(note.id, input.value.trim());
-                    }}
-                 >
-                    <input 
-                       name="replyText" autoFocus placeholder="Напиши ответ..."
-                       style={{ flex: 1, padding: '0.6rem 1rem', borderRadius: '6px', background: 'rgba(0,0,0,0.5)', border: '1px solid #a78bfa', color: 'white', outline: 'none' }}
+                 <div style={{ marginTop: '1rem' }}>
+                    <TweetEditor 
+                       placeholder="Напиши ответ..."
+                       buttonText="Отправить"
+                       onCancel={() => onCancelReply && onCancelReply()}
+                       onSubmit={(ast, propsJson) => {
+                          if (onSubmitReply) onSubmitReply(note.id, ast, propsJson);
+                       }}
                     />
-                    <button type="submit" style={{ background: '#a78bfa', border: 'none', color: 'white', padding: '0 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Отправить</button>
-                    <button type="button" onClick={() => onCancelReply && onCancelReply()} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '0 1rem', borderRadius: '6px', cursor: 'pointer' }}>Отмена</button>
-                 </form>
+                 </div>
               )}
             </div>
           );
