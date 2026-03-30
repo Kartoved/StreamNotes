@@ -24,41 +24,13 @@
   text-decoration: line-through;
   color: #a0aec0;
 }
+/* ::before скрыт — чекбокс рисует ThreeStateCheckListPlugin как реальный div */
 .editor-checked::before, .editor-unchecked::before {
-  content: '';
-  width: 22px;
-  height: 22px;
-  display: inline-block;
-  border: 2px solid #a78bfa; /* Accent color */
-  border-radius: 6px;
-  margin-right: 12px;
-  margin-top: 1px;
-  cursor: pointer;
-  flex-shrink: 0;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 70%;
-  transition: 0.2s all;
-  position: relative;
-  z-index: 10;
-}
-.editor-unchecked::before {
-  background-color: rgba(0,0,0,0.5);
-}
-.editor-checked::before {
-  background-color: #a78bfa;
-  border-color: #a78bfa;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>');
+  display: none !important;
 }
 
-/* 3-State Checklist support in standard Editor */
-li.editor-checked[value="3"]::before {
-  background-color: #f87171 !important;
-  border-color: #f87171 !important;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>') !important;
-}
+/* Cancelled state (value=3) — текст серее и прозрачнее */
 li.editor-checked[value="3"] {
-  text-decoration: line-through !important;
   opacity: 0.6 !important;
   color: #718096 !important;
 }

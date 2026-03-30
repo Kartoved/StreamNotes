@@ -6,14 +6,12 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
-import { 
-  FORMAT_TEXT_COMMAND, 
-  FORMAT_ELEMENT_COMMAND, 
-  COMMAND_PRIORITY_HIGH, 
-  CLICK_COMMAND, 
-  $getNearestNodeFromDOMNode, 
-  $getSelection, 
-  $isRangeSelection, 
+import {
+  FORMAT_TEXT_COMMAND,
+  FORMAT_ELEMENT_COMMAND,
+  $getNearestNodeFromDOMNode,
+  $getSelection,
+  $isRangeSelection,
   $createParagraphNode,
   $createTextNode,
   TextNode
@@ -133,53 +131,62 @@ function ToolbarPlugin() {
   );
 }
 
-// Перехватываем клик по чекбоксам для реализации 3-х состояний в режиме редактора
+// Вместо борьбы с CSS ::before — инжектим реальный <div> после каждого
+// обновления Lexical. Та же логика что в LexicalRender, только в живом DOM.
 function ThreeStateCheckListPlugin() {
   const [editor] = useLexicalComposerContext();
-  
+
   useEffect(() => {
-    return editor.registerCommand(
-      CLICK_COMMAND,
-      (event: MouseEvent) => {
-        const target = event.target as HTMLElement;
-        const li = target.closest('li');
-        if (!li) return false;
-        
-        const rect = li.getBoundingClientRect();
-        // У нас маркер шириной 22px + margin 12px = 34px слева
-        // Поэтому если клик правее чем left + 40px (с запасом) - это клик по тексту, игнорим
-        if (event.clientX > rect.left + 40) return false;
-        
-        let handled = false;
-        editor.update(() => {
-           const node = $getNearestNodeFromDOMNode(li);
-           if ($isListItemNode(node) && node.getChecked() !== undefined) {
-               const isChecked = node.getChecked();
-               const val = node.getValue();
-               
-               if (!isChecked) {
-                  node.setChecked(true);
-                  node.setValue(2);
-               } else if (isChecked && val !== 3) {
-                  node.setValue(3);
-               } else {
-                  node.setChecked(false);
-                  node.setValue(1);
-               }
-               handled = true;
-           }
+    const syncCheckbox = (li: HTMLElement) => {
+      const isChecked = li.getAttribute('aria-checked') === 'true';
+      const value = parseInt(li.getAttribute('value') || '1', 10);
+      const isDone = isChecked && value !== 3;
+      const isCancelled = isChecked && value === 3;
+
+      let box = li.querySelector<HTMLElement>('.tsc-box');
+
+      if (!box) {
+        box = document.createElement('div');
+        box.className = 'tsc-box';
+        box.style.cssText = 'width:22px;height:22px;flex-shrink:0;border:2px solid;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;margin-right:10px;margin-top:1px;';
+        box.addEventListener('mousedown', (e) => e.preventDefault()); // не сбрасываем фокус редактора
+        box.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          editor.update(() => {
+            const node = $getNearestNodeFromDOMNode(li);
+            if (!$isListItemNode(node) || node.getChecked() === undefined) return;
+            const checked = node.getChecked();
+            const val = node.getValue();
+            if (!checked) { node.setChecked(true); node.setValue(2); }
+            else if (val !== 3) { node.setValue(3); }
+            else { node.setChecked(false); node.setValue(1); }
+          });
         });
-        
-        if (handled) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-        return handled;
-      },
-      COMMAND_PRIORITY_HIGH
-    );
+        // Ставим перед текстом, но после возможных вложенных списков
+        li.insertBefore(box, li.firstChild);
+      }
+
+      // Всегда первым ребёнком
+      if (li.firstChild !== box) li.insertBefore(box, li.firstChild);
+
+      // Обновляем визуал
+      box.style.borderColor = isDone ? '#4ade80' : isCancelled ? '#f87171' : '#a78bfa';
+      box.style.background   = isDone ? '#4ade80' : isCancelled ? '#f87171' : 'rgba(0,0,0,0.5)';
+      box.innerHTML = isDone
+        ? '<span style="color:black;font-size:13px;font-weight:bold;pointer-events:none">✓</span>'
+        : isCancelled
+          ? '<span style="color:white;font-size:11px;font-weight:bold;pointer-events:none">✕</span>'
+          : '';
+    };
+
+    return editor.registerUpdateListener(() => {
+      const root = editor.getRootElement();
+      if (!root) return;
+      root.querySelectorAll<HTMLElement>('li[role="checkbox"]').forEach(syncCheckbox);
+    });
   }, [editor]);
-  
+
   return null;
 }
 
@@ -318,6 +325,19 @@ function BacklinkPlugin() {
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['tweet', 'task', 'document'];
 
+const hasTextContent = (astStr: string): boolean => {
+  try {
+    const { root } = JSON.parse(astStr);
+    const check = (node: any): boolean => {
+      if (node.type === 'text') return (node.text || '').trim().length > 0;
+      return (node.children || []).some(check);
+    };
+    return check(root);
+  } catch {
+    return !!astStr;
+  }
+};
+
 export const TweetEditor = ({ 
    onSubmit, 
    onCancel,
@@ -355,7 +375,7 @@ export const TweetEditor = ({
   }
 
   const handleFireSubmit = () => {
-    if (!val) return;
+    if (!val || !hasTextContent(val)) return;
     const propsJson = JSON.stringify({ type, status, date });
     onSubmit(val, propsJson);
     
