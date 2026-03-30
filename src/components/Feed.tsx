@@ -29,12 +29,16 @@ const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string, onNoteClick
    }, [onNoteClick]);
 
    React.useEffect(() => {
+      if (!db || !noteId) return;
       db.execO(`SELECT id, content FROM notes WHERE content LIKE ?`, [`%note://${noteId}%`]).then(res => {
-         setBacklinks(res);
+         setBacklinks(res || []);
+      }).catch(e => {
+         console.error(e);
+         setBacklinks([]);
       });
    }, [db, noteId, isExpanded]); // Re-fetch on expand to be sure
 
-   if (backlinks.length === 0) return null;
+   if (!backlinks || backlinks.length === 0) return null;
 
    return (
      <div style={{ marginTop: '0.8rem', paddingTop: '0.8rem', borderTop: '1px dashed rgba(255,255,255,0.1)' }} onClick={e => e.stopPropagation()}>
@@ -47,9 +51,20 @@ const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string, onNoteClick
         {isExpanded && (
            <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {backlinks.map(b => {
-                 let text = b.id;
-                 try { text = JSON.parse(b.content).root.children[0].children[0].text; } catch(e) {}
+                 let text = '';
+                 try {
+                    const parsed = JSON.parse(b.content);
+                    const extractAllText = (node: any): string => {
+                      if (node.type === 'text') return node.text || '';
+                      if (node.children) return node.children.map((c: any) => extractAllText(c)).join(' ');
+                      return '';
+                    };
+                    text = extractAllText(parsed.root).trim();
+                 } catch(e) {}
+                 
+                 if (!text) text = b.id;
                  if (text.length > 50) text = text.slice(0, 50) + '...';
+                 
                  return (
                     <div 
                        key={b.id} 
@@ -109,11 +124,33 @@ export const Feed = ({
      return result;
   }, [notes, collapsedIds]);
 
+
   const virtualizer = useVirtualizer({
     count: visibleNotes.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 140, // Увеличили из-за количества свойств
   });
+
+  React.useEffect(() => {
+    (window as any).scrollToNote = (id: string) => {
+       const index = visibleNotes.findIndex(n => n.id === id);
+       if (index !== -1) {
+          virtualizer.scrollToIndex(index, { align: 'start' });
+          // Highlight it briefly
+          setTimeout(() => {
+             const el = parentRef.current?.querySelector(`[data-note-id="${id}"]`) as HTMLElement;
+             if (el) {
+                el.style.transition = 'background 0.5s';
+                el.style.background = 'rgba(234, 179, 8, 0.4)';
+                setTimeout(() => { el.style.background = ''; }, 1000);
+             }
+          }, 100);
+       } else {
+          // If the note is not visible (collapsed or not in feed), just focus it
+          onNoteClick?.(id);
+       }
+    };
+  }, [visibleNotes, virtualizer, onNoteClick]);
 
   const updateProperty = async (id: string, currentPropsRaw: string, key: string, value: string) => {
     try {
@@ -233,6 +270,7 @@ export const Feed = ({
             <div
               key={virtualItem.key}
               data-index={virtualItem.index}
+              data-note-id={note.id}
               ref={virtualizer.measureElement}
               draggable
               onDragStart={(e) => {
@@ -364,6 +402,8 @@ export const Feed = ({
                          db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [newAst, note.id]);
                       }} 
                    />
+                   {/* Render Backlinks */}
+                   <BacklinksSection noteId={note.id} onNoteClick={onNoteClick} />
                  </div>
               )}
 

@@ -73,15 +73,16 @@ function ToolbarPlugin() {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
            selection.getNodes().forEach(node => {
-               const parent = node.getParent();
-               if (parent && parent.getType() === 'paragraph') {
+               const target = (node.getType() === 'paragraph' || $isHeadingNode(node)) ? node : node.getParent();
+               if (!target) return;
+               if (target.getType() === 'paragraph') {
                    const heading = $createHeadingNode('h2');
-                   heading.append(...parent.getChildren());
-                   parent.replace(heading);
-               } else if ($isHeadingNode(parent)) {
+                   heading.append(...(target as any).getChildren());
+                   target.replace(heading);
+               } else if ($isHeadingNode(target)) {
                    const p = $createParagraphNode();
-                   p.append(...parent.getChildren());
-                   parent.replace(p);
+                   p.append(...(target as any).getChildren());
+                   target.replace(p);
                }
            });
         }
@@ -93,15 +94,16 @@ function ToolbarPlugin() {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
            selection.getNodes().forEach(node => {
-               const parent = node.getParent();
-               if (parent && parent.getType() === 'paragraph') {
+               const target = (node.getType() === 'paragraph' || $isCodeNode(node)) ? node : node.getParent();
+               if (!target) return;
+               if (target.getType() === 'paragraph') {
                    const code = $createCodeNode();
-                   code.append(...parent.getChildren());
-                   parent.replace(code);
-               } else if ($isCodeNode(parent)) {
+                   code.append(...(target as any).getChildren());
+                   target.replace(code);
+               } else if ($isCodeNode(target)) {
                    const p = $createParagraphNode();
-                   p.append(...parent.getChildren());
-                   parent.replace(p);
+                   p.append(...(target as any).getChildren());
+                   target.replace(p);
                }
            });
         }
@@ -117,6 +119,10 @@ function ToolbarPlugin() {
       <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
       <button type="button" style={btnStyle} onClick={toggleHeading}>H2 Заголовок</button>
       <button type="button" style={btnStyle} onClick={toggleCode}>&lt;/&gt; Код</button>
+      <button type="button" style={btnStyle} onClick={() => {
+         const url = prompt('Введите URL (или начните с note://):');
+         if (url) editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
+      }}>🔗 Линк</button>
       <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
       <button type="button" style={btnStyle} onClick={() => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined)}>☑ Чеклист</button>
     </div>
@@ -481,7 +487,7 @@ const renderLexicalNode = (node: any, index: number, rootAst: any, onUpdateAST?:
             key={index} 
             href={href} 
             onClick={(e) => { 
-               if (isInternal) { e.preventDefault(); e.stopPropagation(); (window as any).onNoteClick?.(id); }
+               if (isInternal) { e.preventDefault(); e.stopPropagation(); (window as any).scrollToNote?.(id); }
             }}
             style={{
                color: isInternal ? '#93c5fd' : 'var(--accent)', 
@@ -493,7 +499,12 @@ const renderLexicalNode = (node: any, index: number, rootAst: any, onUpdateAST?:
             }}
          >
             {isInternal && '🔗 '}
-            {node.children?.map((c:any, i:number) => renderLexicalNode(c, i, rootAst, onUpdateAST))}
+            {node.children?.map((c:any, i:number) => {
+               if (isInternal && c.type === 'text' && c.text) {
+                  return renderLexicalNode({ ...c, text: c.text.replace(/^\[\[/g, '').replace(/\]\]$/g, '') }, i, rootAst, onUpdateAST);
+               }
+               return renderLexicalNode(c, i, rootAst, onUpdateAST);
+            })}
          </a>
       );
    }
