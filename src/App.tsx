@@ -78,6 +78,7 @@ function App() {
              placeholder={focusedTweetId ? "Оставить ответ в ветке..." : "Что происходит?"}
              buttonText="Твитнуть"
              onSubmit={insertRootNote}
+             autoFocus={true}
           />
         </div>
 

@@ -150,7 +150,6 @@ function ThreeStateCheckListPlugin() {
   return null;
 }
 
-// Плагин, который слушает AST изменения и выплёвывает JSON State
 function OnChangePlugin({ onChange }: { onChange: (stateStr: string) => void }) {
   const [editor] = useLexicalComposerContext();
   useEffect(() => {
@@ -161,9 +160,16 @@ function OnChangePlugin({ onChange }: { onChange: (stateStr: string) => void }) 
   return null;
 }
 
-const STATUSES = ['неразобранное', 'todo', 'doing', 'done', 'archived'];
+function AutoFocusPlugin() {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => {
+    editor.focus();
+  }, [editor]);
+  return null;
+}
+
+const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['tweet', 'task', 'document'];
-const PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
 
 export const TweetEditor = ({ 
    onSubmit, 
@@ -171,7 +177,8 @@ export const TweetEditor = ({
    placeholder,
    buttonText = "Твитнуть",
    initialAst,
-   initialPropsStr
+   initialPropsStr,
+   autoFocus
 }: { 
    onSubmit: (ast: string, propsJson: string) => void;
    onCancel?: () => void;
@@ -179,14 +186,14 @@ export const TweetEditor = ({
    buttonText?: string;
    initialAst?: string;
    initialPropsStr?: string;
+   autoFocus?: boolean;
 }) => {
   const [val, setVal] = React.useState(initialAst || '');
   const [editorKey, setEditorKey] = React.useState(0);
 
   const initP = initialPropsStr ? JSON.parse(initialPropsStr) : {};
   const [type, setType] = React.useState(initP.type || 'tweet');
-  const [status, setStatus] = React.useState(initP.status || 'неразобранное');
-  const [priority, setPriority] = React.useState(initP.priority || 'none');
+  const [status, setStatus] = React.useState(initP.status || 'none');
   const [date, setDate] = React.useState(initP.date || '');
 
   let initEditorState: any = undefined;
@@ -202,15 +209,13 @@ export const TweetEditor = ({
 
   const handleFireSubmit = () => {
     if (!val) return;
-    const propsJson = JSON.stringify({ type, status, priority, date });
+    const propsJson = JSON.stringify({ type, status, date });
     onSubmit(val, propsJson);
     
-    // Сбрасываем (только если это не режим редактирования)
     if (!initialAst) {
         setEditorKey(k => k + 1);
         setType('tweet');
-        setStatus('неразобранное');
-        setPriority('none');
+        setStatus('none');
         setDate('');
         setVal('');
     }
@@ -223,7 +228,6 @@ export const TweetEditor = ({
     <LexicalComposer key={editorKey + (initialAst || '')} initialConfig={{ namespace: 'editor', theme: EDITOR_THEME, nodes: EDITOR_NODES, onError: console.error, editorState: initEditorState }}>
       <div style={{ position: 'relative', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px', background: 'rgba(0,0,0,0.5)', color: '#fff' }}>
         
-        {/* Панель WYSIWYG */}
         <ToolbarPlugin />
 
         <div style={{ position: 'relative' }}>
@@ -232,15 +236,14 @@ export const TweetEditor = ({
             placeholder={<div style={{ position: 'absolute', top: '4px', left: '4px', color: '#718096', pointerEvents: 'none' }}>{placeholder}</div>}
             ErrorBoundary={LexicalErrorBoundary}
           />
+          {autoFocus && <AutoFocusPlugin />}
         </div>
         
         <HistoryPlugin />
         <CheckListPlugin />
         <ThreeStateCheckListPlugin />
         
-        {/* Магия Markdown */}
         <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
-        
         <OnChangePlugin onChange={setVal} />
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
@@ -249,9 +252,6 @@ export const TweetEditor = ({
              </select>
              <select value={status} onChange={(e) => setStatus(e.target.value)} style={{...selStyle, color: '#dcfce7'}}>
                  {STATUSES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
-             </select>
-             <select value={priority} onChange={(e) => setPriority(e.target.value)} style={{...selStyle, color: priority === 'urgent' ? '#fca5a5' : '#fde047'}}>
-                 {PRIORITIES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
              </select>
              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{...selStyle, color: 'white', colorScheme: 'dark' }} />
              
@@ -348,6 +348,7 @@ const renderLexicalNode = (node: any, index: number, rootAst: any, onUpdateAST?:
    }
    if (node.type === 'quote') return <blockquote key={index} style={{borderLeft: '3px solid var(--accent)', paddingLeft: '10px', margin: '0.5em 0', color: '#a0aec0'}}>{node.children?.map((c:any, i:number) => renderLexicalNode(c, i, rootAst, onUpdateAST))}</blockquote>;
    if (node.type === 'link') return <a key={index} href={node.url} style={{color: 'var(--accent)', textDecoration: 'underline'}}>{node.children?.map((c:any, i:number) => renderLexicalNode(c, i, rootAst, onUpdateAST))}</a>;
+   if (node.type === 'code') return <pre key={index} style={{ background: '#1a202c', padding: '12px', borderRadius: '8px', border: '1px solid #2d3748', overflowX: 'auto', margin: '0.5em 0' }}><code style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>{node.children?.map((c:any, i:number) => renderLexicalNode(c, i, rootAst, onUpdateAST))}</code></pre>;
    
    return <React.Fragment key={index}>{node.children?.map((c:any, i:number) => renderLexicalNode(c, i, rootAst, onUpdateAST))}</React.Fragment>;
 };

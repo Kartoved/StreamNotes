@@ -16,10 +16,8 @@ interface FeedProps {
   onCancelEdit?: () => void;
   onSubmitEdit?: (id: string, text: string, propsJson: string) => void;
 }
-
-const STATUSES = ['неразобранное', 'todo', 'doing', 'done', 'archived'];
+const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['tweet', 'task', 'document'];
-const PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
 
 export const Feed = ({ 
   parentId = null, 
@@ -38,11 +36,34 @@ export const Feed = ({
   const parentRef = useRef<HTMLDivElement>(null);
   
   const [draggedId, setDraggedId] = useState<string | null>(null);
-  // Используем enum для отображения сложных зон бросания: sibling_before, child, sibling_after
   const [dragOverInfo, setDragOverInfo] = useState<{id: string, zone: 'top'|'center'|'bottom'} | null>(null);
 
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+  const [showProperties, setShowProperties] = useState(true);
+
+  const visibleNotes = React.useMemo(() => {
+     const result = [];
+     let hidingDepth = -1;
+     for (const note of notes) {
+         if (hidingDepth !== -1) {
+             if (note.depth <= hidingDepth) {
+                 hidingDepth = -1; // End of hidden branch
+             } else {
+                 continue; // Skip descendant
+             }
+         }
+         
+         result.push(note);
+         
+         if (collapsedIds.has(note.id)) {
+             hidingDepth = note.depth;
+         }
+     }
+     return result;
+  }, [notes, collapsedIds]);
+
   const virtualizer = useVirtualizer({
-    count: notes.length,
+    count: visibleNotes.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 140, // Увеличили из-за количества свойств
   });
@@ -99,17 +120,32 @@ export const Feed = ({
   }
 
   return (
-    <div 
-      ref={parentRef} 
-      style={{ 
-        height: '600px', 
-        overflowY: 'auto',
-        border: '1px solid var(--border)',
-        borderRadius: '12px',
-        paddingRight: '4px',
-        background: 'rgba(0,0,0,0.2)'
-      }}
-    >
+    <>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', justifyContent: 'flex-end', width: '100%', maxWidth: '800px', margin: '0 auto 8px auto' }}>
+          <button onClick={() => setShowProperties(!showProperties)} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
+              {showProperties ? 'Скрыть свойства' : 'Показать свойства'}
+          </button>
+          <button 
+              onClick={() => {
+                  if (collapsedIds.size > 0) setCollapsedIds(new Set());
+                  else setCollapsedIds(new Set(notes.map(n => n.id)));
+              }} 
+              style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+          >
+              {collapsedIds.size > 0 ? 'Развернуть всё' : 'Свернуть всё'}
+          </button>
+      </div>
+      <div 
+        ref={parentRef} 
+        style={{ 
+          height: '600px', 
+          overflowY: 'auto',
+          border: '1px solid var(--border)',
+          borderRadius: '12px',
+          paddingRight: '4px',
+          background: 'rgba(0,0,0,0.2)'
+        }}
+      >
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -118,7 +154,7 @@ export const Feed = ({
         }}
       >
         {virtualizer.getVirtualItems().map((virtualItem) => {
-          const note = notes[virtualItem.index];
+          const note = visibleNotes[virtualItem.index];
           let text = '';
           try { text = JSON.parse(note.content).text; } catch(e) { text = note.content; }
           
@@ -187,7 +223,7 @@ export const Feed = ({
                 marginBottom: '8px',
                 transition: 'background 0.2s',
                 opacity: draggedId === note.id ? 0.3 : 1, 
-                cursor: 'grab'
+                cursor: (editingNote?.id === note.id || isReplying) ? 'default' : 'grab'
               }}
             >
               {note.depth > 0 && (
@@ -208,45 +244,49 @@ export const Feed = ({
                     {new Date(note.created_at).toLocaleTimeString().slice(0, 5)}
                 </span>
                 
-                {/* Панель мощных свойств! */}
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <select 
-                       value={type}
-                       onChange={(e) => updateProperty(note.id, note.properties, 'type', e.target.value)}
-                       style={{ background: 'rgba(255,255,255,0.05)', color: '#93c5fd', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.75rem', padding: '2px 4px', cursor: 'pointer' }}
-                    >
-                       {TYPES.map(s => <option key={s} value={s} style={{backgroundColor: '#1e293b', color: '#e2e8f0'}}>{s}</option>)}
-                    </select>
-
-                    <select 
-                       value={status}
-                       onChange={(e) => updateProperty(note.id, note.properties, 'status', e.target.value)}
-                       style={{ background: 'rgba(255,255,255,0.05)', color: '#dcfce7', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.75rem', padding: '2px 4px', cursor: 'pointer' }}
-                    >
-                       {STATUSES.map(s => <option key={s} value={s} style={{backgroundColor: '#1e293b', color: '#e2e8f0'}}>{s}</option>)}
-                    </select>
-
-                    <select 
-                       value={priority}
-                       onChange={(e) => updateProperty(note.id, note.properties, 'priority', e.target.value)}
-                       style={{ background: 'rgba(255,255,255,0.05)', color: priority === 'urgent' ? '#fca5a5' : '#fde047', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.75rem', padding: '2px 4px', cursor: 'pointer' }}
-                    >
-                       {PRIORITIES.map(s => <option key={s} value={s} style={{backgroundColor: '#1e293b', color: '#e2e8f0'}}>{s}</option>)}
-                    </select>
-
-                    <input 
-                       type="date"
-                       value={targetDate}
-                       onChange={(e) => updateProperty(note.id, note.properties, 'date', e.target.value)}
-                       style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.75rem', padding: '2px 4px', cursor: 'pointer', colorScheme: 'dark' }}
-                    />
-                </div>
-
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <button onClick={() => onStartReply && onStartReply(note.id)} style={{ background: 'none', border: 'none', color: '#a78bfa', fontSize: '1rem', cursor: 'pointer', padding: '0 0.5rem' }}>💬</button>
-                  <button onClick={() => onNoteClick && onNoteClick(note.id)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1rem', cursor: 'pointer', padding: '0' }}>🔍</button>
-                </div>
+                <button 
+                   onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setCollapsedIds(prev => { 
+                          const next = new Set(prev); 
+                          if (next.has(note.id)) next.delete(note.id); else next.add(note.id);
+                          return next;
+                      }); 
+                   }}
+                   title="Свернуть/Развернуть ветку ответов"
+                   style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', marginLeft: 'auto' }}
+                >
+                   {collapsedIds.has(note.id) ? '🔽 Развернуть тред' : '🔼 Свернуть'}
+                </button>
               </div>
+
+              {/* Панель мощных свойств! */}
+              {showProperties && (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '12px' }}>
+                    <select 
+                      value={type}
+                      onChange={(e) => updateProperty(note.id, note.properties, 'type', e.target.value)}
+                      style={{ background: 'rgba(255,255,255,0.05)', color: '#93c5fd', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.75rem', padding: '2px 4px', cursor: 'pointer' }}
+                    >
+                         {TYPES.map(s => <option key={s} value={s} style={{backgroundColor: '#1e293b', color: '#e2e8f0'}}>{s}</option>)}
+                      </select>
+  
+                      <select 
+                         value={status}
+                         onChange={(e) => updateProperty(note.id, note.properties, 'status', e.target.value)}
+                         style={{ background: 'rgba(255,255,255,0.05)', color: '#dcfce7', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.75rem', padding: '2px 4px', cursor: 'pointer' }}
+                      >
+                         {STATUSES.map(s => <option key={s} value={s} style={{backgroundColor: '#1e293b', color: '#e2e8f0'}}>{s}</option>)}
+                      </select>
+  
+                      <input 
+                         type="date"
+                         value={targetDate}
+                         onChange={(e) => updateProperty(note.id, note.properties, 'date', e.target.value)}
+                         style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.75rem', padding: '2px 4px', cursor: 'pointer', colorScheme: 'dark' }}
+                      />
+                  </div>
+              )}
 
               {/* Edit Mode vs View Mode */}
               {editingNote?.id === note.id ? (
@@ -260,6 +300,7 @@ export const Feed = ({
                        onSubmit={(ast, propsJson) => {
                           if (onSubmitEdit) onSubmitEdit(note.id, ast, propsJson);
                        }}
+                       autoFocus={true}
                     />
                  </div>
               ) : (
@@ -302,6 +343,7 @@ export const Feed = ({
                        onSubmit={(ast, propsJson) => {
                           if (onSubmitReply) onSubmitReply(note.id, ast, propsJson);
                        }}
+                       autoFocus={true}
                     />
                  </div>
               )}
@@ -310,5 +352,6 @@ export const Feed = ({
         })}
       </div>
     </div>
+    </>
   );
 };
