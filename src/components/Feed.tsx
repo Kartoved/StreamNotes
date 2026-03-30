@@ -308,7 +308,10 @@ export const Feed = ({
                 marginBottom: '8px',
                 transition: 'background 0.2s',
                 opacity: draggedId === note.id ? 0.3 : 1, 
-                cursor: (editingNote?.id === note.id || isReplying) ? 'default' : 'grab'
+                cursor: (editingNote?.id === note.id || isReplying) ? 'default' : 'pointer'
+              }}
+              onClick={() => {
+                 if (!editingNote && !isReplying) onNoteClick?.(note.id);
               }}
             >
               {note.depth > 0 && (
@@ -323,8 +326,16 @@ export const Feed = ({
               )}
 
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.8rem', gap: '8px', flexWrap: 'wrap' }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent)' }} />
-                <strong style={{ color: 'var(--text-main)', cursor: 'pointer' }}>{note.author_id}</strong>
+                <div 
+                   onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
+                   style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent)', cursor: 'pointer' }} 
+                />
+                <strong 
+                  style={{ color: 'var(--text-main)', cursor: 'pointer' }}
+                  onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
+                >
+                   {note.author_id}
+                </strong>
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                     {new Date(note.created_at).toLocaleTimeString().slice(0, 5)}
                 </span>

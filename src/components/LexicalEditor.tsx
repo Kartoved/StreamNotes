@@ -142,12 +142,18 @@ function ThreeStateCheckListPlugin() {
       CLICK_COMMAND,
       (event: MouseEvent) => {
         const target = event.target as HTMLElement;
-        if (target.tagName !== 'LI') return false;
+        const li = target.closest('li');
+        if (!li) return false;
+        
+        const rect = li.getBoundingClientRect();
+        // У нас маркер шириной 22px + margin 12px = 34px слева
+        // Поэтому если клик правее чем left + 40px (с запасом) - это клик по тексту, игнорим
+        if (event.clientX > rect.left + 40) return false;
         
         let handled = false;
         editor.update(() => {
-           const node = $getNearestNodeFromDOMNode(target);
-           if ($isListItemNode(node)) {
+           const node = $getNearestNodeFromDOMNode(li);
+           if ($isListItemNode(node) && node.getChecked() !== undefined) {
                const isChecked = node.getChecked();
                const val = node.getValue();
                
@@ -164,6 +170,10 @@ function ThreeStateCheckListPlugin() {
            }
         });
         
+        if (handled) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
         return handled;
       },
       COMMAND_PRIORITY_HIGH
@@ -438,32 +448,34 @@ const renderLexicalNode = (node: any, index: number, rootAst: any, onUpdateAST?:
          return (
             <li key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
                <div 
-                 onClick={() => {
-                   if (onUpdateAST && rootAst) {
-                     if (!node.checked) {
-                         node.checked = true;
-                         node.value = 2;
-                     } else if (node.checked && node.value !== 3) {
-                         node.value = 3;
-                     } else {
-                         node.checked = false;
-                         node.value = 1;
-                     }
-                     onUpdateAST(JSON.stringify({ root: rootAst }));
-                   }
-                 }}
-                 style={{ 
-                    marginTop: '0.2rem', width: '20px', height: '20px', flexShrink: 0,
-                    border: '2px solid', 
-                    borderColor: isDone ? '#4ade80' : (isCancelled ? '#f87171' : '#a78bfa'),
-                    background: isDone ? '#4ade80' : (isCancelled ? '#f87171' : 'rgba(0,0,0,0.5)'),
-                    borderRadius: '4px', cursor: onUpdateAST ? 'pointer' : 'default',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: '0.2s all'
-                 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onUpdateAST && rootAst) {
+                      if (!node.checked) {
+                          node.checked = true;
+                          node.value = 2;
+                      } else if (node.checked && node.value !== 3) {
+                          node.value = 3;
+                      } else {
+                          node.checked = false;
+                          node.value = 1;
+                      }
+                      onUpdateAST(JSON.stringify({ root: rootAst }));
+                    }
+                  }}
+                  style={{ 
+                     marginTop: '0.2rem', width: '24px', height: '24px', flexShrink: 0,
+                     border: '2px solid', 
+                     borderColor: isDone ? '#4ade80' : (isCancelled ? '#f87171' : '#a78bfa'),
+                     background: isDone ? '#4ade80' : (isCancelled ? '#f87171' : 'rgba(0,0,0,0.5)'),
+                     borderRadius: '4px', cursor: onUpdateAST ? 'pointer' : 'default',
+                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                     transition: '0.2s all',
+                     position: 'relative'
+                  }}
                >
-                 {isDone && <span style={{color:'black', fontSize: '14px', fontWeight:'bold', lineHeight: 1}}>✓</span>}
-                 {isCancelled && <span style={{color:'white', fontSize: '12px', fontWeight:'bold', lineHeight: 1}}>✕</span>}
+                  {isDone && <span style={{color:'black', fontSize: '14px', fontWeight:'bold', lineHeight: 1, pointerEvents: 'none'}}>✓</span>}
+                  {isCancelled && <span style={{color:'white', fontSize: '12px', fontWeight:'bold', lineHeight: 1, pointerEvents: 'none'}}>✕</span>}
                </div>
 
                <span style={{ 

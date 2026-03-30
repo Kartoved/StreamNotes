@@ -26,19 +26,21 @@
 }
 .editor-checked::before, .editor-unchecked::before {
   content: '';
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   display: inline-block;
   border: 2px solid #a78bfa; /* Accent color */
-  border-radius: 4px;
-  margin-right: 10px;
-  margin-top: 2px;
+  border-radius: 6px;
+  margin-right: 12px;
+  margin-top: 1px;
   cursor: pointer;
   flex-shrink: 0;
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 80%;
+  background-size: 70%;
   transition: 0.2s all;
+  position: relative;
+  z-index: 10;
 }
 .editor-unchecked::before {
   background-color: rgba(0,0,0,0.5);
