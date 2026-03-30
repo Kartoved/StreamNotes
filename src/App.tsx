@@ -7,6 +7,10 @@ import './index.css';
 function App() {
   const db = useDB();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    (window as any).db = db;
+  }, [db]);
   
   const [focusedTweetId, setFocusedTweetId] = useState<string | null>(null);
   const [replyingToTweetId, setReplyingToTweetId] = useState<string | null>(null);

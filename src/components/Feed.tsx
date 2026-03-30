@@ -19,6 +19,53 @@ interface FeedProps {
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['tweet', 'task', 'document'];
 
+const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string, onNoteClick?: (id: string) => void }) => {
+   const db = useDB();
+   const [backlinks, setBacklinks] = useState<any[]>([]);
+   const [isExpanded, setIsExpanded] = useState(false);
+
+   React.useEffect(() => {
+     (window as any).onNoteClick = onNoteClick;
+   }, [onNoteClick]);
+
+   React.useEffect(() => {
+      db.execO(`SELECT id, content FROM notes WHERE content LIKE ?`, [`%note://${noteId}%`]).then(res => {
+         setBacklinks(res);
+      });
+   }, [db, noteId, isExpanded]); // Re-fetch on expand to be sure
+
+   if (backlinks.length === 0) return null;
+
+   return (
+     <div style={{ marginTop: '0.8rem', paddingTop: '0.8rem', borderTop: '1px dashed rgba(255,255,255,0.1)' }} onClick={e => e.stopPropagation()}>
+        <button 
+           onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+           style={{ background: 'none', border: 'none', color: '#93c5fd', fontSize: '0.75rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
+        >
+           🔗 {isExpanded ? '▼' : '▶'} Упомянуто в {backlinks.length} твитах
+        </button>
+        {isExpanded && (
+           <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {backlinks.map(b => {
+                 let text = b.id;
+                 try { text = JSON.parse(b.content).root.children[0].children[0].text; } catch(e) {}
+                 if (text.length > 50) text = text.slice(0, 50) + '...';
+                 return (
+                    <div 
+                       key={b.id} 
+                       onClick={(e) => { e.stopPropagation(); onNoteClick?.(b.id); }}
+                       style={{ fontSize: '0.75rem', color: '#cbd5e1', cursor: 'pointer', padding: '4px 8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}
+                    >
+                       {text}
+                    </div>
+                 );
+              })}
+           </div>
+        )}
+     </div>
+   );
+};
+
 export const Feed = ({ 
   parentId = null, 
   onNoteClick, 

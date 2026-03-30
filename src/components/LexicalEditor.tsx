@@ -6,12 +6,25 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
-import { FORMAT_TEXT_COMMAND, FORMAT_ELEMENT_COMMAND, COMMAND_PRIORITY_HIGH, CLICK_COMMAND, $getNearestNodeFromDOMNode, $getSelection, $isRangeSelection, $createParagraphNode } from 'lexical';
+import { 
+  FORMAT_TEXT_COMMAND, 
+  FORMAT_ELEMENT_COMMAND, 
+  COMMAND_PRIORITY_HIGH, 
+  CLICK_COMMAND, 
+  $getNearestNodeFromDOMNode, 
+  $getSelection, 
+  $isRangeSelection, 
+  $createParagraphNode,
+  $createTextNode,
+  TextNode
+} from 'lexical';
 import { HeadingNode, QuoteNode, $createHeadingNode, $isHeadingNode } from '@lexical/rich-text';
 import { ListItemNode, ListNode, INSERT_CHECK_LIST_COMMAND, $isListItemNode } from '@lexical/list';
 import { CodeNode, CodeHighlightNode, $createCodeNode, $isCodeNode } from '@lexical/code';
-import { AutoLinkNode, LinkNode } from '@lexical/link';
+import { AutoLinkNode, LinkNode, TOGGLE_LINK_COMMAND, $createLinkNode } from '@lexical/link';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
+import { LexicalTypeaheadMenuPlugin, MenuOption, useBasicTypeaheadTriggerMatch } from '@lexical/react/LexicalTypeaheadMenuPlugin';
+import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { TRANSFORMERS } from '@lexical/markdown';
 import '../editorTheme.css'; // Импортируем стили темы
 
@@ -168,6 +181,120 @@ function AutoFocusPlugin() {
   return null;
 }
 
+class BacklinkOption extends MenuOption {
+  id: string;
+  title: string;
+
+  constructor(title: string, id: string) {
+    super(title);
+    this.title = title;
+    this.id = id;
+  }
+}
+
+function BacklinkPlugin() {
+  const [editor] = useLexicalComposerContext();
+  const [queryString, setQueryString] = React.useState<string | null>(null);
+  const [results, setResults] = React.useState<any[]>([]);
+  const db = (window as any).db;
+
+  const checkForTriggerMatch = React.useCallback((text: string) => {
+    const match = /(?:^|\s)(\[\[([^\]]*))$/.exec(text);
+    if (match) {
+      return {
+        replaceableString: match[1],
+        matchingString: match[2],
+        leadOffset: match.index + (match[0].length - match[1].length),
+      };
+    }
+    return null;
+  }, []);
+
+  useEffect(() => {
+    if (queryString !== null && db) {
+      // Ищем только те заметки, где есть РЕАЛЬНЫЙ текст (не просто структура JSON)
+      // Мы ищем по content, но исключаем саму структуру метаданных
+      db.execO(`SELECT id, content FROM notes WHERE (content LIKE ?) AND (content NOT LIKE '{"root":{"children":[],%') LIMIT 15`, [`%${queryString}%`]).then((res: any) => {
+        setResults(res.map((n: any) => {
+           let text = '';
+           try {
+              const parsed = JSON.parse(n.content);
+              const extractAllText = (node: any): string => {
+                if (node.type === 'text') return node.text || '';
+                if (node.children) return node.children.map((c: any) => extractAllText(c)).join(' ');
+                return '';
+              };
+              text = extractAllText(parsed.root).trim();
+           } catch(e) { 
+              text = n.content;
+           }
+           
+           if (!text) text = n.id;
+           if (text.length > 50) text = text.slice(0, 50) + '...';
+           return { id: n.id, title: text };
+        }));
+      });
+    }
+  }, [queryString, db]);
+
+  const options = React.useMemo(() => {
+    return results.map(r => new BacklinkOption(r.title, r.id));
+  }, [results]);
+
+  return (
+    <LexicalTypeaheadMenuPlugin<BacklinkOption>
+      onQueryChange={setQueryString}
+      onSelectOption={(option, userSelect, closeMenu) => {
+        editor.update(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            const anchor = selection.anchor;
+            // Удаляем триггер [[
+            if (anchor.type === 'text') {
+               const node = anchor.getNode();
+               const textContent = node.getTextContent();
+               const triggerIndex = textContent.lastIndexOf('[[', anchor.offset);
+               if (triggerIndex !== -1) {
+                  node.spliceText(triggerIndex, anchor.offset - triggerIndex, '');
+               }
+            }
+            // Создаем узел ссылки
+            const linkNode = $createLinkNode(`note://${option.id}`);
+            const textNode = $createTextNode(`[[${option.title}]]`);
+            linkNode.append(textNode);
+            selection.insertNodes([linkNode]);
+            selection.insertText(' ');
+          }
+        });
+        closeMenu();
+      }}
+      triggerFn={checkForTriggerMatch}
+      options={options}
+      menuRenderFn={(anchorElementRef, { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex, options: menuOptions }) => {
+        if (!anchorElementRef.current || menuOptions.length === 0) return null;
+        return (
+          <div style={{ position: 'fixed', background: '#1e293b', border: '1px solid #475569', borderRadius: '8px', zIndex: 10000, color: 'white', minWidth: '280px', boxShadow: '0 10px 25px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
+            {menuOptions.map((option: BacklinkOption, i: number) => {
+              return (
+                <div 
+                  key={option.key}
+                  ref={(el) => option.setRefElement(el)}
+                  onClick={() => selectOptionAndCleanUp(option)}
+                  onMouseEnter={() => setHighlightedIndex(i)}
+                  style={{ padding: '10px 14px', cursor: 'grab', background: i === selectedIndex ? '#3b82f6' : 'transparent', borderBottom: '1px solid rgba(255,255,255,0.05)', transition: '0.1s background' }}
+                >
+                  <div style={{ fontSize: '0.7rem', opacity: 0.5, marginBottom: '2px', fontFamily: 'monospace' }}>{option.id}</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 500, color: i === selectedIndex ? 'white' : '#e2e8f0' }}>{option.title}</div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }}
+    />
+  );
+}
+
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['tweet', 'task', 'document'];
 
@@ -240,11 +367,13 @@ export const TweetEditor = ({
         </div>
         
         <HistoryPlugin />
+        <LinkPlugin />
         <CheckListPlugin />
         <ThreeStateCheckListPlugin />
         
         <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
         <OnChangePlugin onChange={setVal} />
+        <BacklinkPlugin />
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
              <select value={type} onChange={(e) => setType(e.target.value)} style={selStyle}>
@@ -267,14 +396,13 @@ export const TweetEditor = ({
   );
 };
 
-// Функция для ультрабыстрого рендера Lexical AST напрямую в React DOM
 const renderLexicalNode = (node: any, index: number, rootAst: any, onUpdateAST?: (ast: string) => void): React.ReactNode => {
    if (!node) return null;
    if (node.type === 'text') {
       let el: any = node.text;
       if (node.format & 1) el = <strong key={index}>{el}</strong>; 
       if (node.format & 2) el = <em key={index}>{el}</em>;       
-      if (node.format & 4) el = <s key={index} style={{textDecoration: 'line-through'}}>{el}</s>; // Strikethrough
+      if (node.format & 4) el = <s key={index} style={{textDecoration: 'line-through'}}>{el}</s>;
       if (node.format & 8) el = <u key={index}>{el}</u>;       
       if (node.format & 16) el = <code key={index} style={{ background: '#2d3748', padding: '2px 4px', borderRadius: '4px' }}>{el}</code>;    
       return <React.Fragment key={index}>{el}</React.Fragment>;
@@ -303,18 +431,14 @@ const renderLexicalNode = (node: any, index: number, rootAst: any, onUpdateAST?:
                  onClick={() => {
                    if (onUpdateAST && rootAst) {
                      if (!node.checked) {
-                         // Empty -> Done
                          node.checked = true;
                          node.value = 2;
                      } else if (node.checked && node.value !== 3) {
-                         // Done -> Cancelled
                          node.value = 3;
                      } else {
-                         // Cancelled -> Empty
                          node.checked = false;
                          node.value = 1;
                      }
-                     // Перезагрузка UI
                      onUpdateAST(JSON.stringify({ root: rootAst }));
                    }
                  }}
@@ -347,7 +471,32 @@ const renderLexicalNode = (node: any, index: number, rootAst: any, onUpdateAST?:
       return <li key={index}>{node.children?.map((c:any, i:number) => renderLexicalNode(c, i, rootAst, onUpdateAST))}</li>;
    }
    if (node.type === 'quote') return <blockquote key={index} style={{borderLeft: '3px solid var(--accent)', paddingLeft: '10px', margin: '0.5em 0', color: '#a0aec0'}}>{node.children?.map((c:any, i:number) => renderLexicalNode(c, i, rootAst, onUpdateAST))}</blockquote>;
-   if (node.type === 'link') return <a key={index} href={node.url} style={{color: 'var(--accent)', textDecoration: 'underline'}}>{node.children?.map((c:any, i:number) => renderLexicalNode(c, i, rootAst, onUpdateAST))}</a>;
+   if (node.type === 'link') {
+      const isInternal = node.url?.startsWith('note://');
+      const href = isInternal ? '#' : node.url;
+      const id = isInternal ? node.url.replace('note://', '') : null;
+      
+      return (
+         <a 
+            key={index} 
+            href={href} 
+            onClick={(e) => { 
+               if (isInternal) { e.preventDefault(); e.stopPropagation(); (window as any).onNoteClick?.(id); }
+            }}
+            style={{
+               color: isInternal ? '#93c5fd' : 'var(--accent)', 
+               textDecoration: 'underline', 
+               background: isInternal ? 'rgba(147, 197, 253, 0.1)' : 'transparent',
+               padding: isInternal ? '2px 4px' : '0',
+               borderRadius: isInternal ? '4px' : '0',
+               fontWeight: isInternal ? 'bold' : 'normal'
+            }}
+         >
+            {isInternal && '🔗 '}
+            {node.children?.map((c:any, i:number) => renderLexicalNode(c, i, rootAst, onUpdateAST))}
+         </a>
+      );
+   }
    if (node.type === 'code') return <pre key={index} style={{ background: '#1a202c', padding: '12px', borderRadius: '8px', border: '1px solid #2d3748', overflowX: 'auto', margin: '0.5em 0' }}><code style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>{node.children?.map((c:any, i:number) => renderLexicalNode(c, i, rootAst, onUpdateAST))}</code></pre>;
    
    return <React.Fragment key={index}>{node.children?.map((c:any, i:number) => renderLexicalNode(c, i, rootAst, onUpdateAST))}</React.Fragment>;
