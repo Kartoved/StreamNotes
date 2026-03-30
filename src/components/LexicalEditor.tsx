@@ -120,8 +120,12 @@ function ToolbarPlugin() {
       <button type="button" style={btnStyle} onClick={toggleHeading}>H2 Заголовок</button>
       <button type="button" style={btnStyle} onClick={toggleCode}>&lt;/&gt; Код</button>
       <button type="button" style={btnStyle} onClick={() => {
-         const url = prompt('Введите URL (или начните с note://):');
-         if (url) editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
+         editor.update(() => {
+             const selection = $getSelection();
+             if ($isRangeSelection(selection)) {
+                 selection.insertText('[[');
+             }
+         });
       }}>🔗 Линк</button>
       <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
       <button type="button" style={btnStyle} onClick={() => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined)}>☑ Чеклист</button>
