@@ -5,7 +5,15 @@
       "Bash(xargs grep:*)",
       "Bash(npx tsc:*)",
       "WebFetch(domain:skills.sh)",
-      "Bash(npx skills:*)"
+      "Bash(npx skills:*)",
+      "Bash(find c:/Users/karto/Desktop/StreamNotes/StreamNotes/node_modules/@lexical -name LexicalCheckListPlugin*)",
+      "Bash(find c:/Users/karto/Desktop/StreamNotes/StreamNotes/node_modules -name *.js -path *checklist*)",
+      "Bash(find c:/Users/karto/Desktop/StreamNotes/StreamNotes/node_modules -maxdepth 3 -name *.js)",
+      "Bash(find c:/Users/karto/Desktop/StreamNotes/StreamNotes/node_modules -maxdepth 4 -type d -name lexical*)",
+      "Bash(find c:/Users/karto/Desktop/StreamNotes/StreamNotes -path */node_modules/.pnpm* -name LexicalCheckList*)",
+      "Bash(find c:/Users/karto/Desktop/StreamNotes/StreamNotes/node_modules -name *.js)",
+      "Bash(find c:/Users/karto/Desktop/StreamNotes/StreamNotes/.vite -o -find c:/Users/karto/Desktop/StreamNotes/StreamNotes -name *.mjs -path *list*)",
+      "Bash(npm install:*)"
     ]
   }
 }

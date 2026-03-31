@@ -132,7 +132,9 @@ function ToolbarPlugin() {
 }
 
 // Вместо борьбы с CSS ::before — инжектим реальный <div> после каждого
-// обновления Lexical. Та же логика что в LexicalRender, только в живом DOM.
+// обновления Lexical. Визуал только через CSS data-state (без innerHTML),
+// чтобы не триггерить childList-мутации в MutationObserver Lexical.
+// Клики — делегирование на root в capture-фазе.
 function ThreeStateCheckListPlugin() {
   const [editor] = useLexicalComposerContext();
 
@@ -140,51 +142,79 @@ function ThreeStateCheckListPlugin() {
     const syncCheckbox = (li: HTMLElement) => {
       const isChecked = li.getAttribute('aria-checked') === 'true';
       const value = parseInt(li.getAttribute('value') || '1', 10);
-      const isDone = isChecked && value !== 3;
-      const isCancelled = isChecked && value === 3;
+      const state = isChecked && value !== 3 ? 'done' : isChecked && value === 3 ? 'cancelled' : 'unchecked';
 
       let box = li.querySelector<HTMLElement>('.tsc-box');
-
       if (!box) {
         box = document.createElement('div');
         box.className = 'tsc-box';
-        box.style.cssText = 'width:22px;height:22px;flex-shrink:0;border:2px solid;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;margin-right:10px;margin-top:1px;';
-        box.addEventListener('mousedown', (e) => e.preventDefault()); // не сбрасываем фокус редактора
-        box.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          editor.update(() => {
-            const node = $getNearestNodeFromDOMNode(li);
-            if (!$isListItemNode(node) || node.getChecked() === undefined) return;
-            const checked = node.getChecked();
-            const val = node.getValue();
-            if (!checked) { node.setChecked(true); node.setValue(2); }
-            else if (val !== 3) { node.setValue(3); }
-            else { node.setChecked(false); node.setValue(1); }
-          });
-        });
-        // Ставим перед текстом, но после возможных вложенных списков
         li.insertBefore(box, li.firstChild);
       }
-
-      // Всегда первым ребёнком
       if (li.firstChild !== box) li.insertBefore(box, li.firstChild);
 
-      // Обновляем визуал
-      box.style.borderColor = isDone ? '#4ade80' : isCancelled ? '#f87171' : '#a78bfa';
-      box.style.background   = isDone ? '#4ade80' : isCancelled ? '#f87171' : 'rgba(0,0,0,0.5)';
-      box.innerHTML = isDone
-        ? '<span style="color:black;font-size:13px;font-weight:bold;pointer-events:none">✓</span>'
-        : isCancelled
-          ? '<span style="color:white;font-size:11px;font-weight:bold;pointer-events:none">✕</span>'
-          : '';
+      // Только атрибут — не трогаем innerHTML, чтобы не вызывать childList-мутации
+      if (box.dataset.state !== state) box.dataset.state = state;
     };
 
-    return editor.registerUpdateListener(() => {
+    const getCheckboxLi = (e: MouseEvent): HTMLElement | null => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return null;
+      const li = target.closest('li[role="checkbox"]') as HTMLElement | null;
+      if (!li) return null;
+      const box = li.querySelector<HTMLElement>('.tsc-box');
+      if (!box) return null;
+      const rect = box.getBoundingClientRect();
+      if (e.clientX >= rect.left - 4 && e.clientX <= rect.right + 4 &&
+          e.clientY >= rect.top - 4 && e.clientY <= rect.bottom + 4) {
+        return li;
+      }
+      return null;
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      const li = getCheckboxLi(e);
+      if (!li) return;
+      e.preventDefault();
+      e.stopPropagation();
+      editor.update(() => {
+        const node = $getNearestNodeFromDOMNode(li);
+        if (!$isListItemNode(node) || node.getChecked() === undefined) return;
+        const checked = node.getChecked();
+        const val = node.getValue();
+        if (!checked) { node.setChecked(true); node.setValue(2); }
+        else if (val !== 3) { node.setValue(3); }
+        else { node.setChecked(false); node.setValue(1); }
+      });
+    };
+
+    // preventDefault только — не stopPropagation, чтобы не ломать обработку Lexical
+    const handlePointerDown = (e: MouseEvent) => {
+      if (getCheckboxLi(e)) e.preventDefault();
+    };
+
+    const cleanupUpdate = editor.registerUpdateListener(() => {
       const root = editor.getRootElement();
       if (!root) return;
       root.querySelectorAll<HTMLElement>('li[role="checkbox"]').forEach(syncCheckbox);
     });
+
+    // Получаем root один раз и добавляем listeners — cleanup корректно их снимает
+    const root = editor.getRootElement();
+    if (root) {
+      root.addEventListener('click', handleClick as EventListener, { capture: true });
+      root.addEventListener('pointerdown', handlePointerDown as EventListener, { capture: true });
+      root.addEventListener('mousedown', handlePointerDown as EventListener, { capture: true });
+    }
+
+    return () => {
+      cleanupUpdate();
+      const r = editor.getRootElement();
+      if (r) {
+        r.removeEventListener('click', handleClick as EventListener, { capture: true });
+        r.removeEventListener('pointerdown', handlePointerDown as EventListener, { capture: true });
+        r.removeEventListener('mousedown', handlePointerDown as EventListener, { capture: true });
+      }
+    };
   }, [editor]);
 
   return null;

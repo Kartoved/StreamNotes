@@ -35,6 +35,45 @@ li.editor-checked[value="3"] {
   color: #718096 !important;
 }
 
+/* .tsc-box — визуальный чекбокс, состояние через data-state (без innerHTML) */
+.tsc-box {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 2px solid #a78bfa;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  margin-right: 10px;
+  margin-top: 1px;
+  background: rgba(0, 0, 0, 0.5);
+}
+.tsc-box[data-state="done"] {
+  border-color: #4ade80;
+  background: #4ade80;
+}
+.tsc-box[data-state="done"]::after {
+  content: '✓';
+  color: black;
+  font-size: 13px;
+  font-weight: bold;
+  pointer-events: none;
+}
+.tsc-box[data-state="cancelled"] {
+  border-color: #f87171;
+  background: #f87171;
+}
+.tsc-box[data-state="cancelled"]::after {
+  content: '✕';
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  pointer-events: none;
+}
+
 /* Headings in Editor */
 .editor-h1 { font-size: 1.6rem; font-weight: bold; margin: 0.8em 0 0.4em 0; line-height: 1.2; }
 .editor-h2 { font-size: 1.4rem; font-weight: bold; margin: 0.8em 0 0.4em 0; line-height: 1.2; }
