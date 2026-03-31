@@ -215,12 +215,6 @@ const NoteModal = ({
           </div>
         )}
 
-        {/* Action bar for root note */}
-        <div style={{ display: 'flex', gap: '0.75rem', fontSize: '12px', color: '#718096' }}>
-          <button type="button" onClick={() => setReplyingToId(noteId)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>💬 Ответить</button>
-          <button type="button" onClick={() => setEditingNote({ id: noteId })} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>✏️ Изменить</button>
-        </div>
-
         {replyingToId === noteId && (
           <TweetEditor
             placeholder="Напиши ответ..."
@@ -297,20 +291,14 @@ const NoteModal = ({
           </div>
         )}
 
-        {/* Reply to root at bottom */}
-        {children.length > 0 && (
-          <div>
-            {replyingToId !== noteId && (
-              <button
-                type="button"
-                onClick={() => setReplyingToId(noteId)}
-                style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.15)', color: 'var(--text-muted)', borderRadius: '6px', padding: '4px 12px', fontSize: '0.8rem', cursor: 'pointer', width: '100%' }}
-              >
-                + Добавить ответ
-              </button>
-            )}
+        {/* Bottom action bar */}
+        {replyingToId !== noteId && (
+          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '12px', color: '#718096', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '0.5rem', marginTop: 'auto' }}>
+            <button type="button" onClick={() => setReplyingToId(noteId)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>💬 Ответить</button>
+            <button type="button" onClick={() => setEditingNote({ id: noteId })} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>✏️ Изменить</button>
           </div>
         )}
+
       </div>
     </div>
   );

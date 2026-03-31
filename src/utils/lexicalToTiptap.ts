@@ -114,6 +114,12 @@ function convertNode(node: LexicalNode): PMNode | PMNode[] | null {
     case 'linebreak':
       return { type: 'hardBreak' };
 
+    case 'attachment':
+      return {
+        type: 'attachment',
+        attrs: { src: node.src, name: node.name || '', size: node.size || 0, fileType: node.fileType || 'file' },
+      };
+
     default:
       // Fallback: try to convert children
       if (node.children) {
@@ -368,6 +374,16 @@ function convertPMToLexical(node: any): any {
 
     case 'hardBreak':
       return { type: 'linebreak', version: 1 };
+
+    case 'attachment':
+      return {
+        type: 'attachment',
+        src: node.attrs?.src || '',
+        name: node.attrs?.name || '',
+        size: node.attrs?.size || 0,
+        fileType: node.attrs?.fileType || 'file',
+        version: 1,
+      };
 
     default:
       return {

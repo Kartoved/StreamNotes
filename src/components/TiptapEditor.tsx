@@ -1,5 +1,6 @@
-import React, { useEffect, useCallback, useRef, useState, forwardRef, useImperativeHandle } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
+import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
+import type { NodeViewProps } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
@@ -10,6 +11,7 @@ import CodeBlock from '@tiptap/extension-code-block';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { lexicalToTiptap, tiptapToLexical } from '../utils/lexicalToTiptap';
+import { saveToOpfs, resolveUrl, getFileType, formatSize } from '../utils/opfsFiles';
 import '../editorTheme.css';
 
 // ─── 3-State TaskItem Extension ───────────────────────────────────────
@@ -111,6 +113,110 @@ const ThreeStateTaskItem = TaskItem.extend({
   },
 });
 
+// ─── Attachment NodeView ──────────────────────────────────────────────
+const AttachmentNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
+  const { src, name, fileType, size } = node.attrs;
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    resolveUrl(src).then(setUrl).catch(() => setError(true));
+  }, [src]);
+
+  const containerStyle: React.CSSProperties = {
+    position: 'relative', display: 'block', margin: '0.5em 0',
+    outline: selected ? '2px solid #3b82f6' : 'none', borderRadius: '8px',
+  };
+
+  const deleteBtn = (
+    <button
+      type="button"
+      onMouseDown={(e) => { e.preventDefault(); deleteNode(); }}
+      style={{
+        position: 'absolute', top: '6px', right: '6px', zIndex: 10,
+        background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white',
+        borderRadius: '4px', padding: '2px 6px', cursor: 'pointer', fontSize: '0.75rem',
+      }}
+    >✕</button>
+  );
+
+  if (error) return (
+    <NodeViewWrapper>
+      <div style={{ ...containerStyle, padding: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', fontSize: '0.8rem', color: '#f87171' }}>
+        ⚠ Файл не найден: {name}
+        {deleteBtn}
+      </div>
+    </NodeViewWrapper>
+  );
+
+  if (!url) return (
+    <NodeViewWrapper>
+      <div style={{ ...containerStyle, padding: '8px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>⏳ {name}</div>
+    </NodeViewWrapper>
+  );
+
+  if (fileType === 'image') return (
+    <NodeViewWrapper>
+      <div style={containerStyle}>
+        <img src={url} alt={name} style={{ maxWidth: '100%', borderRadius: '8px', display: 'block' }} />
+        {deleteBtn}
+      </div>
+    </NodeViewWrapper>
+  );
+
+  if (fileType === 'video') return (
+    <NodeViewWrapper>
+      <div style={containerStyle}>
+        <video src={url} controls style={{ maxWidth: '100%', borderRadius: '8px', display: 'block' }} />
+        {deleteBtn}
+      </div>
+    </NodeViewWrapper>
+  );
+
+  return (
+    <NodeViewWrapper>
+      <div style={{ ...containerStyle, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+        <span style={{ fontSize: '1.4rem' }}>📎</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '0.85rem', color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatSize(size)}</div>
+        </div>
+        <a href={url} download={name} style={{ background: 'var(--accent)', color: 'white', borderRadius: '4px', padding: '3px 10px', fontSize: '0.75rem', textDecoration: 'none' }}>↓</a>
+        {deleteBtn}
+      </div>
+    </NodeViewWrapper>
+  );
+};
+
+// ─── Attachment TipTap Extension ──────────────────────────────────────
+const AttachmentExtension = Node.create({
+  name: 'attachment',
+  group: 'block',
+  atom: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      src: { default: null },
+      name: { default: '' },
+      size: { default: 0 },
+      fileType: { default: 'file' },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'div[data-type="attachment"]' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'attachment' })];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(AttachmentNodeView as any);
+  },
+});
+
 // ─── Backlink Suggestion Plugin (manual implementation) ───────────────
 const backlinkPluginKey = new PluginKey('backlink');
 
@@ -164,8 +270,9 @@ function createBacklinkPlugin(
 }
 
 // ─── Toolbar Component ────────────────────────────────────────────────
-function Toolbar({ editor }: { editor: any }) {
+function Toolbar({ editor, onUpload }: { editor: any; onUpload: (files: FileList) => void }) {
   if (!editor) return null;
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [linkPopup, setLinkPopup] = React.useState(false);
   const [linkUrl, setLinkUrl] = React.useState('');
@@ -206,6 +313,16 @@ function Toolbar({ editor }: { editor: any }) {
         {sep}
         <button type="button" title="Внешняя ссылка" style={editor.isActive('link') ? active : btn} onClick={() => { setLinkUrl(editor.getAttributes('link').href || ''); setLinkPopup(v => !v); }}>🌐</button>
         <button type="button" title="Бэклинк на заметку" style={btn} onClick={() => editor.chain().focus().insertContent('[[').run()}>🔗</button>
+        {sep}
+        <button type="button" title="Прикрепить файл / изображение / видео" style={btn} onClick={() => fileInputRef.current?.click()}>📎</button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="*/*"
+          style={{ display: 'none' }}
+          onChange={(e) => { if (e.target.files?.length) { onUpload(e.target.files); e.target.value = ''; } }}
+        />
       </div>
       {linkPopup && (
         <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
@@ -359,6 +476,9 @@ export const TweetEditor = ({
   const [blQuery, setBlQuery] = useState<string | null>(null);
   const [blActive, setBlActive] = useState(false);
 
+  // Upload ref — stable callback for editorProps (avoids stale closure)
+  const uploadFilesRef = useRef<(files: FileList | File[]) => void>(() => {});
+
   // Convert initial Lexical AST to TipTap JSON
   const initialContent = React.useMemo(() => {
     if (!initialAst) return undefined;
@@ -393,6 +513,7 @@ export const TweetEditor = ({
       ThreeStateTaskItem.configure({
         nested: true,
       }),
+      AttachmentExtension,
       Placeholder.configure({
         placeholder,
       }),
@@ -403,6 +524,16 @@ export const TweetEditor = ({
       attributes: {
         class: 'tiptap-editor',
         style: 'outline: none; min-height: 60px; padding: 4px; font-size: 15px; color: #e2e8f0; line-height: 1.5;',
+      },
+      handleDrop: (_view, event) => {
+        const files = (event as DragEvent).dataTransfer?.files;
+        if (files?.length) { event.preventDefault(); uploadFilesRef.current(files); return true; }
+        return false;
+      },
+      handlePaste: (_view, event) => {
+        const files = (event as ClipboardEvent).clipboardData?.files;
+        if (files?.length) { event.preventDefault(); uploadFilesRef.current(files); return true; }
+        return false;
       },
     },
     onUpdate: ({ editor: ed }) => {
@@ -444,6 +575,24 @@ export const TweetEditor = ({
     setBlQuery(null);
   }, [editor]);
 
+  const uploadFiles = useCallback(async (files: FileList | File[]) => {
+    if (!editor) return;
+    for (const file of Array.from(files)) {
+      try {
+        const src = await saveToOpfs(file);
+        const fileType = getFileType(src);
+        editor.chain().focus().insertContent({
+          type: 'attachment',
+          attrs: { src, name: file.name, size: file.size, fileType },
+        }).run();
+      } catch (e: any) {
+        alert(e.message);
+      }
+    }
+  }, [editor]);
+
+  useEffect(() => { uploadFilesRef.current = uploadFiles; }, [uploadFiles]);
+
   const handleSubmit = useCallback(() => {
     if (!editor) return;
     const json = editor.getJSON();
@@ -472,7 +621,7 @@ export const TweetEditor = ({
 
   return (
     <div style={{ position: 'relative', border: '1px solid rgba(255,255,255,0.02)', borderRadius: '8px', padding: '6px 8px', background: 'rgba(0,0,0,0.3)', color: '#fff' }}>
-      <Toolbar editor={editor} />
+      <Toolbar editor={editor} onUpload={(files) => uploadFiles(files)} />
 
       <div style={{ position: 'relative' }}>
         <EditorContent editor={editor} />
@@ -507,6 +656,24 @@ export const TweetEditor = ({
         </div>
       </div>
     </div>
+  );
+};
+
+// ─── Attachment display for read-only render ──────────────────────────
+const AttachmentDisplay = ({ src, name, fileType, size }: { src: string; name: string; fileType: string; size: number }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  useEffect(() => { resolveUrl(src).then(setUrl).catch(() => setError(true)); }, [src]);
+
+  if (error) return <div style={{ color: '#f87171', fontSize: '0.8rem', margin: '0.5em 0' }}>⚠ Файл не найден: {name}</div>;
+  if (!url) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '0.5em 0' }}>⏳ {name}</div>;
+
+  if (fileType === 'image') return <img src={url} alt={name} style={{ maxWidth: '100%', borderRadius: '8px', margin: '0.5em 0', display: 'block' }} />;
+  if (fileType === 'video') return <video src={url} controls style={{ maxWidth: '100%', borderRadius: '8px', margin: '0.5em 0', display: 'block' }} />;
+  return (
+    <a href={url} download={name} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#e2e8f0', textDecoration: 'none', fontSize: '0.85rem', margin: '0.5em 0' }}>
+      📎 {name} <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>({formatSize(size)})</span>
+    </a>
   );
 };
 
@@ -629,6 +796,11 @@ const renderNode = (node: any, index: number, rootAst: any, onUpdateAST?: (ast: 
 
   if (node.type === 'code-highlight') {
     return <React.Fragment key={index}>{node.text ?? ''}</React.Fragment>;
+  }
+
+  if (node.type === 'attachment') {
+    const ft = node.fileType || getFileType(node.src || '');
+    return <AttachmentDisplay key={index} src={node.src || ''} name={node.name || ''} fileType={ft} size={node.size || 0} />;
   }
 
   return <React.Fragment key={index}>{node.children?.map((c: any, i: number) => renderNode(c, i, rootAst, onUpdateAST))}</React.Fragment>;
