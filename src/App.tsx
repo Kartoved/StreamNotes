@@ -53,31 +53,25 @@ function App() {
 
   return (
     <div className="app-container">
-      <header style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem' }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '0.75rem' }}>
+        <h1 style={{ margin: 0, fontSize: '1.1rem', background: '-webkit-linear-gradient(45deg, #60a5fa, #c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          StreamNotes
+        </h1>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+          {focusedTweetId ? 'Ветка обсуждения' : 'Главная лента'}
+        </span>
         {focusedTweetId && (
-          <button 
+          <button
              onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }}
-             style={{ marginRight: '1rem', background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer' }}
+             style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '2px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}
           >
             ← В корень
           </button>
         )}
-        <div>
-           <h1 style={{ margin: 0, fontSize: '1.8rem' }}>
-             StreamNotes
-           </h1>
-           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-             {focusedTweetId ? 'Ветка обсуждения' : 'Главная лента'}
-           </p>
-        </div>
       </header>
       
       <main>
-        <div style={{ 
-          marginBottom: '2rem', padding: '1.5rem', borderRadius: '16px',
-          background: 'var(--card-bg)', backdropFilter: 'blur(12px)',
-          border: '1px solid var(--border)' 
-        }}>
+        <div style={{ marginBottom: '0.75rem' }}>
           <TweetEditor 
              placeholder={focusedTweetId ? "Оставить ответ в ветке..." : "Что происходит?"}
              buttonText="Твитнуть"

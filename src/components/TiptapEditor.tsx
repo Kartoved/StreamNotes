@@ -167,6 +167,9 @@ function createBacklinkPlugin(
 function Toolbar({ editor }: { editor: any }) {
   if (!editor) return null;
 
+  const [linkPopup, setLinkPopup] = React.useState(false);
+  const [linkUrl, setLinkUrl] = React.useState('');
+
   const btn: React.CSSProperties = {
     background: 'none', border: 'none', color: '#94a3b8',
     borderRadius: '4px', padding: '3px 6px', cursor: 'pointer',
@@ -175,18 +178,50 @@ function Toolbar({ editor }: { editor: any }) {
   const active: React.CSSProperties = { ...btn, color: '#e2e8f0', background: 'rgba(255,255,255,0.15)' };
   const sep = <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 2px', alignSelf: 'stretch' }} />;
 
+  const applyLink = () => {
+    if (linkUrl) {
+      const href = linkUrl.startsWith('http') ? linkUrl : `https://${linkUrl}`;
+      editor.chain().focus().setLink({ href }).run();
+    } else {
+      editor.chain().focus().unsetLink().run();
+    }
+    setLinkPopup(false);
+    setLinkUrl('');
+  };
+
   return (
-    <div style={{ display: 'flex', gap: '2px', marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.08)', alignItems: 'center' }}>
-      <button type="button" title="Жирный" style={editor.isActive('bold') ? active : { ...btn, fontWeight: 'bold' }} onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
-      <button type="button" title="Курсив" style={editor.isActive('italic') ? active : { ...btn, fontStyle: 'italic' }} onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
-      <button type="button" title="Подчёркнутый" style={editor.isActive('underline') ? active : { ...btn, textDecoration: 'underline' }} onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
-      <button type="button" title="Зачёркнутый" style={editor.isActive('strike') ? active : { ...btn, textDecoration: 'line-through' }} onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
-      {sep}
-      <button type="button" title="Заголовок H2" style={editor.isActive('heading', { level: 2 }) ? active : btn} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
-      <button type="button" title="Блок кода" style={editor.isActive('codeBlock') ? active : btn} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>&lt;/&gt;</button>
-      <button type="button" title="Бэклинк" style={btn} onClick={() => editor.chain().focus().insertContent('[[').run()}>🔗</button>
-      {sep}
-      <button type="button" title="Чеклист" style={editor.isActive('taskList') ? active : btn} onClick={() => editor.chain().focus().toggleTaskList().run()}>☑</button>
+    <div style={{ marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexWrap: 'nowrap' }}>
+        <button type="button" title="Жирный" style={editor.isActive('bold') ? active : { ...btn, fontWeight: 'bold' }} onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
+        <button type="button" title="Курсив" style={editor.isActive('italic') ? active : { ...btn, fontStyle: 'italic' }} onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
+        <button type="button" title="Подчёркнутый" style={editor.isActive('underline') ? active : { ...btn, textDecoration: 'underline' }} onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
+        <button type="button" title="Зачёркнутый" style={editor.isActive('strike') ? active : { ...btn, textDecoration: 'line-through' }} onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
+        {sep}
+        <button type="button" title="Заголовок H2" style={editor.isActive('heading', { level: 2 }) ? active : btn} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
+        <button type="button" title="Блок кода" style={editor.isActive('codeBlock') ? active : btn} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>&lt;/&gt;</button>
+        {sep}
+        <button type="button" title="Буллет список" style={editor.isActive('bulletList') ? active : btn} onClick={() => editor.chain().focus().toggleBulletList().run()}>•≡</button>
+        <button type="button" title="Нумерованный список" style={editor.isActive('orderedList') ? active : btn} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1≡</button>
+        <button type="button" title="Чеклист" style={editor.isActive('taskList') ? active : btn} onClick={() => editor.chain().focus().toggleTaskList().run()}>☑</button>
+        {sep}
+        <button type="button" title="Внешняя ссылка" style={editor.isActive('link') ? active : btn} onClick={() => { setLinkUrl(editor.getAttributes('link').href || ''); setLinkPopup(v => !v); }}>🌐</button>
+        <button type="button" title="Бэклинк на заметку" style={btn} onClick={() => editor.chain().focus().insertContent('[[').run()}>🔗</button>
+      </div>
+      {linkPopup && (
+        <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+          <input
+            autoFocus
+            type="text"
+            placeholder="https://..."
+            value={linkUrl}
+            onChange={e => setLinkUrl(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') applyLink(); if (e.key === 'Escape') setLinkPopup(false); }}
+            style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', color: '#e2e8f0', fontSize: '0.8rem', padding: '3px 7px', outline: 'none' }}
+          />
+          <button type="button" onClick={applyLink} style={{ ...btn, color: '#60a5fa', padding: '3px 8px' }}>OK</button>
+          <button type="button" onClick={() => setLinkPopup(false)} style={{ ...btn, padding: '3px 8px' }}>✕</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -436,7 +471,7 @@ export const TweetEditor = ({
   const optStyle: React.CSSProperties = { backgroundColor: '#1e293b', color: '#e2e8f0' };
 
   return (
-    <div style={{ position: 'relative', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '6px 8px', background: 'rgba(0,0,0,0.3)', color: '#fff' }}>
+    <div style={{ position: 'relative', border: '1px solid rgba(255,255,255,0.02)', borderRadius: '8px', padding: '6px 8px', background: 'rgba(0,0,0,0.3)', color: '#fff' }}>
       <Toolbar editor={editor} />
 
       <div style={{ position: 'relative' }}>
@@ -587,7 +622,13 @@ const renderNode = (node: any, index: number, rootAst: any, onUpdateAST?: (ast: 
   }
 
   if (node.type === 'code') {
-    return <pre key={index} style={{ background: '#1a202c', padding: '12px', borderRadius: '8px', border: '1px solid #2d3748', overflowX: 'auto', margin: '0.5em 0' }}><code style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>{node.children?.map((c: any, i: number) => renderNode(c, i, rootAst, onUpdateAST))}</code></pre>;
+    // code-highlight children just have .text, extract it directly
+    const codeText = node.children?.map((c: any) => c.text ?? '').join('') ?? '';
+    return <pre key={index} style={{ background: '#1a202c', padding: '12px', borderRadius: '8px', border: '1px solid #2d3748', overflowX: 'auto', margin: '0.5em 0' }}><code style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>{codeText}</code></pre>;
+  }
+
+  if (node.type === 'code-highlight') {
+    return <React.Fragment key={index}>{node.text ?? ''}</React.Fragment>;
   }
 
   return <React.Fragment key={index}>{node.children?.map((c: any, i: number) => renderNode(c, i, rootAst, onUpdateAST))}</React.Fragment>;
