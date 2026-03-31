@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotes } from '../db/hooks';
 import { useDB } from '../db/DBContext';
-import { TweetEditor, LexicalRender } from './LexicalEditor';
+import { TweetEditor, LexicalRender } from './TiptapEditor';
 
 interface FeedProps {
   parentId?: string | null;

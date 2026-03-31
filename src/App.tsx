@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useDB } from './db/DBContext';
 import { Feed } from './components/Feed';
-import { TweetEditor } from './components/LexicalEditor';
+import { TweetEditor } from './components/TiptapEditor';
 import './index.css';
 
 function App() {
