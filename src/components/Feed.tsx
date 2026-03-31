@@ -128,7 +128,7 @@ export const Feed = ({
   const virtualizer = useVirtualizer({
     count: visibleNotes.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 140, // Увеличили из-за количества свойств
+    estimateSize: () => 80,
   });
 
   React.useEffect(() => {
@@ -294,71 +294,66 @@ export const Feed = ({
                  setDraggedId(null);
                  setDragOverInfo(null);
               }}
+              className="note-card"
               style={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
                 width: '100%',
                 transform: `translateY(${virtualItem.start}px)`,
-                padding: `1rem 1rem 1rem calc(1rem + ${indent}px)`, 
-                borderBottom: isDragOverBottom ? '3px solid var(--accent)' : '1px solid transparent',
+                padding: `0.4rem 0.75rem 0.4rem calc(0.75rem + ${indent}px)`,
+                borderBottom: isDragOverBottom ? '3px solid var(--accent)' : '1px solid var(--border)',
                 borderTop: isDragOverTop ? '3px solid var(--accent)' : '1px solid transparent',
                 background: finalBg,
-                borderRadius: '8px',
-                marginBottom: '8px',
                 transition: 'background 0.2s',
-                opacity: draggedId === note.id ? 0.3 : 1, 
-                cursor: (editingNote?.id === note.id || isReplying) ? 'default' : 'pointer'
-              }}
-              onClick={() => {
-                 if (!editingNote && !isReplying) onNoteClick?.(note.id);
+                opacity: draggedId === note.id ? 0.3 : 1,
               }}
             >
               {note.depth > 0 && (
                 <div style={{
                   position: 'absolute',
-                  left: `calc(1rem + ${indent - 14}px)`,
-                  top: '1rem',
-                  bottom: '-1rem',
+                  left: `calc(0.75rem + ${indent - 14}px)`,
+                  top: '0.4rem',
+                  bottom: '-0.4rem',
                   width: '2px',
                   background: 'var(--border)'
                 }} />
               )}
 
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.8rem', gap: '8px', flexWrap: 'wrap' }}>
-                <div 
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.25rem', gap: '6px' }}>
+                <div
                    onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
-                   style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent)', cursor: 'pointer' }} 
+                   style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }}
                 />
-                <strong 
-                  style={{ color: 'var(--text-main)', cursor: 'pointer' }}
+                <strong
+                  style={{ color: 'var(--text-main)', cursor: 'pointer', fontSize: '0.85rem' }}
                   onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
                 >
                    {note.author_id}
                 </strong>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
                     {new Date(note.created_at).toLocaleTimeString().slice(0, 5)}
                 </span>
-                
-                <button 
-                   onClick={(e) => { 
-                      e.stopPropagation(); 
-                      setCollapsedIds(prev => { 
-                          const next = new Set(prev); 
+
+                <button
+                   onClick={(e) => {
+                      e.stopPropagation();
+                      setCollapsedIds(prev => {
+                          const next = new Set(prev);
                           if (next.has(note.id)) next.delete(note.id); else next.add(note.id);
                           return next;
-                      }); 
+                      });
                    }}
                    title="Свернуть/Развернуть ветку ответов"
-                   style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', marginLeft: 'auto' }}
+                   style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.65rem', padding: '1px 5px', cursor: 'pointer', marginLeft: 'auto' }}
                 >
-                   {collapsedIds.has(note.id) ? '🔽 Развернуть тред' : '🔼 Свернуть'}
+                   {collapsedIds.has(note.id) ? '▼' : '▲'}
                 </button>
               </div>
 
               {/* Панель мощных свойств! */}
               {showProperties && (
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '4px' }}>
                     <select 
                       value={type}
                       onChange={(e) => updateProperty(note.id, note.properties, 'type', e.target.value)}
@@ -386,7 +381,7 @@ export const Feed = ({
 
               {/* Edit Mode vs View Mode */}
               {editingNote?.id === note.id ? (
-                 <div style={{ marginTop: '0.5rem', marginBottom: '1rem' }} onClick={(e:any) => e.stopPropagation()}>
+                 <div style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }} onClick={(e:any) => e.stopPropagation()}>
                     <TweetEditor 
                        initialAst={note.content}
                        initialPropsStr={note.properties}
@@ -400,12 +395,7 @@ export const Feed = ({
                     />
                  </div>
               ) : (
-                 <div className="note-content" style={{ marginTop: '0.5rem', fontSize: '15px', lineHeight: 1.5, color: '#e2e8f0' }} onClick={(e) => {
-                    // Prevent navigating if clicking on interactive checkbox
-                    if ((e.target as any).tagName?.toLowerCase() === 'input' || (e.target as HTMLElement).closest('[style*="border-color"]')) {
-                        return; // Handle in LexicalRender
-                    }
-                 }}>
+                 <div className="note-content" style={{ marginTop: '0.2rem', fontSize: '14px', lineHeight: 1.45, color: '#e2e8f0' }}>
                    <LexicalRender 
                       astString={note.content} 
                       onUpdateAST={(newAst) => {
@@ -418,15 +408,15 @@ export const Feed = ({
                  </div>
               )}
 
-              {/* Actions */}
-              <div className="note-actions" style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', color: '#718096', fontSize: '13px' }}>
+              {/* Actions — visible on hover via CSS */}
+              <div className="note-actions" style={{ display: 'flex', gap: '0.75rem', marginTop: '0.15rem', color: '#718096', fontSize: '12px' }}>
                  {!isReplying && (
-                    <button type="button" onClick={(e) => { e.stopPropagation(); if (onStartReply) onStartReply(note.id); }} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); if (onStartReply) onStartReply(note.id); }} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', padding: 0 }}>
                        💬 Ответить
                     </button>
                  )}
                  {!editingNote && (
-                    <button type="button" onClick={(e) => { e.stopPropagation(); if (onStartEdit) onStartEdit(note); }} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); if (onStartEdit) onStartEdit(note); }} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', padding: 0 }}>
                        ✏️ Изменить
                     </button>
                  )}

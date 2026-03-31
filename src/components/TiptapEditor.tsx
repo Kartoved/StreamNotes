@@ -167,32 +167,26 @@ function createBacklinkPlugin(
 function Toolbar({ editor }: { editor: any }) {
   if (!editor) return null;
 
-  const btnStyle: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.1)',
-    border: 'none',
-    color: '#e2e8f0',
-    borderRadius: '4px',
-    padding: '4px 8px',
-    cursor: 'pointer',
-    fontSize: '0.9rem',
-    transition: '0.2s',
+  const btn: React.CSSProperties = {
+    background: 'none', border: 'none', color: '#94a3b8',
+    borderRadius: '4px', padding: '3px 6px', cursor: 'pointer',
+    fontSize: '0.85rem', transition: 'color 0.15s, background 0.15s',
   };
-  const activeStyle: React.CSSProperties = { ...btnStyle, background: 'rgba(255,255,255,0.25)' };
+  const active: React.CSSProperties = { ...btn, color: '#e2e8f0', background: 'rgba(255,255,255,0.15)' };
+  const sep = <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 2px', alignSelf: 'stretch' }} />;
 
   return (
-    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.1)', flexWrap: 'wrap' }}>
-      <button type="button" style={editor.isActive('bold') ? activeStyle : { ...btnStyle, fontWeight: 'bold' }} onClick={() => editor.chain().focus().toggleBold().run()}>Ж</button>
-      <button type="button" style={editor.isActive('italic') ? activeStyle : { ...btnStyle, fontStyle: 'italic' }} onClick={() => editor.chain().focus().toggleItalic().run()}>К</button>
-      <button type="button" style={editor.isActive('underline') ? activeStyle : { ...btnStyle, textDecoration: 'underline' }} onClick={() => editor.chain().focus().toggleUnderline().run()}>Ч</button>
-      <button type="button" style={editor.isActive('strike') ? activeStyle : { ...btnStyle, textDecoration: 'line-through' }} onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
-      <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
-      <button type="button" style={editor.isActive('heading', { level: 2 }) ? activeStyle : btnStyle} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2 Заголовок</button>
-      <button type="button" style={editor.isActive('codeBlock') ? activeStyle : btnStyle} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>&lt;/&gt; Код</button>
-      <button type="button" style={btnStyle} onClick={() => {
-        editor.chain().focus().insertContent('[[').run();
-      }}>🔗 Линк</button>
-      <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
-      <button type="button" style={editor.isActive('taskList') ? activeStyle : btnStyle} onClick={() => editor.chain().focus().toggleTaskList().run()}>☑ Чеклист</button>
+    <div style={{ display: 'flex', gap: '2px', marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.08)', alignItems: 'center' }}>
+      <button type="button" title="Жирный" style={editor.isActive('bold') ? active : { ...btn, fontWeight: 'bold' }} onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
+      <button type="button" title="Курсив" style={editor.isActive('italic') ? active : { ...btn, fontStyle: 'italic' }} onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
+      <button type="button" title="Подчёркнутый" style={editor.isActive('underline') ? active : { ...btn, textDecoration: 'underline' }} onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
+      <button type="button" title="Зачёркнутый" style={editor.isActive('strike') ? active : { ...btn, textDecoration: 'line-through' }} onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
+      {sep}
+      <button type="button" title="Заголовок H2" style={editor.isActive('heading', { level: 2 }) ? active : btn} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
+      <button type="button" title="Блок кода" style={editor.isActive('codeBlock') ? active : btn} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>&lt;/&gt;</button>
+      <button type="button" title="Бэклинк" style={btn} onClick={() => editor.chain().focus().insertContent('[[').run()}>🔗</button>
+      {sep}
+      <button type="button" title="Чеклист" style={editor.isActive('taskList') ? active : btn} onClick={() => editor.chain().focus().toggleTaskList().run()}>☑</button>
     </div>
   );
 }
@@ -442,7 +436,7 @@ export const TweetEditor = ({
   const optStyle: React.CSSProperties = { backgroundColor: '#1e293b', color: '#e2e8f0' };
 
   return (
-    <div style={{ position: 'relative', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px', background: 'rgba(0,0,0,0.5)', color: '#fff' }}>
+    <div style={{ position: 'relative', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '6px 8px', background: 'rgba(0,0,0,0.3)', color: '#fff' }}>
       <Toolbar editor={editor} />
 
       <div style={{ position: 'relative' }}>

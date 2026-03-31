@@ -40,6 +40,16 @@ h1 {
   margin-bottom: 0.5rem;
 }
 
+/* Feed card hover actions */
+.note-card .note-actions {
+  opacity: 0;
+  transition: opacity 0.15s;
+  height: 20px;
+}
+.note-card:hover .note-actions {
+  opacity: 1;
+}
+
 .glass-panel {
   background: var(--card-bg);
   backdrop-filter: blur(12px);
