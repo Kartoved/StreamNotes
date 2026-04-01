@@ -112,7 +112,7 @@ const FeedsSidebar = ({
 
   return (
     <>
-      <div style={{
+      <div className="feeds-sidebar" style={{
         width: '64px', flexShrink: 0,
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         paddingTop: '12px', paddingBottom: '12px', gap: '8px',
@@ -125,7 +125,7 @@ const FeedsSidebar = ({
       }}>
         {/* Logo */}
         <div style={{ fontSize: '1.4rem', marginBottom: '4px', userSelect: 'none' }}>📝</div>
-        <div style={{ width: '32px', height: '1px', background: 'var(--border)', marginBottom: '4px' }} />
+        <div className="feed-logo-sep" style={{ width: '32px', height: '1px', background: 'var(--border)', marginBottom: '4px' }} />
 
         {feeds.map(feed => (
           <div
@@ -511,9 +511,9 @@ function App() {
       />
 
       {/* ── Main content ── */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1rem', boxSizing: 'border-box', alignItems: 'center' }}>
+      <div className="main-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1rem', boxSizing: 'border-box', alignItems: 'center' }}>
         {/* Header */}
-        <header style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '0.75rem', flexShrink: 0, width: '100%', maxWidth: '980px' }}>
+        <header className="app-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '0.75rem', flexShrink: 0, width: '100%', maxWidth: '980px' }}>
           <h1 style={{ margin: 0, fontSize: '1.1rem', background: '-webkit-linear-gradient(45deg, #60a5fa, #c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', flexShrink: 0 }}>
             {activeFeed?.name || 'StreamNotes'}
           </h1>
@@ -563,7 +563,7 @@ function App() {
           </div>
 
           {/* Right sidebar */}
-          <div style={{
+          <div className="right-sidebar" style={{
             width: '220px', flexShrink: 0,
             display: 'flex', flexDirection: 'column', gap: '16px',
             overflowY: 'auto',

@@ -162,14 +162,40 @@ h1 {
 }
 
 /* Mobile */
-@media (max-width: 600px) {
-  .app-container {
-    padding: 0.4rem 0.4rem;
+@media (max-width: 640px) {
+  /* Feeds sidebar — horizontal strip at bottom on mobile */
+  .feeds-sidebar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    width: 100% !important;
+    height: 60px !important;
+    flex-direction: row !important;
+    padding: 0 12px !important;
+    gap: 6px !important;
+    border-right: none !important;
+    border-top: 1px solid var(--border) !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    z-index: 100;
+    justify-content: flex-start;
+    align-items: center;
   }
 
-  /* Always show actions on touch devices */
-  .note-card .note-actions {
-    opacity: 1;
-    height: auto;
+  .feeds-sidebar .feed-logo-sep { display: none; }
+
+  /* Hide right sidebar on mobile */
+  .right-sidebar { display: none !important; }
+
+  /* Main content — full width, bottom padding for tab bar */
+  .main-content {
+    padding-bottom: 68px !important;
+  }
+
+  /* Smaller header */
+  .app-header h1 { font-size: 0.95rem !important; }
+
+  /* Feed height adjustment */
+  .feed-scroll-container {
+    max-height: calc(100vh - 220px);
   }
 }

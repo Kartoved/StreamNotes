@@ -15,7 +15,14 @@
       "Bash(find c:/Users/karto/Desktop/StreamNotes/StreamNotes/.vite -o -find c:/Users/karto/Desktop/StreamNotes/StreamNotes -name *.mjs -path *list*)",
       "Bash(npm install:*)",
       "Bash(git checkout:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "WebFetch(domain:peerpass.io)",
+      "WebFetch(domain:peerpass.app)",
+      "WebSearch",
+      "Bash(gh search:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.pears.com)",
+      "Bash(node -e \":*)"
     ]
   }
 }
