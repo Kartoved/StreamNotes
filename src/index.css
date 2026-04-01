@@ -24,7 +24,7 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: 'Source Code Pro', 'Courier New', monospace;
   background-color: var(--bg-color);
   color: var(--text-main);
   background-image: var(--bg-gradient);
@@ -133,6 +133,32 @@ h1 {
 }
 [data-theme="light"] .tiptap-editor {
   color: var(--text-main) !important;
+}
+
+/* Feeds sidebar tooltip */
+.feed-item { position: relative; }
+.feed-item:hover .feed-tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  pointer-events: none;
+}
+.feed-tooltip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-6px);
+  background: var(--card-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+  pointer-events: none;
+  z-index: 1000;
 }
 
 /* Mobile */

@@ -6,6 +6,7 @@ import { TweetEditor, LexicalRender } from './TiptapEditor';
 
 interface FeedProps {
   parentId?: string | null;
+  feedId?: string | null;
   onNoteClick?: (id: string) => void;
   replyingToId?: string | null;
   editingNote?: any | null;
@@ -15,10 +16,9 @@ interface FeedProps {
   onStartEdit?: (note: any) => void;
   onCancelEdit?: () => void;
   onSubmitEdit?: (id: string, text: string, propsJson: string) => void;
-  // Filters from sidebar
   searchQuery?: string;
   selectedTags?: Set<string>;
-  selectedDate?: string | null; // 'YYYY-MM-DD'
+  selectedDate?: string | null;
 }
 
 // Export helpers for use in sidebar
@@ -236,6 +236,7 @@ const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; onClose: 
 // ─── Feed ─────────────────────────────────────────────────────────────
 export const Feed = ({
   parentId = null,
+  feedId = null,
   onNoteClick,
   replyingToId,
   editingNote,
@@ -250,7 +251,7 @@ export const Feed = ({
   selectedDate = null,
 }: FeedProps) => {
   const db = useDB();
-  const notes = useNotes(parentId);
+  const notes = useNotes(parentId, feedId);
   const parentRef = useRef<HTMLDivElement>(null);
 
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -504,9 +505,12 @@ export const Feed = ({
 
                     {/* RIGHT: content + meta */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      {/* Top-right: expand + collapse buttons */}
+                      {/* Top-right: expand + edit + collapse */}
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px', marginBottom: '2px' }}>
                         <button onClick={(e) => { e.stopPropagation(); setExpandedNoteId(note.id); }} title="Раскрыть" style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.62rem', padding: '1px 5px', cursor: 'pointer' }}>⛶</button>
+                        {!editingNote && (
+                          <button type="button" title="Изменить" onClick={(e) => { e.stopPropagation(); onStartEdit?.(note); }} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.62rem', padding: '1px 5px', cursor: 'pointer' }}>✏️</button>
+                        )}
                         <button
                           onClick={(e) => { e.stopPropagation(); setCollapsedIds(prev => { const next = new Set(prev); next.has(note.id) ? next.delete(note.id) : next.add(note.id); return next; }); }}
                           title="Свернуть/Развернуть"
@@ -547,12 +551,9 @@ export const Feed = ({
                       )}
 
 
-                      {!editingNote && (
-                        <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                          {!isReplying && (
-                            <button type="button" title="Ответить" onClick={(e) => { e.stopPropagation(); onStartReply?.(note.id); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: '14px', lineHeight: 1 }}>💬</button>
-                          )}
-                          <button type="button" title="Изменить" onClick={(e) => { e.stopPropagation(); onStartEdit?.(note); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: '14px', lineHeight: 1 }}>✏️</button>
+                      {!editingNote && !isReplying && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                          <button type="button" title="Ответить" onClick={(e) => { e.stopPropagation(); onStartReply?.(note.id); }} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', cursor: 'pointer', padding: '1px 6px', fontSize: '0.72rem', lineHeight: 1.4 }}>💬</button>
                         </div>
                       )}
                     </div>
