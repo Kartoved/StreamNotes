@@ -10,7 +10,6 @@ import Placeholder from '@tiptap/extension-placeholder';
 import CodeBlock from '@tiptap/extension-code-block';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
-import { lexicalToTiptap, tiptapToLexical } from '../utils/lexicalToTiptap';
 import { saveToOpfs, resolveUrl, getFileType, formatSize } from '../utils/opfsFiles';
 import '../editorTheme.css';
 
@@ -330,7 +329,7 @@ function Toolbar({ editor, onUpload }: { editor: any; onUpload: (files: FileList
     fontSize: '0.85rem', transition: 'color 0.15s, background 0.15s',
   };
   const active: React.CSSProperties = { ...btn, color: '#e2e8f0', background: 'rgba(255,255,255,0.15)' };
-  const sep = <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 2px', alignSelf: 'stretch' }} />;
+  const sep = <div style={{ width: '1px', background: 'var(--border)', margin: '0 2px', alignSelf: 'stretch' }} />;
 
   const applyLink = () => {
     if (linkUrl) {
@@ -344,7 +343,7 @@ function Toolbar({ editor, onUpload }: { editor: any; onUpload: (files: FileList
   };
 
   return (
-    <div style={{ marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+    <div style={{ marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
       <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '2px' }}>
         <button type="button" title="Жирный" style={editor.isActive('bold') ? active : { ...btn, fontWeight: 'bold' }} onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
         <button type="button" title="Курсив" style={editor.isActive('italic') ? active : { ...btn, fontStyle: 'italic' }} onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
@@ -408,27 +407,18 @@ function BacklinkDropdown({
 
   useEffect(() => {
     if (!db) return;
-    db.execO(`SELECT id, content FROM notes WHERE (content LIKE ?) AND (content NOT LIKE '{"root":{"children":[],%') LIMIT 15`, [`%${query}%`])
+    db.execO(`SELECT id, content FROM notes LIMIT 50`, [])
       .then((res: any[]) => {
-        setResults(res.map((n: any) => {
+        const extractText = (node: any): string => {
+          if (node.type === 'text') return node.text || '';
+          return (node.content || []).map((c: any) => extractText(c)).join(' ');
+        };
+        const filtered = res.map((n: any) => {
           let text = '';
-          try {
-            const parsed = JSON.parse(n.content);
-            const extractAllText = (node: any): string => {
-              if (node.type === 'text') return node.text || '';
-              if (node.children) return node.children.map((c: any) => extractAllText(c)).join(' ');
-              // TipTap format
-              if (node.content) return node.content.map((c: any) => extractAllText(c)).join(' ');
-              return '';
-            };
-            text = extractAllText(parsed.root || parsed).trim();
-          } catch {
-            text = n.content;
-          }
-          if (!text) text = n.id;
-          if (text.length > 50) text = text.slice(0, 50) + '...';
-          return { id: n.id, title: text };
-        }));
+          try { const doc = JSON.parse(n.content); text = extractText(doc).trim(); } catch { text = n.id; }
+          return { id: n.id, title: text || n.id };
+        }).filter(r => !query || r.title.toLowerCase().includes(query.toLowerCase())).slice(0, 15);
+        setResults(filtered.map(r => ({ id: r.id, title: r.title.length > 50 ? r.title.slice(0, 50) + '...' : r.title })));
         setSelectedIndex(0);
       });
   }, [query, db]);
@@ -559,11 +549,9 @@ export const TweetEditor = ({
   // Upload progress: { done, total } | null
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
 
-  // Convert initial Lexical AST to TipTap JSON
   const initialContent = React.useMemo(() => {
     if (!initialAst) return undefined;
-    const converted = lexicalToTiptap(initialAst);
-    return converted || undefined;
+    try { return JSON.parse(initialAst); } catch { return undefined; }
   }, [initialAst]);
 
   const editor = useEditor({
@@ -701,10 +689,8 @@ export const TweetEditor = ({
     const json = editor.getJSON();
     if (!hasTextContent(json)) return;
 
-    // Convert TipTap JSON → Lexical AST for DB storage
-    const lexicalStr = tiptapToLexical(json);
     const propsJson = JSON.stringify({ type, status, date });
-    onSubmit(lexicalStr, propsJson);
+    onSubmit(JSON.stringify(json), propsJson);
 
     if (!initialAst) {
       // Reset editor
@@ -724,7 +710,7 @@ export const TweetEditor = ({
   const optStyle: React.CSSProperties = { backgroundColor: '#1e293b', color: '#e2e8f0' };
 
   return (
-    <div style={{ position: 'relative', border: '1px solid rgba(255,255,255,0.02)', borderRadius: '8px', padding: '6px 8px', background: 'rgba(0,0,0,0.3)', color: '#fff' }}>
+    <div style={{ position: 'relative', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 12px', background: 'var(--card-bg)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', color: 'var(--text-main)' }}>
       <Toolbar editor={editor} onUpload={(files) => uploadFiles(files)} />
 
       <div style={{ position: 'relative' }}>
@@ -742,7 +728,7 @@ export const TweetEditor = ({
 
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center',
-        marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)',
+        marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)',
       }}>
         <select value={type} onChange={(e) => setType(e.target.value)} style={selStyle}>
           {TYPES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
@@ -803,158 +789,134 @@ const AttachmentDisplay = ({ src, name, fileType, size, inGrid }: { src: string;
   );
 };
 
-// ─── LexicalRender (read-only AST renderer — pure React, no editor) ──
-// This was already independent of Lexical's editor runtime.
-// It renders Lexical AST JSON into React elements with interactive checkboxes.
-const renderNode = (node: any, index: number, rootAst: any, onUpdateAST?: (ast: string) => void): React.ReactNode => {
+// ─── TipTap Read-only Renderer ────────────────────────────────────────
+// Renders TipTap JSON (doc format) into React elements without a full editor.
+
+const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: string) => void, docJson?: any): React.ReactNode => {
   if (!node) return null;
+  const ch = () => (node.content || []).map((c: any, i: number) => renderTiptapNode(c, i, onUpdateAST, docJson));
 
   if (node.type === 'text') {
-    let el: any = node.text;
-    if (node.format & 1) el = <strong key={index}>{el}</strong>;
-    if (node.format & 2) el = <em key={index}>{el}</em>;
-    if (node.format & 4) el = <s key={index} style={{ textDecoration: 'line-through' }}>{el}</s>;
-    if (node.format & 8) el = <u key={index}>{el}</u>;
-    if (node.format & 16) el = <code key={index} style={{ background: '#2d3748', padding: '2px 4px', borderRadius: '4px' }}>{el}</code>;
+    const marks: string[] = (node.marks || []).map((m: any) => m.type);
+    const linkMark = (node.marks || []).find((m: any) => m.type === 'link');
+    let el: React.ReactNode = node.text;
+    if (marks.includes('bold')) el = <strong>{el}</strong>;
+    if (marks.includes('italic')) el = <em>{el}</em>;
+    if (marks.includes('strike')) el = <s style={{ textDecoration: 'line-through' }}>{el}</s>;
+    if (marks.includes('underline')) el = <u>{el}</u>;
+    if (marks.includes('code')) el = <code style={{ background: '#2d3748', padding: '2px 4px', borderRadius: '4px', fontSize: '0.88em' }}>{el}</code>;
+    if (linkMark) {
+      const href: string = linkMark.attrs?.href || '';
+      const isInternal = href.startsWith('note://');
+      const id = isInternal ? href.replace('note://', '') : null;
+      el = (
+        <a
+          href={isInternal ? '#' : href}
+          onClick={(e) => { if (isInternal) { e.preventDefault(); e.stopPropagation(); (window as any).scrollToNote?.(id); } }}
+          style={{ color: isInternal ? '#93c5fd' : 'var(--accent)', textDecoration: 'underline', background: isInternal ? 'rgba(147,197,253,0.1)' : 'transparent', padding: isInternal ? '2px 4px' : '0', borderRadius: isInternal ? '4px' : '0', fontWeight: isInternal ? 'bold' : 'normal' }}
+        >
+          {isInternal && '🔗 '}{node.text?.replace(/^\[\[/, '').replace(/\]\]$/, '')}
+        </a>
+      );
+    }
     return <React.Fragment key={index}>{el}</React.Fragment>;
   }
 
   if (node.type === 'paragraph') {
-    const align = node.format === 2 ? 'right' : (node.format === 3 ? 'center' : 'left');
-    return <p key={index} style={{ margin: '0 0 0.5em', textAlign: align as any }}>{node.children?.map((c: any, i: number) => renderNode(c, i, rootAst, onUpdateAST))}</p>;
+    const align = node.attrs?.textAlign || 'left';
+    return <p key={index} style={{ margin: '0 0 0.5em', textAlign: align }}>{ch()}</p>;
   }
 
   if (node.type === 'heading') {
-    const Tag = node.tag as any;
-    const fSize = Tag === 'h1' ? '1.6rem' : (Tag === 'h2' ? '1.4rem' : '1.2rem');
-    return <Tag key={index} style={{ fontSize: fSize, marginTop: '0.8em', marginBottom: '0.4em', fontWeight: 'bold', lineHeight: 1.2 }}>{node.children?.map((c: any, i: number) => renderNode(c, i, rootAst, onUpdateAST))}</Tag>;
+    const level = node.attrs?.level || 2;
+    const Tag = `h${level}` as any;
+    const fSize = level === 1 ? '1.6rem' : level === 2 ? '1.4rem' : '1.2rem';
+    return <Tag key={index} style={{ fontSize: fSize, marginTop: '0.8em', marginBottom: '0.4em', fontWeight: 'bold', lineHeight: 1.2 }}>{ch()}</Tag>;
   }
 
-  if (node.type === 'list') {
-    const Tag = node.listType === 'number' ? 'ol' : 'ul';
-    return <Tag key={index} style={{ margin: '0.5em 0', paddingLeft: node.listType === 'check' ? '0' : '20px', listStyleType: node.listType === 'check' ? 'none' : 'inherit' }}>{node.children?.map((c: any, i: number) => renderNode(c, i, rootAst, onUpdateAST))}</Tag>;
+  if (node.type === 'bulletList') {
+    return <ul key={index} style={{ margin: '0.5em 0', paddingLeft: '20px' }}>{ch()}</ul>;
+  }
+  if (node.type === 'orderedList') {
+    return <ol key={index} style={{ margin: '0.5em 0', paddingLeft: '20px' }}>{ch()}</ol>;
+  }
+  if (node.type === 'listItem') {
+    return <li key={index}>{ch()}</li>;
   }
 
-  if (node.type === 'listitem') {
-    if (node.checked !== undefined) {
-      const isDone = node.checked && node.value !== 3;
-      const isCancelled = node.checked && node.value === 3;
-
-      return (
-        <li key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onUpdateAST && rootAst) {
-                if (!node.checked) { node.checked = true; node.value = 2; }
-                else if (node.checked && node.value !== 3) { node.value = 3; }
-                else { node.checked = false; node.value = 1; }
-                onUpdateAST(JSON.stringify({ root: rootAst }));
-              }
-            }}
-            style={{
-              marginTop: '0.2rem', width: '24px', height: '24px', flexShrink: 0,
-              border: '2px solid',
-              borderColor: isDone ? '#4ade80' : (isCancelled ? '#f87171' : '#a78bfa'),
-              background: isDone ? '#4ade80' : (isCancelled ? '#f87171' : 'rgba(0,0,0,0.5)'),
-              borderRadius: '4px', cursor: onUpdateAST ? 'pointer' : 'default',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: '0.2s all', position: 'relative',
-            }}
-          >
-            {isDone && <span style={{ color: 'black', fontSize: '14px', fontWeight: 'bold', lineHeight: 1, pointerEvents: 'none' }}>✓</span>}
-            {isCancelled && <span style={{ color: 'white', fontSize: '12px', fontWeight: 'bold', lineHeight: 1, pointerEvents: 'none' }}>✕</span>}
-          </div>
-          <span style={{
-            textDecoration: isCancelled ? 'line-through' : 'none',
-            color: isDone ? '#4ade80' : (isCancelled ? '#718096' : 'inherit'),
-            transition: '0.2s', opacity: isCancelled ? 0.6 : 1, marginTop: '0.1rem',
-          }}>
-            {node.children?.map((c: any, i: number) => renderNode(c, i, rootAst, onUpdateAST))}
-          </span>
-        </li>
-      );
-    }
-    return <li key={index}>{node.children?.map((c: any, i: number) => renderNode(c, i, rootAst, onUpdateAST))}</li>;
+  if (node.type === 'taskList') {
+    return <ul key={index} style={{ margin: '0.5em 0', paddingLeft: '0', listStyle: 'none' }}>{ch()}</ul>;
   }
 
-  if (node.type === 'quote') {
-    return <blockquote key={index} style={{ borderLeft: '3px solid var(--accent)', paddingLeft: '10px', margin: '0.5em 0', color: '#a0aec0' }}>{node.children?.map((c: any, i: number) => renderNode(c, i, rootAst, onUpdateAST))}</blockquote>;
-  }
-
-  if (node.type === 'link') {
-    const isInternal = node.url?.startsWith('note://');
-    const href = isInternal ? '#' : node.url;
-    const id = isInternal ? node.url.replace('note://', '') : null;
-
+  if (node.type === 'taskItem') {
+    const state = node.attrs?.state || (node.attrs?.checked ? 'done' : 'unchecked');
+    const isDone = state === 'done';
+    const isCancelled = state === 'cancelled';
     return (
-      <a
-        key={index}
-        href={href}
-        onClick={(e) => {
-          if (isInternal) { e.preventDefault(); e.stopPropagation(); (window as any).scrollToNote?.(id); }
-        }}
-        style={{
-          color: isInternal ? '#93c5fd' : 'var(--accent)',
-          textDecoration: 'underline',
-          background: isInternal ? 'rgba(147, 197, 253, 0.1)' : 'transparent',
-          padding: isInternal ? '2px 4px' : '0',
-          borderRadius: isInternal ? '4px' : '0',
-          fontWeight: isInternal ? 'bold' : 'normal',
-        }}
-      >
-        {isInternal && '🔗 '}
-        {node.children?.map((c: any, i: number) => {
-          if (isInternal && c.type === 'text' && c.text) {
-            return renderNode({ ...c, text: c.text.replace(/^\[\[/g, '').replace(/\]\]$/g, '') }, i, rootAst, onUpdateAST);
-          }
-          return renderNode(c, i, rootAst, onUpdateAST);
-        })}
-      </a>
+      <li key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!onUpdateAST || !docJson) return;
+            const next = state === 'unchecked' ? 'done' : state === 'done' ? 'cancelled' : 'unchecked';
+            node.attrs = { ...node.attrs, state: next, checked: next !== 'unchecked' };
+            onUpdateAST(JSON.stringify(docJson));
+          }}
+          style={{
+            marginTop: '0.2rem', width: '24px', height: '24px', flexShrink: 0,
+            border: '2px solid',
+            borderColor: isDone ? '#4ade80' : isCancelled ? '#f87171' : '#a78bfa',
+            background: isDone ? '#4ade80' : isCancelled ? '#f87171' : 'rgba(0,0,0,0.5)',
+            borderRadius: '4px', cursor: onUpdateAST ? 'pointer' : 'default',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s all',
+          }}
+        >
+          {isDone && <span style={{ color: 'black', fontSize: '14px', fontWeight: 'bold', lineHeight: 1, pointerEvents: 'none' }}>✓</span>}
+          {isCancelled && <span style={{ color: 'white', fontSize: '12px', fontWeight: 'bold', lineHeight: 1, pointerEvents: 'none' }}>✕</span>}
+        </div>
+        <span style={{ textDecoration: isCancelled ? 'line-through' : 'none', color: isDone ? '#4ade80' : isCancelled ? '#718096' : 'inherit', transition: '0.2s', opacity: isCancelled ? 0.6 : 1, marginTop: '0.1rem' }}>
+          {ch()}
+        </span>
+      </li>
     );
   }
 
-  if (node.type === 'code') {
-    // code-highlight children just have .text, extract it directly
-    const codeText = node.children?.map((c: any) => c.text ?? '').join('') ?? '';
-    return <pre key={index} style={{ background: '#1a202c', padding: '12px', borderRadius: '8px', border: '1px solid #2d3748', overflowX: 'auto', margin: '0.5em 0' }}><code style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>{codeText}</code></pre>;
+  if (node.type === 'blockquote') {
+    return <blockquote key={index} style={{ borderLeft: '3px solid var(--accent)', paddingLeft: '10px', margin: '0.5em 0', color: '#a0aec0' }}>{ch()}</blockquote>;
   }
 
-  if (node.type === 'code-highlight') {
-    return <React.Fragment key={index}>{node.text ?? ''}</React.Fragment>;
+  if (node.type === 'codeBlock') {
+    const code = (node.content || []).map((c: any) => c.text ?? '').join('');
+    return <pre key={index} style={{ background: '#1a202c', padding: '12px', borderRadius: '8px', border: '1px solid #2d3748', overflowX: 'auto', margin: '0.5em 0' }}><code style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>{code}</code></pre>;
   }
+
+  if (node.type === 'hardBreak') return <br key={index} />;
 
   if (node.type === 'attachment') {
-    const ft = node.fileType || getFileType(node.src || '');
-    return <AttachmentDisplay key={index} src={node.src || ''} name={node.name || ''} fileType={ft} size={node.size || 0} />;
+    const { src, name, fileType, size } = node.attrs || {};
+    const ft = fileType || getFileType(src || '');
+    return <AttachmentDisplay key={index} src={src || ''} name={name || ''} fileType={ft} size={size || 0} />;
   }
 
-  return <React.Fragment key={index}>{node.children?.map((c: any, i: number) => renderNode(c, i, rootAst, onUpdateAST))}</React.Fragment>;
+  return <React.Fragment key={index}>{ch()}</React.Fragment>;
 };
 
 export const LexicalRender = ({ astString, onUpdateAST }: { astString: string; onUpdateAST?: (ast: string) => void }) => {
   if (!astString) return null;
 
-  let root: any = null;
-  try {
-    let ast = JSON.parse(astString);
-    if (ast.text && typeof ast.text === 'string' && ast.text.startsWith('{"root"')) {
-      try { ast = JSON.parse(ast.text); } catch { /* ignore */ }
-    }
-    if (ast.root) root = ast.root;
-    else if (ast.text) return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{ast.text}</div>;
-    else return <div>{astString}</div>;
-  } catch {
-    return <div>{astString}</div>;
-  }
+  let doc: any = null;
+  try { doc = JSON.parse(astString); } catch { return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{astString}</div>; }
 
-  if (!root) return null;
+  if (!doc) return null;
 
-  // Group consecutive attachment nodes into grids
+  // Support both TipTap doc format {type:'doc', content:[...]} and bare content arrays
+  const nodes: any[] = doc.type === 'doc' ? (doc.content || []) : (doc.content || doc.children || []);
+
+  // Group consecutive attachment nodes into image grids
   const grouped: Array<{ type: 'single'; node: any; idx: number } | { type: 'grid'; nodes: any[]; startIdx: number }> = [];
   let batch: any[] = [];
   let batchStart = 0;
-  (root.children || []).forEach((child: any, i: number) => {
+  nodes.forEach((child: any, i: number) => {
     if (child.type === 'attachment') {
       if (batch.length === 0) batchStart = i;
       batch.push(child);
@@ -966,19 +928,20 @@ export const LexicalRender = ({ astString, onUpdateAST }: { astString: string; o
   if (batch.length > 0) grouped.push({ type: 'grid', nodes: batch, startIdx: batchStart });
 
   return (
-    <div className="lexical-content" style={{ pointerEvents: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+    <div className="lexical-content" style={{ pointerEvents: 'auto', wordBreak: 'break-word' }}>
       {grouped.map((item) => {
         if (item.type === 'grid') {
           return (
             <div key={`grid-${item.startIdx}`} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px', margin: '0.5em 0' }}>
               {item.nodes.map((node, j) => {
-                const ft = node.fileType || getFileType(node.src || '');
-                return <AttachmentDisplay key={j} src={node.src || ''} name={node.name || ''} fileType={ft} size={node.size || 0} inGrid />;
+                const { src, name, fileType, size } = node.attrs || {};
+                const ft = fileType || getFileType(src || '');
+                return <AttachmentDisplay key={j} src={src || ''} name={name || ''} fileType={ft} size={size || 0} inGrid />;
               })}
             </div>
           );
         }
-        return renderNode(item.node, item.idx, root, onUpdateAST);
+        return renderTiptapNode(item.node, item.idx, onUpdateAST, doc);
       })}
     </div>
   );

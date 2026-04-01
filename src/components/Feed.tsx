@@ -27,16 +27,15 @@ export { extractTags, extractPlainText };
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['tweet', 'task', 'document'];
 
-// Extract plain text from Lexical AST JSON for search
+// Extract plain text from TipTap JSON for search
 function extractPlainText(content: string): string {
   try {
-    const ast = JSON.parse(content);
+    const doc = JSON.parse(content);
     const getText = (node: any): string => {
-      if (node.type === 'text' || node.type === 'code-highlight') return node.text || '';
-      const children = node.children || node.content || [];
-      return children.map(getText).join(' ');
+      if (node.type === 'text') return node.text || '';
+      return (node.content || []).map(getText).join(' ');
     };
-    return getText(ast.root || ast);
+    return getText(doc);
   } catch {
     return content;
   }
@@ -45,7 +44,7 @@ function extractPlainText(content: string): string {
 // Extract #tags from note plain text
 function extractTags(content: string): string[] {
   const text = extractPlainText(content);
-  const matches = text.match(/#[\w\u0400-\u04ff][\w\u0400-\u04ff0-9_]*/gi) || [];
+  const matches = text.match(/#[\w\u0400-\u04FF][\w\u0400-\u04FF0-9_]*/gi) || [];
   return [...new Set(matches.map((t: string) => t.toLocaleLowerCase()))];
 }
 
@@ -315,7 +314,7 @@ export const Feed = ({
   const virtualizer = useVirtualizer({
     count: visibleNotes.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 80,
+    estimateSize: () => 92,
   });
 
   React.useEffect(() => {
@@ -392,7 +391,7 @@ export const Feed = ({
       {filteredNotes.length === 0 ? (
         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Ничего не найдено</div>
       ) : (
-        <div ref={parentRef} className="feed-scroll-container" style={{ height: `${feedHeight}px`, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '12px', paddingRight: '4px' }}>
+        <div ref={parentRef} className="feed-scroll-container" style={{ height: `${feedHeight}px`, overflowY: 'auto', paddingRight: '2px' }}>
           <div style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
             {virtualizer.getVirtualItems().map((virtualItem) => {
               const note = visibleNotes[virtualItem.index];
@@ -439,34 +438,46 @@ export const Feed = ({
                   style={{
                     position: 'absolute', top: 0, left: 0, width: '100%',
                     transform: `translateY(${virtualItem.start}px)`,
-                    padding: `0.35rem 0.6rem 0.35rem calc(0.6rem + ${indent}px)`,
-                    borderBottom: isDragOverSibling ? '3px solid var(--accent)' : '1px solid var(--border)',
-                    borderTop: '1px solid transparent',
-                    outline: isDragOverChild ? '2px solid rgba(96,165,250,0.6)' : 'none',
-                    outlineOffset: '-2px',
-                    background: finalBg,
-                    transition: 'background 0.1s',
+                    padding: '6px 6px 6px 6px',
                     opacity: draggedId === note.id ? 0.3 : 1,
                   }}
                 >
-                  {/* Vertical connector for nested notes */}
+                  {/* Vertical connector line for nested notes — sits outside the card */}
                   {note.depth > 0 && (
                     <div style={{
                       position: 'absolute',
-                      left: `calc(0.6rem + ${indent - 12}px)`,
-                      top: '0.35rem', bottom: '-0.35rem',
+                      left: `calc(6px + ${indent - 10}px)`,
+                      top: 0, bottom: 0,
                       width: '2px', background: 'var(--border)',
+                      pointerEvents: 'none',
                     }} />
                   )}
+
+                  {/* ── Card panel ────────────────────────────────────── */}
+                  <div style={{
+                    marginLeft: `${indent}px`,
+                    background: finalBg !== 'rgba(255,255,255,0.02)' ? finalBg : 'var(--card-bg)',
+                    border: isDragOverSibling
+                      ? '2px solid var(--accent)'
+                      : isDragOverChild
+                        ? '2px solid rgba(96,165,250,0.8)'
+                        : '1px solid var(--border)',
+                    borderRadius: '10px',
+                    padding: '8px 10px',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                  }}>
 
                   {/* DnD zone overlay */}
                   {draggedId && draggedId !== note.id && (
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', pointerEvents: 'none', borderRadius: 'inherit', overflow: 'hidden', zIndex: 1 }}>
-                      <div style={{ flex: 1, background: isDragOverSibling ? 'rgba(167,139,250,0.15)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {isDragOverSibling && <span style={{ fontSize: '0.6rem', color: '#a78bfa', opacity: 0.8 }}>сиблинг</span>}
+                      <div style={{ flex: 1, background: isDragOverSibling ? 'rgba(167,139,250,0.12)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {isDragOverSibling && <span style={{ fontSize: '0.6rem', color: '#a78bfa' }}>сиблинг</span>}
                       </div>
-                      <div style={{ flex: 1, background: isDragOverChild ? 'rgba(96,165,250,0.15)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {isDragOverChild && <span style={{ fontSize: '0.6rem', color: '#60a5fa', opacity: 0.8 }}>дочерний</span>}
+                      <div style={{ flex: 1, background: isDragOverChild ? 'rgba(96,165,250,0.12)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {isDragOverChild && <span style={{ fontSize: '0.6rem', color: '#60a5fa' }}>дочерний</span>}
                       </div>
                     </div>
                   )}
@@ -558,6 +569,7 @@ export const Feed = ({
                       />
                     </div>
                   )}
+                  </div>{/* end card panel */}
                 </div>
               );
             })}
