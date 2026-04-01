@@ -14,6 +14,47 @@ import { lexicalToTiptap, tiptapToLexical } from '../utils/lexicalToTiptap';
 import { saveToOpfs, resolveUrl, getFileType, formatSize } from '../utils/opfsFiles';
 import '../editorTheme.css';
 
+// ─── Image Lightbox ───────────────────────────────────────────────────
+const Lightbox = ({ url, name, onClose }: { url: string; name: string; onClose: () => void }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(6px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'zoom-out',
+      }}
+    >
+      <img
+        src={url}
+        alt={name}
+        onClick={e => e.stopPropagation()}
+        style={{
+          maxWidth: '90vw', maxHeight: '90vh',
+          borderRadius: '8px', boxShadow: '0 8px 40px rgba(0,0,0,0.8)',
+          cursor: 'default', objectFit: 'contain',
+        }}
+      />
+      <button
+        onClick={onClose}
+        style={{
+          position: 'fixed', top: '16px', right: '20px',
+          background: 'rgba(255,255,255,0.15)', border: 'none',
+          color: 'white', fontSize: '1.4rem', width: '36px', height: '36px',
+          borderRadius: '50%', cursor: 'pointer', lineHeight: 1,
+        }}
+      >✕</button>
+    </div>
+  );
+};
+
 // ─── 3-State TaskItem Extension ───────────────────────────────────────
 // Extends the default TaskItem to support 3 states: unchecked → done → cancelled
 const ThreeStateTaskItem = TaskItem.extend({
@@ -118,6 +159,7 @@ const AttachmentNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
   const { src, name, fileType, size } = node.attrs;
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
 
   useEffect(() => {
     resolveUrl(src).then(setUrl).catch(() => setError(true));
@@ -158,8 +200,13 @@ const AttachmentNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
   if (fileType === 'image') return (
     <NodeViewWrapper>
       <div style={containerStyle}>
-        <img src={url} alt={name} style={{ maxWidth: '100%', borderRadius: '8px', display: 'block' }} />
+        <img
+          src={url} alt={name}
+          onClick={() => setLightbox(true)}
+          style={{ maxWidth: '100%', maxHeight: '260px', objectFit: 'contain', borderRadius: '8px', display: 'block', cursor: 'zoom-in' }}
+        />
         {deleteBtn}
+        {lightbox && <Lightbox url={url} name={name} onClose={() => setLightbox(false)} />}
       </div>
     </NodeViewWrapper>
   );
@@ -443,6 +490,7 @@ const hasTextContent = (json: any): boolean => {
   if (!json) return false;
   const check = (node: any): boolean => {
     if (node.type === 'text' && (node.text || '').trim().length > 0) return true;
+    if (node.type === 'attachment' && node.attrs?.src) return true;
     return (node.content || node.children || []).some(check);
   };
   return check(json);
@@ -587,17 +635,28 @@ export const TweetEditor = ({
 
   const uploadFiles = useCallback(async (files: FileList | File[]) => {
     if (!editor) return;
+    const nodes: any[] = [];
     for (const file of Array.from(files)) {
       try {
         const src = await saveToOpfs(file);
         const fileType = getFileType(src);
-        editor.chain().focus().insertContent({
-          type: 'attachment',
-          attrs: { src, name: file.name, size: file.size, fileType },
-        }).run();
+        nodes.push({ type: 'attachment', attrs: { src, name: file.name, size: file.size, fileType } });
       } catch (e: any) {
         alert(e.message);
       }
+    }
+    if (nodes.length > 0) {
+      editor.chain().focus().command(({ tr, state, dispatch }) => {
+        if (!dispatch) return false;
+        let pos = state.selection.to;
+        for (const nodeJSON of nodes) {
+          const node = state.schema.nodeFromJSON(nodeJSON);
+          tr.insert(pos, node);
+          pos += node.nodeSize;
+        }
+        dispatch(tr);
+        return true;
+      }).run();
     }
   }, [editor]);
 
@@ -674,13 +733,25 @@ export const TweetEditor = ({
 const AttachmentDisplay = ({ src, name, fileType, size }: { src: string; name: string; fileType: string; size: number }) => {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
   useEffect(() => { resolveUrl(src).then(setUrl).catch(() => setError(true)); }, [src]);
 
   if (error) return <div style={{ color: '#f87171', fontSize: '0.8rem', margin: '0.5em 0' }}>⚠ Файл не найден: {name}</div>;
   if (!url) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '0.5em 0' }}>⏳ {name}</div>;
 
-  if (fileType === 'image') return <img src={url} alt={name} style={{ maxWidth: '100%', borderRadius: '8px', margin: '0.5em 0', display: 'block' }} />;
-  if (fileType === 'video') return <video src={url} controls style={{ maxWidth: '100%', borderRadius: '8px', margin: '0.5em 0', display: 'block' }} />;
+  if (fileType === 'image') return (
+    <>
+      <img
+        src={url} alt={name}
+        onClick={() => setLightbox(true)}
+        style={{ maxWidth: '100%', maxHeight: '260px', objectFit: 'contain', borderRadius: '8px', margin: '0.5em 0', display: 'block', cursor: 'zoom-in' }}
+      />
+      {lightbox && <Lightbox url={url} name={name} onClose={() => setLightbox(false)} />}
+    </>
+  );
+
+  if (fileType === 'video') return <video src={url} controls style={{ maxWidth: '100%', maxHeight: '360px', borderRadius: '8px', margin: '0.5em 0', display: 'block' }} />;
+
   return (
     <a href={url} download={name} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#e2e8f0', textDecoration: 'none', fontSize: '0.85rem', margin: '0.5em 0' }}>
       📎 {name} <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>({formatSize(size)})</span>
