@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDB } from './db/DBContext';
-import { Feed, extractTags, extractPlainText } from './components/Feed';
+import { Feed, extractTags } from './components/Feed';
 import { TweetEditor } from './components/TiptapEditor';
 import { useNotes, useFeeds } from './db/hooks';
 import type { Feed as FeedData } from './db/hooks';
@@ -511,9 +511,9 @@ function App() {
       />
 
       {/* ── Main content ── */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1rem', boxSizing: 'border-box' }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1rem', boxSizing: 'border-box', alignItems: 'center' }}>
         {/* Header */}
-        <header style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '0.75rem', flexShrink: 0 }}>
+        <header style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '0.75rem', flexShrink: 0, width: '100%', maxWidth: '980px' }}>
           <h1 style={{ margin: 0, fontSize: '1.1rem', background: '-webkit-linear-gradient(45deg, #60a5fa, #c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', flexShrink: 0 }}>
             {activeFeed?.name || 'StreamNotes'}
           </h1>
@@ -533,7 +533,7 @@ function App() {
         </header>
 
         {/* Main layout: feed + right sidebar */}
-        <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0 }}>
+        <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0, width: '100%', maxWidth: '980px' }}>
           {/* Editor + Feed */}
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ flexShrink: 0 }}>
