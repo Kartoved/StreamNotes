@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotes } from '../db/hooks';
 import { useDB } from '../db/DBContext';
@@ -19,6 +19,23 @@ interface FeedProps {
 
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['tweet', 'task', 'document'];
+
+// Extract #tags from a JSON AST string
+function extractTags(content: string): string[] {
+  try {
+    const ast = JSON.parse(content);
+    const getTexts = (node: any): string => {
+      if (node.type === 'text') return node.text || '';
+      const children = node.children || node.content || [];
+      return children.map(getTexts).join(' ');
+    };
+    const text = getTexts(ast.root || ast);
+    const matches = text.match(/#[\w\u0400-\u04ff][\w\u0400-\u04ff0-9_]*/gi) || [];
+    return [...new Set(matches.map((t: string) => t.toLowerCase()))];
+  } catch {
+    return [];
+  }
+}
 
 // ─── Backlinks Section ────────────────────────────────────────────────
 const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string; onNoteClick?: (id: string) => void }) => {
@@ -54,7 +71,7 @@ const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string; onNoteClick
               key={b.id}
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '6px 10px' }}
             >
-              <div style={{ fontSize: '13px', color: '#e2e8f0', lineHeight: 1.45 }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.45 }}>
                 <LexicalRender astString={b.content} />
               </div>
               <button
@@ -157,7 +174,7 @@ const NoteModal = ({
         onClick={e => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: '760px',
-          background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)',
+          background: 'var(--bg-color)', border: '1px solid var(--border)',
           borderRadius: '16px', padding: '1.25rem',
           display: 'flex', flexDirection: 'column', gap: '0.75rem',
           overflowY: 'auto',
@@ -179,7 +196,7 @@ const NoteModal = ({
             </button>
             <button
               onClick={onClose}
-              style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--text-muted)', borderRadius: '6px', padding: '2px 8px', fontSize: '0.85rem', cursor: 'pointer' }}
+              style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: '6px', padding: '2px 8px', fontSize: '0.85rem', cursor: 'pointer' }}
             >
               ✕
             </button>
@@ -207,7 +224,7 @@ const NoteModal = ({
             autoFocus
           />
         ) : (
-          <div style={{ fontSize: '15px', lineHeight: 1.6, color: '#e2e8f0' }}>
+          <div style={{ fontSize: '15px', lineHeight: 1.6, color: 'var(--text-main)' }}>
             <LexicalRender
               astString={note.content}
               onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [newAst, noteId])}
@@ -227,7 +244,7 @@ const NoteModal = ({
 
         {/* Children */}
         {children.length > 0 && (
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {children.map(child => {
               const childIndent = (child.depth || 0) * 20;
               let cProps: any = {};
@@ -245,7 +262,7 @@ const NoteModal = ({
                   }}
                 >
                   {child.depth > 0 && (
-                    <div style={{ position: 'absolute', left: `calc(0.5rem + ${childIndent - 10}px)`, top: 0, bottom: 0, width: '2px', background: 'rgba(255,255,255,0.08)' }} />
+                    <div style={{ position: 'absolute', left: `calc(0.5rem + ${childIndent - 10}px)`, top: 0, bottom: 0, width: '2px', background: 'var(--border)' }} />
                   )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
                     <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
@@ -263,14 +280,14 @@ const NoteModal = ({
                       autoFocus
                     />
                   ) : (
-                    <div style={{ fontSize: '13.5px', lineHeight: 1.45, color: '#e2e8f0' }}>
+                    <div style={{ fontSize: '13.5px', lineHeight: 1.45, color: 'var(--text-main)' }}>
                       <LexicalRender
                         astString={child.content}
                         onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [newAst, child.id])}
                       />
                     </div>
                   )}
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '2px', fontSize: '11px', color: '#718096' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '2px', fontSize: '11px', color: 'var(--text-muted)' }}>
                     <button type="button" onClick={() => setReplyingToId(child.id)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>💬</button>
                     <button type="button" onClick={() => setEditingNote(child)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>✏️</button>
                   </div>
@@ -293,7 +310,7 @@ const NoteModal = ({
 
         {/* Bottom action bar */}
         {replyingToId !== noteId && (
-          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '12px', color: '#718096', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '0.5rem', marginTop: 'auto' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '12px', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginTop: 'auto' }}>
             <button type="button" onClick={() => setReplyingToId(noteId)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>💬 Ответить</button>
             <button type="button" onClick={() => setEditingNote({ id: noteId })} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>✏️ Изменить</button>
           </div>
@@ -327,10 +344,61 @@ export const Feed = ({
   const [showProperties, setShowProperties] = useState(true);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
 
+  // ── Search & tag filter ────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+
+  // Collect all tags from all notes
+  const allTags = React.useMemo(() => {
+    const tagSet = new Set<string>();
+    notes.forEach(n => extractTags(n.content).forEach(t => tagSet.add(t)));
+    return [...tagSet].sort();
+  }, [notes]);
+
+  // ── Dynamic feed height ────────────────────────────────────────────
+  const [feedHeight, setFeedHeight] = useState(600);
+  useEffect(() => {
+    const update = () => setFeedHeight(Math.max(300, window.innerHeight - 320));
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  // ── Filter notes by search + tags ─────────────────────────────────
+  const filteredNotes = React.useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    const hasSearch = q.length > 0;
+    const hasTags = selectedTags.size > 0;
+    if (!hasSearch && !hasTags) return notes;
+
+    // Find which notes match
+    const matchingIds = new Set<string>();
+    for (const note of notes) {
+      const text = note.content.toLowerCase();
+      const searchOk = !hasSearch || text.includes(q);
+      const tagOk = !hasTags || [...selectedTags].every(tag => text.includes(tag));
+      if (searchOk && tagOk) matchingIds.add(note.id);
+    }
+
+    // Walk up to include ancestors
+    const parentOf = new Map(notes.map(n => [n.id, n.parent_id]));
+    const toKeep = new Set<string>();
+    for (const id of matchingIds) {
+      let curr: string | null = id;
+      while (curr) { toKeep.add(curr); curr = parentOf.get(curr) ?? null; }
+    }
+    // Include all descendants of kept nodes
+    for (const n of notes) {
+      if (n.parent_id && toKeep.has(n.parent_id)) toKeep.add(n.id);
+    }
+
+    return notes.filter(n => toKeep.has(n.id));
+  }, [notes, searchQuery, selectedTags]);
+
   const visibleNotes = React.useMemo(() => {
     const result = [];
     let hidingDepth = -1;
-    for (const note of notes) {
+    for (const note of filteredNotes) {
       if (hidingDepth !== -1) {
         if (note.depth <= hidingDepth) hidingDepth = -1;
         else continue;
@@ -339,7 +407,7 @@ export const Feed = ({
       if (collapsedIds.has(note.id)) hidingDepth = note.depth;
     }
     return result;
-  }, [notes, collapsedIds]);
+  }, [filteredNotes, collapsedIds]);
 
   const virtualizer = useVirtualizer({
     count: visibleNotes.length,
@@ -377,7 +445,6 @@ export const Feed = ({
   const handleDrop = async (targetId: string, zone: 'sibling' | 'child') => {
     if (!draggedId || draggedId === targetId) return;
 
-    // Защита от циклов
     let isDescendant = false;
     let curr = targetId;
     while (curr) {
@@ -396,7 +463,6 @@ export const Feed = ({
     if (zone === 'child') {
       await db.exec(`UPDATE notes SET parent_id = ? WHERE id = ?`, [targetId, draggedId]);
     } else {
-      // sibling: same parent, sort after target
       const [targetRow] = await db.execA(`SELECT parent_id, sort_key FROM notes WHERE id = ?`, [targetId]);
       if (targetRow) {
         const newSortKey = targetRow[1] + '9';
@@ -406,6 +472,14 @@ export const Feed = ({
 
     setDraggedId(null);
     setDragOverInfo(null);
+  };
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => {
+      const next = new Set(prev);
+      next.has(tag) ? next.delete(tag) : next.add(tag);
+      return next;
+    });
   };
 
   if (notes.length === 0) {
@@ -422,6 +496,31 @@ export const Feed = ({
         />
       )}
 
+      {/* Search + tag filters */}
+      <div style={{ marginBottom: '8px' }}>
+        <input
+          type="search"
+          className="search-bar"
+          placeholder="🔍 Поиск..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+        />
+        {allTags.length > 0 && (
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
+            {allTags.map(tag => (
+              <span
+                key={tag}
+                className={`tag-pill${selectedTags.has(tag) ? ' active' : ''}`}
+                onClick={() => toggleTag(tag)}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Toolbar row */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', justifyContent: 'flex-end', width: '100%', maxWidth: '800px', margin: '0 auto 8px auto' }}>
         <button onClick={() => setShowProperties(!showProperties)} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
           {showProperties ? 'Скрыть свойства' : 'Показать свойства'}
@@ -434,217 +533,222 @@ export const Feed = ({
         </button>
       </div>
 
-      <div
-        ref={parentRef}
-        style={{
-          height: '600px',
-          overflowY: 'auto',
-          border: '1px solid var(--border)',
-          borderRadius: '12px',
-          paddingRight: '4px',
-          background: 'rgba(0,0,0,0.2)',
-        }}
-      >
-        <div style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
-          {virtualizer.getVirtualItems().map((virtualItem) => {
-            const note = visibleNotes[virtualItem.index];
-
-            let props: any = {};
-            try { props = JSON.parse(note.properties || '{}'); } catch { /* */ }
-
-            const status = props.status || 'none';
-            const type = props.type || 'tweet';
-            const targetDate = props.date || '';
-
-            const indent = Math.min(note.depth * 28, 280);
-            const isReplying = replyingToId === note.id;
-
-            const isDragOverChild = dragOverInfo?.id === note.id && dragOverInfo.zone === 'child';
-            const isDragOverSibling = dragOverInfo?.id === note.id && dragOverInfo.zone === 'sibling';
-
-            let baseBg = 'rgba(255,255,255,0.02)';
-            if (status === 'done') baseBg = 'rgba(34, 197, 94, 0.1)';
-            else if (status === 'todo') baseBg = 'rgba(239, 68, 68, 0.15)';
-            else if (status === 'doing') baseBg = 'rgba(59, 130, 246, 0.1)';
-            else if (status === 'archived') baseBg = '#0f172a';
-
-            let finalBg = isReplying ? 'rgba(167, 139, 250, 0.1)' : baseBg;
-            if (isDragOverChild) finalBg = 'rgba(96, 165, 250, 0.15)';
-
-            return (
-              <div
-                key={virtualItem.key}
-                data-index={virtualItem.index}
-                data-note-id={note.id}
-                ref={virtualizer.measureElement}
-                draggable
-                onDragStart={(e) => {
-                  setDraggedId(note.id);
-                  e.dataTransfer.effectAllowed = 'move';
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const x = e.clientX - rect.left;
-                  const zone = x < rect.width / 2 ? 'sibling' : 'child';
-                  if (dragOverInfo?.id !== note.id || dragOverInfo?.zone !== zone) {
-                    setDragOverInfo({ id: note.id, zone });
-                  }
-                }}
-                onDragLeave={() => setDragOverInfo(null)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (dragOverInfo) handleDrop(note.id, dragOverInfo.zone);
-                }}
-                onDragEnd={() => { setDraggedId(null); setDragOverInfo(null); }}
-                className="note-card"
-                style={{
-                  position: 'absolute', top: 0, left: 0, width: '100%',
-                  transform: `translateY(${virtualItem.start}px)`,
-                  padding: `0.4rem 0.75rem 0.4rem calc(0.75rem + ${indent}px)`,
-                  borderBottom: isDragOverSibling ? '3px solid var(--accent)' : '1px solid var(--border)',
-                  borderTop: '1px solid transparent',
-                  outline: isDragOverChild ? '2px solid rgba(96,165,250,0.6)' : 'none',
-                  outlineOffset: '-2px',
-                  background: finalBg,
-                  transition: 'background 0.1s',
-                  opacity: draggedId === note.id ? 0.3 : 1,
-                }}
-              >
-                {note.depth > 0 && (
-                  <div style={{
-                    position: 'absolute',
-                    left: `calc(0.75rem + ${indent - 14}px)`,
-                    top: '0.4rem', bottom: '-0.4rem',
-                    width: '2px', background: 'var(--border)',
-                  }} />
-                )}
-
-                {/* DnD zone hint overlay — only visible while dragging over this card */}
-                {draggedId && draggedId !== note.id && (
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', pointerEvents: 'none', borderRadius: 'inherit', overflow: 'hidden', zIndex: 1 }}>
-                    <div style={{ flex: 1, background: isDragOverSibling ? 'rgba(167,139,250,0.15)' : 'transparent', transition: 'background 0.1s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {isDragOverSibling && <span style={{ fontSize: '0.6rem', color: '#a78bfa', opacity: 0.8 }}>сиблинг</span>}
-                    </div>
-                    <div style={{ flex: 1, background: isDragOverChild ? 'rgba(96,165,250,0.15)' : 'transparent', transition: 'background 0.1s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {isDragOverChild && <span style={{ fontSize: '0.6rem', color: '#60a5fa', opacity: 0.8 }}>дочерний</span>}
-                    </div>
-                  </div>
-                )}
-
-                {/* Header: avatar + name + time + properties + buttons all on one line */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '0.2rem' }}>
-                  <div
-                    onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
-                    style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }}
-                  />
-                  <strong
-                    style={{ color: 'var(--text-main)', cursor: 'pointer', fontSize: '0.85rem', flexShrink: 0 }}
-                    onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
-                  >
-                    {note.author_id}
-                  </strong>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', flexShrink: 0 }}>
-                    {new Date(note.created_at).toLocaleTimeString().slice(0, 5)}
-                  </span>
-
-                  {/* Properties inline */}
-                  {showProperties && (
-                    <>
-                      <select value={type} onClick={e => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); updateProperty(note.id, note.properties, 'type', e.target.value); }}
-                        style={{ background: 'rgba(255,255,255,0.05)', color: '#93c5fd', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.7rem', padding: '1px 3px', cursor: 'pointer' }}>
-                        {TYPES.map(s => <option key={s} value={s} style={{ backgroundColor: '#1e293b', color: '#e2e8f0' }}>{s}</option>)}
-                      </select>
-                      <select value={status} onClick={e => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); updateProperty(note.id, note.properties, 'status', e.target.value); }}
-                        style={{ background: 'rgba(255,255,255,0.05)', color: '#dcfce7', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.7rem', padding: '1px 3px', cursor: 'pointer' }}>
-                        {STATUSES.map(s => <option key={s} value={s} style={{ backgroundColor: '#1e293b', color: '#e2e8f0' }}>{s}</option>)}
-                      </select>
-                      <input type="date" value={targetDate} onClick={e => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); updateProperty(note.id, note.properties, 'date', e.target.value); }}
-                        style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.7rem', padding: '1px 3px', cursor: 'pointer', colorScheme: 'dark' }}
-                      />
-                    </>
-                  )}
-
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px', flexShrink: 0 }}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setExpandedNoteId(note.id); }}
-                      title="Раскрыть"
-                      style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.65rem', padding: '1px 5px', cursor: 'pointer' }}
-                    >
-                      ⛶
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCollapsedIds(prev => {
-                          const next = new Set(prev);
-                          if (next.has(note.id)) next.delete(note.id); else next.add(note.id);
-                          return next;
-                        });
-                      }}
-                      title="Свернуть/Развернуть ветку"
-                      style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.65rem', padding: '1px 5px', cursor: 'pointer' }}
-                    >
-                      {collapsedIds.has(note.id) ? '▼' : '▲'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Content */}
-                {editingNote?.id === note.id ? (
-                  <div style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }} onClick={(e: any) => e.stopPropagation()}>
-                    <TweetEditor
-                      initialAst={note.content}
-                      initialPropsStr={note.properties}
-                      placeholder="Редактировать..."
-                      buttonText="Сохранить"
-                      onCancel={() => onCancelEdit && onCancelEdit()}
-                      onSubmit={(ast, propsJson) => { if (onSubmitEdit) onSubmitEdit(note.id, ast, propsJson); }}
-                      autoFocus
-                    />
-                  </div>
-                ) : (
-                  <div className="note-content" style={{ marginTop: '0.2rem', fontSize: '14px', lineHeight: 1.45, color: '#e2e8f0' }}>
-                    <LexicalRender
-                      astString={note.content}
-                      onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [newAst, note.id])}
-                    />
-                    <BacklinksSection noteId={note.id} onNoteClick={onNoteClick} />
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="note-actions" style={{ display: 'flex', gap: '0.75rem', marginTop: '0.15rem', color: '#718096', fontSize: '12px' }}>
-                  {!isReplying && (
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onStartReply?.(note.id); }}
-                      style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', padding: 0 }}>
-                      💬 Ответить
-                    </button>
-                  )}
-                  {!editingNote && (
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onStartEdit?.(note); }}
-                      style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', padding: 0 }}>
-                      ✏️ Изменить
-                    </button>
-                  )}
-                </div>
-
-                {isReplying && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <TweetEditor
-                      placeholder="Напиши ответ..."
-                      buttonText="Отправить"
-                      onCancel={() => onCancelReply && onCancelReply()}
-                      onSubmit={(ast, propsJson) => { if (onSubmitReply) onSubmitReply(note.id, ast, propsJson); }}
-                      autoFocus
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
+      {filteredNotes.length === 0 ? (
+        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          {searchQuery || selectedTags.size > 0 ? 'Ничего не найдено' : 'Пусто'}
         </div>
-      </div>
+      ) : (
+        <div
+          ref={parentRef}
+          className="feed-scroll-container"
+          style={{
+            height: `${feedHeight}px`,
+            overflowY: 'auto',
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            paddingRight: '4px',
+          }}
+        >
+          <div style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const note = visibleNotes[virtualItem.index];
+
+              let props: any = {};
+              try { props = JSON.parse(note.properties || '{}'); } catch { /* */ }
+
+              const status = props.status || 'none';
+              const type = props.type || 'tweet';
+              const targetDate = props.date || '';
+
+              const indent = Math.min(note.depth * 28, 280);
+              const isReplying = replyingToId === note.id;
+
+              const isDragOverChild = dragOverInfo?.id === note.id && dragOverInfo.zone === 'child';
+              const isDragOverSibling = dragOverInfo?.id === note.id && dragOverInfo.zone === 'sibling';
+
+              let baseBg = 'rgba(255,255,255,0.02)';
+              if (status === 'done') baseBg = 'rgba(34, 197, 94, 0.1)';
+              else if (status === 'todo') baseBg = 'rgba(239, 68, 68, 0.15)';
+              else if (status === 'doing') baseBg = 'rgba(59, 130, 246, 0.1)';
+              else if (status === 'archived') baseBg = 'rgba(15, 23, 42, 0.6)';
+
+              let finalBg = isReplying ? 'rgba(167, 139, 250, 0.1)' : baseBg;
+              if (isDragOverChild) finalBg = 'rgba(96, 165, 250, 0.15)';
+
+              return (
+                <div
+                  key={virtualItem.key}
+                  data-index={virtualItem.index}
+                  data-note-id={note.id}
+                  ref={virtualizer.measureElement}
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggedId(note.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const zone = x < rect.width / 2 ? 'sibling' : 'child';
+                    if (dragOverInfo?.id !== note.id || dragOverInfo?.zone !== zone) {
+                      setDragOverInfo({ id: note.id, zone });
+                    }
+                  }}
+                  onDragLeave={() => setDragOverInfo(null)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragOverInfo) handleDrop(note.id, dragOverInfo.zone);
+                  }}
+                  onDragEnd={() => { setDraggedId(null); setDragOverInfo(null); }}
+                  className="note-card"
+                  style={{
+                    position: 'absolute', top: 0, left: 0, width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`,
+                    padding: `0.4rem 0.75rem 0.4rem calc(0.75rem + ${indent}px)`,
+                    borderBottom: isDragOverSibling ? '3px solid var(--accent)' : '1px solid var(--border)',
+                    borderTop: '1px solid transparent',
+                    outline: isDragOverChild ? '2px solid rgba(96,165,250,0.6)' : 'none',
+                    outlineOffset: '-2px',
+                    background: finalBg,
+                    transition: 'background 0.1s',
+                    opacity: draggedId === note.id ? 0.3 : 1,
+                  }}
+                >
+                  {note.depth > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      left: `calc(0.75rem + ${indent - 14}px)`,
+                      top: '0.4rem', bottom: '-0.4rem',
+                      width: '2px', background: 'var(--border)',
+                    }} />
+                  )}
+
+                  {/* DnD zone hint overlay */}
+                  {draggedId && draggedId !== note.id && (
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', pointerEvents: 'none', borderRadius: 'inherit', overflow: 'hidden', zIndex: 1 }}>
+                      <div style={{ flex: 1, background: isDragOverSibling ? 'rgba(167,139,250,0.15)' : 'transparent', transition: 'background 0.1s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {isDragOverSibling && <span style={{ fontSize: '0.6rem', color: '#a78bfa', opacity: 0.8 }}>сиблинг</span>}
+                      </div>
+                      <div style={{ flex: 1, background: isDragOverChild ? 'rgba(96,165,250,0.15)' : 'transparent', transition: 'background 0.1s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {isDragOverChild && <span style={{ fontSize: '0.6rem', color: '#60a5fa', opacity: 0.8 }}>дочерний</span>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Header: avatar + name + time + properties + buttons */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '0.2rem' }}>
+                    <div
+                      onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
+                      style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }}
+                    />
+                    <strong
+                      style={{ color: 'var(--text-main)', cursor: 'pointer', fontSize: '0.85rem', flexShrink: 0 }}
+                      onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
+                    >
+                      {note.author_id}
+                    </strong>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', flexShrink: 0 }}>
+                      {new Date(note.created_at).toLocaleTimeString().slice(0, 5)}
+                    </span>
+
+                    {showProperties && (
+                      <>
+                        <select value={type} onClick={e => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); updateProperty(note.id, note.properties, 'type', e.target.value); }}
+                          style={{ background: 'rgba(255,255,255,0.05)', color: '#93c5fd', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '0.7rem', padding: '1px 3px', cursor: 'pointer' }}>
+                          {TYPES.map(s => <option key={s} value={s} style={{ backgroundColor: '#1e293b', color: '#e2e8f0' }}>{s}</option>)}
+                        </select>
+                        <select value={status} onClick={e => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); updateProperty(note.id, note.properties, 'status', e.target.value); }}
+                          style={{ background: 'rgba(255,255,255,0.05)', color: '#dcfce7', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '0.7rem', padding: '1px 3px', cursor: 'pointer' }}>
+                          {STATUSES.map(s => <option key={s} value={s} style={{ backgroundColor: '#1e293b', color: '#e2e8f0' }}>{s}</option>)}
+                        </select>
+                        <input type="date" value={targetDate} onClick={e => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); updateProperty(note.id, note.properties, 'date', e.target.value); }}
+                          style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '0.7rem', padding: '1px 3px', cursor: 'pointer', colorScheme: 'dark' }}
+                        />
+                      </>
+                    )}
+
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px', flexShrink: 0 }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setExpandedNoteId(note.id); }}
+                        title="Раскрыть"
+                        style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.65rem', padding: '1px 5px', cursor: 'pointer' }}
+                      >
+                        ⛶
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCollapsedIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(note.id)) next.delete(note.id); else next.add(note.id);
+                            return next;
+                          });
+                        }}
+                        title="Свернуть/Развернуть ветку"
+                        style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.65rem', padding: '1px 5px', cursor: 'pointer' }}
+                      >
+                        {collapsedIds.has(note.id) ? '▼' : '▲'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  {editingNote?.id === note.id ? (
+                    <div style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }} onClick={(e: any) => e.stopPropagation()}>
+                      <TweetEditor
+                        initialAst={note.content}
+                        initialPropsStr={note.properties}
+                        placeholder="Редактировать..."
+                        buttonText="Сохранить"
+                        onCancel={() => onCancelEdit && onCancelEdit()}
+                        onSubmit={(ast, propsJson) => { if (onSubmitEdit) onSubmitEdit(note.id, ast, propsJson); }}
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    <div className="note-content" style={{ marginTop: '0.2rem', fontSize: '14px', lineHeight: 1.45 }}>
+                      <LexicalRender
+                        astString={note.content}
+                        onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [newAst, note.id])}
+                      />
+                      <BacklinksSection noteId={note.id} onNoteClick={onNoteClick} />
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="note-actions" style={{ display: 'flex', gap: '0.75rem', marginTop: '0.15rem', color: 'var(--text-muted)', fontSize: '12px' }}>
+                    {!isReplying && (
+                      <button type="button" onClick={(e) => { e.stopPropagation(); onStartReply?.(note.id); }}
+                        style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', padding: 0 }}>
+                        💬 Ответить
+                      </button>
+                    )}
+                    {!editingNote && (
+                      <button type="button" onClick={(e) => { e.stopPropagation(); onStartEdit?.(note); }}
+                        style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', padding: 0 }}>
+                        ✏️ Изменить
+                      </button>
+                    )}
+                  </div>
+
+                  {isReplying && (
+                    <div style={{ marginTop: '1rem' }}>
+                      <TweetEditor
+                        placeholder="Напиши ответ..."
+                        buttonText="Отправить"
+                        onCancel={() => onCancelReply && onCancelReply()}
+                        onSubmit={(ast, propsJson) => { if (onSubmitReply) onSubmitReply(note.id, ast, propsJson); }}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </>
   );
 };

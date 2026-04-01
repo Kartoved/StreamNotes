@@ -298,7 +298,7 @@ function Toolbar({ editor, onUpload }: { editor: any; onUpload: (files: FileList
 
   return (
     <div style={{ marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-      <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexWrap: 'nowrap' }}>
+      <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '2px' }}>
         <button type="button" title="Жирный" style={editor.isActive('bold') ? active : { ...btn, fontWeight: 'bold' }} onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
         <button type="button" title="Курсив" style={editor.isActive('italic') ? active : { ...btn, fontStyle: 'italic' }} onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
         <button type="button" title="Подчёркнутый" style={editor.isActive('underline') ? active : { ...btn, textDecoration: 'underline' }} onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
@@ -478,6 +478,8 @@ export const TweetEditor = ({
 
   // Upload ref — stable callback for editorProps (avoids stale closure)
   const uploadFilesRef = useRef<(files: FileList | File[]) => void>(() => {});
+  // Submit ref — avoids stale closure in handleKeyDown
+  const handleSubmitRef = useRef<() => void>(() => {});
 
   // Convert initial Lexical AST to TipTap JSON
   const initialContent = React.useMemo(() => {
@@ -523,7 +525,7 @@ export const TweetEditor = ({
     editorProps: {
       attributes: {
         class: 'tiptap-editor',
-        style: 'outline: none; min-height: 60px; padding: 4px; font-size: 15px; color: #e2e8f0; line-height: 1.5;',
+        style: 'outline: none; min-height: 60px; padding: 4px; font-size: 15px; color: var(--text-main, #e2e8f0); line-height: 1.5;',
       },
       handleDrop: (_view, event) => {
         const files = (event as DragEvent).dataTransfer?.files;
@@ -533,6 +535,14 @@ export const TweetEditor = ({
       handlePaste: (_view, event) => {
         const files = (event as ClipboardEvent).clipboardData?.files;
         if (files?.length) { event.preventDefault(); uploadFilesRef.current(files); return true; }
+        return false;
+      },
+      handleKeyDown: (_view, event) => {
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault();
+          handleSubmitRef.current();
+          return true;
+        }
         return false;
       },
     },
@@ -611,6 +621,7 @@ export const TweetEditor = ({
       setDate('');
     }
   }, [editor, type, status, date, onSubmit, initialAst]);
+  useEffect(() => { handleSubmitRef.current = handleSubmit; }, [handleSubmit]);
 
   const selStyle: React.CSSProperties = {
     background: 'rgba(255,255,255,0.05)', color: '#93c5fd',

@@ -1,3 +1,26 @@
+/* ─── Light theme overrides ─── */
+[data-theme="light"] .tiptap-editor {
+  color: var(--text-main);
+}
+[data-theme="light"] .tiptap-editor blockquote {
+  color: var(--text-muted);
+}
+[data-theme="light"] .tiptap-editor pre {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] .tiptap-editor pre code {
+  color: #1e293b;
+}
+[data-theme="light"] .tiptap-editor code {
+  background-color: #e2e8f0;
+  color: #1e293b;
+}
+[data-theme="light"] .editor-text-code {
+  background-color: #e2e8f0;
+  color: #1e293b;
+}
+
 /* ─── Text formatting ─── */
 .editor-text-bold { font-weight: bold; }
 .editor-text-italic { font-style: italic; }
