@@ -15,7 +15,14 @@ interface FeedProps {
   onStartEdit?: (note: any) => void;
   onCancelEdit?: () => void;
   onSubmitEdit?: (id: string, text: string, propsJson: string) => void;
+  // Filters from sidebar
+  searchQuery?: string;
+  selectedTags?: Set<string>;
+  selectedDate?: string | null; // 'YYYY-MM-DD'
 }
+
+// Export helpers for use in sidebar
+export { extractTags, extractPlainText };
 
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['tweet', 'task', 'document'];
@@ -239,6 +246,9 @@ export const Feed = ({
   onStartEdit,
   onCancelEdit,
   onSubmitEdit,
+  searchQuery = '',
+  selectedTags = new Set(),
+  selectedDate = null,
 }: FeedProps) => {
   const db = useDB();
   const notes = useNotes(parentId);
@@ -249,39 +259,30 @@ export const Feed = ({
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
 
-  // ── Search & tags ──────────────────────────────────────────────────
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
-
-  const allTags = React.useMemo(() => {
-    const tagSet = new Set<string>();
-    notes.forEach(n => extractTags(n.content).forEach(t => tagSet.add(t)));
-    return [...tagSet].sort();
-  }, [notes]);
-
   // ── Dynamic feed height ────────────────────────────────────────────
   const [feedHeight, setFeedHeight] = useState(600);
   useEffect(() => {
-    const update = () => setFeedHeight(Math.max(300, window.innerHeight - 340));
+    const update = () => setFeedHeight(Math.max(300, window.innerHeight - 180));
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  // ── Filter by search + tags ────────────────────────────────────────
+  // ── Filter by search + tags + date ────────────────────────────────
   const filteredNotes = React.useMemo(() => {
     const q = searchQuery.toLocaleLowerCase().trim();
     const hasSearch = q.length > 0;
     const hasTags = selectedTags.size > 0;
-    if (!hasSearch && !hasTags) return notes;
+    const hasDate = !!selectedDate;
+    if (!hasSearch && !hasTags && !hasDate) return notes;
 
     const matchingIds = new Set<string>();
     for (const note of notes) {
-      // Search in extracted plain text, not raw JSON
       const text = extractPlainText(note.content).toLocaleLowerCase();
       const searchOk = !hasSearch || text.includes(q);
       const tagOk = !hasTags || [...selectedTags].every(tag => text.includes(tag));
-      if (searchOk && tagOk) matchingIds.add(note.id);
+      const dateOk = !hasDate || new Date(note.created_at).toISOString().slice(0, 10) === selectedDate;
+      if (searchOk && tagOk && dateOk) matchingIds.add(note.id);
     }
 
     const parentOf = new Map(notes.map(n => [n.id, n.parent_id]));
@@ -295,7 +296,7 @@ export const Feed = ({
     }
 
     return notes.filter(n => toKeep.has(n.id));
-  }, [notes, searchQuery, selectedTags]);
+  }, [notes, searchQuery, selectedTags, selectedDate]);
 
   const visibleNotes = React.useMemo(() => {
     const result = [];
@@ -370,10 +371,6 @@ export const Feed = ({
     setDraggedId(null); setDragOverInfo(null);
   };
 
-  const toggleTag = (tag: string) => {
-    setSelectedTags(prev => { const next = new Set(prev); next.has(tag) ? next.delete(tag) : next.add(tag); return next; });
-  };
-
   if (notes.length === 0) {
     return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Пусто. Напиши что-нибудь первым!</div>;
   }
@@ -383,18 +380,6 @@ export const Feed = ({
       {expandedNoteId && (
         <NoteModal noteId={expandedNoteId} onClose={() => setExpandedNoteId(null)} onNoteClick={(id) => { setExpandedNoteId(null); onNoteClick?.(id); }} />
       )}
-
-      {/* Search + tags */}
-      <div style={{ marginBottom: '8px' }}>
-        <input type="search" className="search-bar" placeholder="🔍 Поиск..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-        {allTags.length > 0 && (
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
-            {allTags.map(tag => (
-              <span key={tag} className={`tag-pill${selectedTags.has(tag) ? ' active' : ''}`} onClick={() => toggleTag(tag)}>{tag}</span>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', justifyContent: 'flex-end' }}>
