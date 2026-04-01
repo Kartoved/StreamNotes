@@ -183,3 +183,14 @@ li[data-type="taskItem"][data-state="cancelled"] > .task-item-content {
 li[data-type="taskItem"] input[type="checkbox"] {
   display: none;
 }
+
+/* ─── Attachment image grid in editor ─── */
+/* Image attachment node views sit inline so adjacent ones form a grid */
+.attachment-node-img {
+  display: inline-block !important;
+  vertical-align: top;
+  width: calc(33.33% - 6px);
+  min-width: 100px;
+  max-width: 200px;
+  margin: 3px;
+}

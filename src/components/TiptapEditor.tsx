@@ -198,12 +198,12 @@ const AttachmentNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
   );
 
   if (fileType === 'image') return (
-    <NodeViewWrapper>
+    <NodeViewWrapper className="attachment-node-img">
       <div style={containerStyle}>
         <img
           src={url} alt={name}
           onClick={() => setLightbox(true)}
-          style={{ maxWidth: '100%', maxHeight: '260px', objectFit: 'contain', borderRadius: '8px', display: 'block', cursor: 'zoom-in' }}
+          style={{ width: '100%', height: '130px', objectFit: 'cover', borderRadius: '6px', display: 'block', cursor: 'zoom-in' }}
         />
         {deleteBtn}
         {lightbox && <Lightbox url={url} name={name} onClose={() => setLightbox(false)} />}
@@ -496,6 +496,34 @@ const hasTextContent = (json: any): boolean => {
   return check(json);
 };
 
+// ─── Upload Progress Ring ─────────────────────────────────────────────
+const UploadRing = ({ done, total }: { done: number; total: number }) => {
+  const r = 14;
+  const circ = 2 * Math.PI * r;
+  const progress = total > 0 ? done / total : 0;
+  const dash = circ * progress;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+      <svg width="34" height="34" viewBox="0 0 34 34" style={{ flexShrink: 0 }}>
+        {/* Track */}
+        <circle cx="17" cy="17" r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+        {/* Progress arc */}
+        <circle
+          cx="17" cy="17" r={r}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="3"
+          strokeDasharray={`${dash} ${circ}`}
+          strokeLinecap="round"
+          transform="rotate(-90 17 17)"
+          style={{ transition: 'stroke-dasharray 0.2s ease' }}
+        />
+        <text x="17" y="21" textAnchor="middle" fontSize="9" fill="var(--text-muted)">{done}/{total}</text>
+      </svg>
+    </div>
+  );
+};
+
 // ─── TweetEditor ──────────────────────────────────────────────────────
 export const TweetEditor = ({
   onSubmit,
@@ -528,6 +556,8 @@ export const TweetEditor = ({
   const uploadFilesRef = useRef<(files: FileList | File[]) => void>(() => {});
   // Submit ref — avoids stale closure in handleKeyDown
   const handleSubmitRef = useRef<() => void>(() => {});
+  // Upload progress: { done, total } | null
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
 
   // Convert initial Lexical AST to TipTap JSON
   const initialContent = React.useMemo(() => {
@@ -635,16 +665,20 @@ export const TweetEditor = ({
 
   const uploadFiles = useCallback(async (files: FileList | File[]) => {
     if (!editor) return;
+    const arr = Array.from(files);
+    setUploadProgress({ done: 0, total: arr.length });
     const nodes: any[] = [];
-    for (const file of Array.from(files)) {
+    for (let i = 0; i < arr.length; i++) {
       try {
-        const src = await saveToOpfs(file);
+        const src = await saveToOpfs(arr[i]);
         const fileType = getFileType(src);
-        nodes.push({ type: 'attachment', attrs: { src, name: file.name, size: file.size, fileType } });
+        nodes.push({ type: 'attachment', attrs: { src, name: arr[i].name, size: arr[i].size, fileType } });
       } catch (e: any) {
         alert(e.message);
       }
+      setUploadProgress({ done: i + 1, total: arr.length });
     }
+    setUploadProgress(null);
     if (nodes.length > 0) {
       editor.chain().focus().command(({ tr, state, dispatch }) => {
         if (!dispatch) return false;
@@ -718,11 +752,12 @@ export const TweetEditor = ({
         </select>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...selStyle, color: 'white', colorScheme: 'dark' }} />
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {uploadProgress && <UploadRing done={uploadProgress.done} total={uploadProgress.total} />}
           {onCancel && (
             <button type="button" onClick={onCancel} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '6px 16px', borderRadius: '6px', cursor: 'pointer' }}>Отмена</button>
           )}
-          <button type="button" onClick={handleSubmit} style={{ background: 'var(--accent)', border: 'none', color: 'white', padding: '6px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>{buttonText}</button>
+          <button type="button" onClick={handleSubmit} disabled={!!uploadProgress} style={{ background: 'var(--accent)', border: 'none', color: 'white', padding: '6px 20px', borderRadius: '6px', cursor: uploadProgress ? 'not-allowed' : 'pointer', fontWeight: 'bold', opacity: uploadProgress ? 0.6 : 1 }}>{buttonText}</button>
         </div>
       </div>
     </div>
@@ -730,21 +765,30 @@ export const TweetEditor = ({
 };
 
 // ─── Attachment display for read-only render ──────────────────────────
-const AttachmentDisplay = ({ src, name, fileType, size }: { src: string; name: string; fileType: string; size: number }) => {
+const AttachmentDisplay = ({ src, name, fileType, size, inGrid }: { src: string; name: string; fileType: string; size: number; inGrid?: boolean }) => {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [lightbox, setLightbox] = useState(false);
   useEffect(() => { resolveUrl(src).then(setUrl).catch(() => setError(true)); }, [src]);
 
-  if (error) return <div style={{ color: '#f87171', fontSize: '0.8rem', margin: '0.5em 0' }}>⚠ Файл не найден: {name}</div>;
-  if (!url) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '0.5em 0' }}>⏳ {name}</div>;
+  if (error) return <div style={{ color: '#f87171', fontSize: '0.8rem', margin: '0.25em 0' }}>⚠ {name}</div>;
+  if (!url) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>⏳ {name}</div>;
 
   if (fileType === 'image') return (
     <>
       <img
         src={url} alt={name}
         onClick={() => setLightbox(true)}
-        style={{ maxWidth: '100%', maxHeight: '260px', objectFit: 'contain', borderRadius: '8px', margin: '0.5em 0', display: 'block', cursor: 'zoom-in' }}
+        style={{
+          width: '100%',
+          height: inGrid ? '130px' : 'auto',
+          maxHeight: inGrid ? '130px' : '260px',
+          objectFit: 'cover',
+          borderRadius: '6px',
+          display: 'block',
+          cursor: 'zoom-in',
+          margin: inGrid ? 0 : '0.5em 0',
+        }}
       />
       {lightbox && <Lightbox url={url} name={name} onClose={() => setLightbox(false)} />}
     </>
@@ -905,5 +949,37 @@ export const LexicalRender = ({ astString, onUpdateAST }: { astString: string; o
   }
 
   if (!root) return null;
-  return <div className="lexical-content" style={{ pointerEvents: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{root.children?.map((c: any, i: number) => renderNode(c, i, root, onUpdateAST))}</div>;
+
+  // Group consecutive attachment nodes into grids
+  const grouped: Array<{ type: 'single'; node: any; idx: number } | { type: 'grid'; nodes: any[]; startIdx: number }> = [];
+  let batch: any[] = [];
+  let batchStart = 0;
+  (root.children || []).forEach((child: any, i: number) => {
+    if (child.type === 'attachment') {
+      if (batch.length === 0) batchStart = i;
+      batch.push(child);
+    } else {
+      if (batch.length > 0) { grouped.push({ type: 'grid', nodes: batch, startIdx: batchStart }); batch = []; }
+      grouped.push({ type: 'single', node: child, idx: i });
+    }
+  });
+  if (batch.length > 0) grouped.push({ type: 'grid', nodes: batch, startIdx: batchStart });
+
+  return (
+    <div className="lexical-content" style={{ pointerEvents: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+      {grouped.map((item) => {
+        if (item.type === 'grid') {
+          return (
+            <div key={`grid-${item.startIdx}`} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px', margin: '0.5em 0' }}>
+              {item.nodes.map((node, j) => {
+                const ft = node.fileType || getFileType(node.src || '');
+                return <AttachmentDisplay key={j} src={node.src || ''} name={node.name || ''} fileType={ft} size={node.size || 0} inGrid />;
+              })}
+            </div>
+          );
+        }
+        return renderNode(item.node, item.idx, root, onUpdateAST);
+      })}
+    </div>
+  );
 };
