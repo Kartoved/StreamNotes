@@ -12,6 +12,7 @@ export default function SettingsModal({ onClose }: Props) {
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [passwordHint, setPasswordHint] = useState('');
   const [seedRevealed, setSeedRevealed] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -32,17 +33,19 @@ export default function SettingsModal({ onClose }: Props) {
       return;
     }
     setShowPasswordInput(true);
-    setPasswordError('Seed-фраза защищена паролем.');
+    setPasswordHint('Введите пароль для расшифровки seed-фразы.');
+    setPasswordError('');
   };
 
   const handleUnlockWithPassword = () => {
     const encrypted = localStorage.getItem('sn_seed_encrypted');
     if (!encrypted) { setPasswordError('Seed не найден.'); return; }
     const result = decryptSeedWithPassword(encrypted, passwordInput);
-    if (!result) { setPasswordError('Неверный пароль'); return; }
+    if (!result) { setPasswordError('Неверный пароль.'); return; }
     setSeedRevealed(result);
     setShowPasswordInput(false);
     setPasswordError('');
+    setPasswordHint('');
     setPasswordInput('');
   };
 
@@ -144,6 +147,9 @@ export default function SettingsModal({ onClose }: Props) {
             </div>
           ) : showPasswordInput ? (
             <div>
+              {passwordHint && !passwordError && (
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 8px' }}>{passwordHint}</p>
+              )}
               {passwordError && (
                 <p style={{ fontSize: '12px', color: '#f87171', margin: '0 0 8px' }}>{passwordError}</p>
               )}
@@ -158,7 +164,7 @@ export default function SettingsModal({ onClose }: Props) {
               />
               <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                 <button onClick={handleUnlockWithPassword} style={btnAccent}>Показать</button>
-                <button onClick={() => { setShowPasswordInput(false); setPasswordError(''); setPasswordInput(''); }} style={btn}>Отмена</button>
+                <button onClick={() => { setShowPasswordInput(false); setPasswordError(''); setPasswordHint(''); setPasswordInput(''); }} style={btn}>Отмена</button>
               </div>
             </div>
           ) : (

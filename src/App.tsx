@@ -575,7 +575,6 @@ function App() {
             {nostrPubKey && (
               <span
                 onClick={() => setShowSettings(true)}
-                title={nostrPubKey}
                 style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'monospace', padding: '2px 6px', border: '1px solid var(--border)', borderRadius: '4px' }}
               >
                 {nostrPubKey.slice(0, 6)}…{nostrPubKey.slice(-4)}
