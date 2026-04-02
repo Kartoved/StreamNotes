@@ -39,14 +39,13 @@
 ```
 src/
 ├── components/
-│   ├── Feed.tsx              # Лента: виртуализация, DnD, карточки, модалка, бэклинки
-│   └── TiptapEditor.tsx      # Редактор + LexicalRender (read-only) + вложения + лайтбокс
+│   ├── Feed.tsx              # Лента: виртуализация, карточки, модалка, бэклинки
+│   └── TiptapEditor.tsx      # Редактор + вложения + лайтбокс
 ├── db/
 │   ├── schema.ts             # Схема SQLite + CRDT-настройки
 │   ├── DBContext.tsx         # React-контекст для доступа к БД
 │   └── hooks.ts              # useNotes — реактивный хук с рекурсивным CTE
 ├── utils/
-│   ├── lexicalToTiptap.ts    # Конвертер Lexical AST ↔ TipTap JSON (обратная совместимость)
 │   └── opfsFiles.ts          # Сохранение файлов в OPFS, resolveUrl, HEIC-конвертация
 ├── App.tsx                   # Хедер, сайдбар (поиск/календарь/теги), лейаут
 ├── editorTheme.css           # Стили TipTap-редактора
@@ -67,6 +66,6 @@ npx tsc --noEmit  # проверка типов
 
 ## Хранение данных
 
-Контент заметок хранится как **Lexical AST JSON** в поле `content` таблицы `notes`. При открытии в редакторе конвертируется в TipTap JSON через `lexicalToTiptap`, при сохранении — обратно через `tiptapToLexical`. Это обеспечивает обратную совместимость со старыми записями.
+Контент заметок хранится как **JSON-объект TipTap** в поле `content` таблицы `notes`. Это обеспечивает гибкое хранение и возможность будущего анализа контента.
 
 Файлы-вложения хранятся в **OPFS** (`attachments/uuid.ext`), в БД только ссылка `attachment://uuid.ext`.

@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotes } from '../db/hooks';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
-import { TweetEditor, LexicalRender } from './TiptapEditor';
+import { TweetEditor, TiptapRender } from './TiptapEditor';
 
 interface FeedProps {
   parentId?: string | null;
@@ -88,7 +88,7 @@ const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string; onNoteClick
           {backlinks.map(b => (
             <div key={b.id} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '6px 10px' }}>
               <div style={{ fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.45 }}>
-                <LexicalRender astString={b.content} />
+                <TiptapRender astString={b.content} />
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); onNoteClick?.(b.id); }}
@@ -187,7 +187,7 @@ const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; onClose: 
           <TweetEditor initialAst={note.content} initialPropsStr={note.properties} placeholder="Редактировать..." buttonText="Сохранить" onCancel={() => setEditingNote(null)} onSubmit={(ast, propsJson) => handleSubmitEdit(noteId, ast, propsJson)} autoFocus />
         ) : (
           <div style={{ fontSize: '15px', lineHeight: 1.6, color: 'var(--text-main)' }}>
-            <LexicalRender astString={note.content} onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), noteId])} />
+            <TiptapRender astString={note.content} onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), noteId])} />
           </div>
         )}
 
@@ -212,7 +212,7 @@ const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; onClose: 
                     <TweetEditor initialAst={child.content} initialPropsStr={child.properties} placeholder="Редактировать..." buttonText="Сохранить" onCancel={() => setEditingNote(null)} onSubmit={(ast, propsJson) => handleSubmitEdit(child.id, ast, propsJson)} autoFocus />
                   ) : (
                     <div style={{ fontSize: '13.5px', lineHeight: 1.45, color: 'var(--text-main)' }}>
-                      <LexicalRender astString={child.content} onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), child.id])} />
+                      <TiptapRender astString={child.content} onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), child.id])} />
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '2px', fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -643,7 +643,7 @@ export const Feed = ({
                       ) : (
                         <>
                           <div className="note-content" style={{ fontSize: '14px', lineHeight: 1.45 }}>
-                            <LexicalRender
+                            <TiptapRender
                               astString={note.content}
                               onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), note.id])}
                             />

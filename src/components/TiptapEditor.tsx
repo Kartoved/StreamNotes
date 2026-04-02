@@ -896,7 +896,7 @@ const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: string) 
   return <React.Fragment key={index}>{ch()}</React.Fragment>;
 };
 
-export const LexicalRender = ({ astString, onUpdateAST }: { astString: string; onUpdateAST?: (ast: string) => void }) => {
+export const TiptapRender = ({ astString, onUpdateAST }: { astString: string; onUpdateAST?: (ast: string) => void }) => {
   if (!astString) return null;
 
   let doc: any = null;
@@ -923,7 +923,7 @@ export const LexicalRender = ({ astString, onUpdateAST }: { astString: string; o
   if (batch.length > 0) grouped.push({ type: 'grid', nodes: batch, startIdx: batchStart });
 
   return (
-    <div className="lexical-content" style={{ pointerEvents: 'auto', wordBreak: 'break-word' }}>
+    <div className="tiptap-content" style={{ pointerEvents: 'auto', wordBreak: 'break-word' }}>
       {grouped.map((item) => {
         if (item.type === 'grid') {
           return (
