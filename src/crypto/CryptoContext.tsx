@@ -39,7 +39,7 @@ function encryptSeedWithPassword(seed: string, password: string): string {
   return btoa(binary);
 }
 
-function decryptSeedWithPassword(encoded: string, password: string): string | null {
+export function decryptSeedWithPassword(encoded: string, password: string): string | null {
   try {
     const binary = atob(encoded);
     const raw = new Uint8Array(binary.length);

@@ -6,6 +6,7 @@ import { useNotes, useFeeds } from './db/hooks';
 import type { Feed as FeedData } from './db/hooks';
 import { useCrypto } from './crypto/CryptoContext';
 import { isEncrypted } from './crypto/cipher';
+import SettingsModal from './components/SettingsModal';
 import './index.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -326,7 +327,8 @@ const MiniCalendar = ({
 // ─── App ──────────────────────────────────────────────────────────────
 function App() {
   const db = useDB();
-  const { encrypt, decrypt } = useCrypto();
+  const { encrypt, decrypt, nostrPubKey } = useCrypto();
+  const [showSettings, setShowSettings] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { (window as any).db = db; }, [db]);
@@ -570,16 +572,27 @@ function App() {
             {focusedTweetId ? 'Ветка обсуждения' : 'Главная лента'}
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {nostrPubKey && (
+              <span
+                onClick={() => setShowSettings(true)}
+                title={nostrPubKey}
+                style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'monospace', padding: '2px 6px', border: '1px solid var(--border)', borderRadius: '4px' }}
+              >
+                {nostrPubKey.slice(0, 6)}…{nostrPubKey.slice(-4)}
+              </span>
+            )}
             <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} style={iconBtn}>{theme === 'dark' ? '☀' : '🌙'}</button>
             <button onClick={handleExport} style={iconBtn}>↑ Export</button>
             <label style={{ ...iconBtn, display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
               ↓ Import<input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
             </label>
+            <button onClick={() => setShowSettings(true)} style={iconBtn}>⚙</button>
             {focusedTweetId && (
               <button onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }} style={{ ...iconBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}>← В корень</button>
             )}
           </div>
         </header>
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
 
         {/* Main layout: feed + right sidebar */}
         <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0, width: '100%', maxWidth: '980px' }}>

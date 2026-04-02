@@ -2,8 +2,6 @@ import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
-import Link from '@tiptap/extension-link';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -558,22 +556,19 @@ export const TweetEditor = ({
     extensions: [
       StarterKit.configure({
         codeBlock: false, // We use our own
-        // taskList/taskItem are separate
         bulletList: { HTMLAttributes: { class: 'editor-ul' } },
         orderedList: { HTMLAttributes: { class: 'editor-ol' } },
         listItem: { HTMLAttributes: { class: 'editor-listitem' } },
-        heading: {
-          levels: [1, 2, 3],
-        },
+        heading: { levels: [1, 2, 3] },
         blockquote: {},
+        underline: {},
+        link: {
+          openOnClick: false,
+          HTMLAttributes: { class: 'editor-link' },
+        },
       }),
-      Underline,
       CodeBlock.configure({
         HTMLAttributes: { class: 'editor-code-block' },
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: { class: 'editor-link' },
       }),
       TaskList.configure({
         HTMLAttributes: { class: 'editor-task-list' },

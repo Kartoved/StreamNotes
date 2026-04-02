@@ -270,13 +270,8 @@ export const Feed = ({
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState<string | null>(null); // null | 'confirm-delete'
-
-  const toggleSelect = (id: string) => setSelectedIds(prev => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
+  const [bulkAction, setBulkAction] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; noteId: string } | null>(null);
 
   const handleDeleteNote = async (id: string) => {
     await db.exec(`UPDATE notes SET is_deleted = 1 WHERE id = ?`, [id]);
@@ -290,6 +285,14 @@ export const Feed = ({
     setSelectedIds(new Set());
     setBulkAction(null);
   };
+
+  const openContextMenu = (e: React.MouseEvent, noteId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, noteId });
+  };
+
+  const closeContextMenu = () => setContextMenu(null);
 
   // ── Dynamic feed height ────────────────────────────────────────────
   const [feedHeight, setFeedHeight] = useState(600);
@@ -433,6 +436,63 @@ export const Feed = ({
         />
       )}
 
+      {contextMenu && (
+        <div
+          onClick={closeContextMenu}
+          onContextMenu={(e) => e.preventDefault()}
+          style={{ position: 'fixed', inset: 0, zIndex: 4000 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: contextMenu.y,
+              left: contextMenu.x,
+              background: 'var(--card-bg)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              padding: '4px',
+              minWidth: '180px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+              zIndex: 4001,
+            }}
+          >
+            {[
+              { label: '↩ Ответить', action: () => { onStartReply?.(contextMenu.noteId); closeContextMenu(); } },
+              { label: '✏️ Редактировать', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); if (note) onStartEdit?.(note); closeContextMenu(); } },
+              { label: '⛶ Открыть', action: () => { setExpandedNoteId(contextMenu.noteId); closeContextMenu(); } },
+              { label: collapsedIds.has(contextMenu.noteId) ? '▼ Развернуть' : '▲ Свернуть', action: () => { setCollapsedIds(prev => { const next = new Set(prev); next.has(contextMenu.noteId) ? next.delete(contextMenu.noteId) : next.add(contextMenu.noteId); return next; }); closeContextMenu(); } },
+              { label: '🔗 Перейти в ветку', action: () => { onNoteClick?.(contextMenu.noteId); closeContextMenu(); } },
+              null, // separator
+              { label: '🗑 Удалить', action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true },
+            ].map((item, i) =>
+              item === null ? (
+                <div key={i} style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
+              ) : (
+                <button
+                  key={i}
+                  onClick={item.action}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    background: 'transparent', border: 'none',
+                    color: (item as any).danger ? '#f87171' : 'var(--text-main)',
+                    padding: '7px 12px', borderRadius: '6px', cursor: 'pointer',
+                    fontSize: '13px', fontFamily: 'inherit',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = (item as any).danger ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.07)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  {item.label}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      )}
+
       {bulkAction === 'confirm-delete' && (
         <ConfirmModal
           text={`Удалить ${selectedIds.size} ${selectedIds.size === 1 ? 'заметку' : selectedIds.size < 5 ? 'заметки' : 'заметок'}? Это действие нельзя отменить.`}
@@ -443,18 +503,10 @@ export const Feed = ({
 
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-        {selectedIds.size > 0 ? (
-          <>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Выбрано: <strong style={{ color: 'var(--text-main)' }}>{selectedIds.size}</strong></span>
-            <button onClick={() => setBulkAction('confirm-delete')} style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.35)', color: '#f87171', padding: '3px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.78rem' }}>🗑 Удалить</button>
-            <button onClick={() => setSelectedIds(new Set())} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '3px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.78rem' }}>Снять выделение</button>
-          </>
-        ) : (
-          <button onClick={() => { if (collapsedIds.size > 0) setCollapsedIds(new Set()); else setCollapsedIds(new Set(notes.map(n => n.id))); }}
-            style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
-            {collapsedIds.size > 0 ? 'Развернуть всё' : 'Свернуть всё'}
-          </button>
-        )}
+        <button onClick={() => { if (collapsedIds.size > 0) setCollapsedIds(new Set()); else setCollapsedIds(new Set(notes.map(n => n.id))); }}
+          style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
+          {collapsedIds.size > 0 ? 'Развернуть всё' : 'Свернуть всё'}
+        </button>
       </div>
 
       {filteredNotes.length === 0 ? (
@@ -552,26 +604,10 @@ export const Feed = ({
                   )}
 
                   {/* ── Card body: left sidebar + right content ─────── */}
-                  <div style={{ display: 'flex', gap: '8px', position: 'relative', zIndex: 2 }}>
-                    {/* CHECKBOX */}
-                    <div
-                      onClick={(e) => { e.stopPropagation(); toggleSelect(note.id); }}
-                      style={{
-                        width: '16px', flexShrink: 0, display: 'flex', alignItems: 'flex-start',
-                        paddingTop: '6px', cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{
-                        width: '14px', height: '14px', borderRadius: '4px', flexShrink: 0,
-                        border: selectedIds.has(note.id) ? '2px solid var(--accent)' : '2px solid var(--border)',
-                        background: selectedIds.has(note.id) ? 'var(--accent)' : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: '0.12s',
-                      }}>
-                        {selectedIds.has(note.id) && <span style={{ color: 'white', fontSize: '9px', lineHeight: 1 }}>✓</span>}
-                      </div>
-                    </div>
-
+                  <div
+                    style={{ display: 'flex', gap: '8px', position: 'relative', zIndex: 2 }}
+                    onContextMenu={(e) => openContextMenu(e, note.id)}
+                  >
                     {/* LEFT: avatar + name + time (clickable → navigate) */}
                     <div
                       onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
@@ -592,26 +628,6 @@ export const Feed = ({
 
                     {/* RIGHT: content + meta */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      {/* Top-right: expand + edit + delete + collapse */}
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px', marginBottom: '2px' }}>
-                        {editingNote?.id === note.id ? (
-                          <button
-                            type="button" title="Удалить заметку"
-                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(note.id); }}
-                            style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '4px', color: '#f87171', fontSize: '0.72rem', padding: '1px 6px', cursor: 'pointer' }}
-                          >🗑</button>
-                        ) : (
-                          <>
-                            <button onClick={(e) => { e.stopPropagation(); setExpandedNoteId(note.id); }} title="Раскрыть" style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.62rem', padding: '1px 5px', cursor: 'pointer' }}>⛶</button>
-                            <button type="button" title="Изменить" onClick={(e) => { e.stopPropagation(); onStartEdit?.(note); }} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.62rem', padding: '1px 5px', cursor: 'pointer' }}>✏️</button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setCollapsedIds(prev => { const next = new Set(prev); next.has(note.id) ? next.delete(note.id) : next.add(note.id); return next; }); }}
-                              title="Свернуть/Развернуть"
-                              style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.62rem', padding: '1px 5px', cursor: 'pointer' }}
-                            >{collapsedIds.has(note.id) ? '▼' : '▲'}</button>
-                          </>
-                        )}
-                      </div>
 
                       {/* Content */}
                       {editingNote?.id === note.id ? (
@@ -644,11 +660,6 @@ export const Feed = ({
                       )}
 
 
-                      {!editingNote && !isReplying && (
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
-                          <button type="button" title="Ответить" onClick={(e) => { e.stopPropagation(); onStartReply?.(note.id); }} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)', cursor: 'pointer', padding: '1px 6px', fontSize: '0.72rem', lineHeight: 1.4 }}>💬</button>
-                        </div>
-                      )}
                     </div>
                   </div>
 
