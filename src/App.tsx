@@ -4,6 +4,8 @@ import { Feed, extractTags } from './components/Feed';
 import { TweetEditor } from './components/TiptapEditor';
 import { useNotes, useFeeds } from './db/hooks';
 import type { Feed as FeedData } from './db/hooks';
+import { useCrypto } from './crypto/CryptoContext';
+import { isEncrypted } from './crypto/cipher';
 import './index.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -324,9 +326,35 @@ const MiniCalendar = ({
 // ─── App ──────────────────────────────────────────────────────────────
 function App() {
   const db = useDB();
+  const { encrypt, decrypt } = useCrypto();
   const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { (window as any).db = db; }, [db]);
+
+  // ── E2E Migration: encrypt existing unencrypted data ──────────────
+  const migrationDone = useRef(false);
+  useEffect(() => {
+    if (migrationDone.current) return;
+    if (localStorage.getItem('sn_migration_done') === '1') { migrationDone.current = true; return; }
+    migrationDone.current = true;
+    (async () => {
+      const notes = await db.execO(`SELECT id, content, properties FROM notes`) as any[];
+      for (const n of notes) {
+        if (n.content && !isEncrypted(n.content)) {
+          await db.exec(`UPDATE notes SET content = ?, properties = ? WHERE id = ?`,
+            [encrypt(n.content), encrypt(n.properties || '{}'), n.id]);
+        }
+      }
+      const feedRows = await db.execO(`SELECT id, name, avatar FROM feeds`) as any[];
+      for (const f of feedRows) {
+        if (f.name && !isEncrypted(f.name)) {
+          await db.exec(`UPDATE feeds SET name = ?, avatar = ? WHERE id = ?`,
+            [encrypt(f.name), f.avatar ? encrypt(f.avatar) : null, f.id]);
+        }
+      }
+      localStorage.setItem('sn_migration_done', '1');
+    })();
+  }, [db, encrypt]);
 
   // ── Feeds ──────────────────────────────────────────────────────────
   const feeds = useFeeds();
@@ -347,11 +375,11 @@ function App() {
         const id = 'feed-' + uid();
         await db.exec(
           `INSERT INTO feeds (id, name, color, created_at) VALUES (?,?,?,?)`,
-          [id, 'Главная', '#3b82f6', Date.now()]
+          [id, encrypt('Главная'), '#3b82f6', Date.now()]
         );
       }
     })();
-  }, [db]);
+  }, [db, encrypt]);
 
   // Auto-create default feed on very first load (feeds is empty)
   const defaultFeedCreated = useRef(false);
@@ -365,7 +393,7 @@ function App() {
         const now = Date.now();
         await db.exec(
           `INSERT INTO feeds (id, name, color, created_at) VALUES (?,?,?,?)`,
-          [id, 'Главная', '#3b82f6', now]
+          [id, encrypt('Главная'), '#3b82f6', now]
         );
         setActiveFeedId(id);
       }
@@ -376,14 +404,14 @@ function App() {
     const id = 'feed-' + uid();
     await db.exec(
       `INSERT INTO feeds (id, name, color, avatar, created_at) VALUES (?,?,?,?,?)`,
-      [id, name, color, avatar, Date.now()]
+      [id, encrypt(name), color, avatar ? encrypt(avatar) : null, Date.now()]
     );
     setActiveFeedId(id);
-  }, [db]);
+  }, [db, encrypt]);
 
   const handleUpdateFeed = useCallback(async (id: string, name: string, color: string, avatar: string | null) => {
-    await db.exec(`UPDATE feeds SET name = ?, color = ?, avatar = ? WHERE id = ?`, [name, color, avatar, id]);
-  }, [db]);
+    await db.exec(`UPDATE feeds SET name = ?, color = ?, avatar = ? WHERE id = ?`, [encrypt(name), color, avatar ? encrypt(avatar) : null, id]);
+  }, [db, encrypt]);
 
   const handleDeleteFeed = useCallback(async (id: string) => {
     await db.exec(`DELETE FROM feeds WHERE id = ?`, [id]);
@@ -439,7 +467,7 @@ function App() {
     const now = Date.now();
     await db.exec(
       `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-      [id, focusedTweetId, 'local-user', astText, now.toString(), propsJson, activeFeedId, now, now]
+      [id, focusedTweetId, 'local-user', encrypt(astText), now.toString(), encrypt(propsJson), activeFeedId, now, now]
     );
   };
 
@@ -449,7 +477,7 @@ function App() {
     const now = Date.now();
     await db.exec(
       `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-      [id, parentId, 'local-user', astText, now.toString(), propsJson, activeFeedId, now, now]
+      [id, parentId, 'local-user', encrypt(astText), now.toString(), encrypt(propsJson), activeFeedId, now, now]
     );
     setReplyingToTweetId(null);
   };
@@ -457,15 +485,27 @@ function App() {
   const handleEditSubmit = async (noteId: string, astText: string, propsJson: string) => {
     await db.exec(
       `UPDATE notes SET content = ?, properties = ?, updated_at = ? WHERE id = ?`,
-      [astText, propsJson, Date.now(), noteId]
+      [encrypt(astText), encrypt(propsJson), Date.now(), noteId]
     );
     setEditingTweet(null);
   };
 
   // ── Export / Import ────────────────────────────────────────────────
   const handleExport = async () => {
-    const rows = await db.execO(`SELECT * FROM notes WHERE is_deleted = 0`);
-    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
+    const rows = await db.execO(`SELECT * FROM notes WHERE is_deleted = 0`) as any[];
+    const decryptedRows = rows.map(r => ({
+      ...r,
+      content: decrypt(r.content),
+      properties: decrypt(r.properties),
+    }));
+    const feedRows = await db.execO(`SELECT * FROM feeds`) as any[];
+    const decryptedFeeds = feedRows.map(f => ({
+      ...f,
+      name: decrypt(f.name),
+      avatar: f.avatar ? decrypt(f.avatar) : null,
+    }));
+    const payload = JSON.stringify({ version: 1, notes: decryptedRows, feeds: decryptedFeeds }, null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -478,11 +518,20 @@ function App() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const notes: any[] = JSON.parse(await file.text());
+      const data = JSON.parse(await file.text());
+      // Support both old format (array) and new format ({ version, notes, feeds })
+      const notes: any[] = Array.isArray(data) ? data : (data.notes || []);
+      const importFeeds: any[] = Array.isArray(data) ? [] : (data.feeds || []);
+      for (const f of importFeeds) {
+        await db.exec(
+          `INSERT OR IGNORE INTO feeds (id, name, color, avatar, created_at) VALUES (?,?,?,?,?)`,
+          [f.id, encrypt(f.name), f.color, f.avatar ? encrypt(f.avatar) : null, f.created_at]
+        );
+      }
       for (const n of notes) {
         await db.exec(
           `INSERT OR IGNORE INTO notes (id, parent_id, author_id, content, sort_key, properties, view_mode, feed_id, created_at, updated_at, is_deleted) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-          [n.id, n.parent_id, n.author_id, n.content, n.sort_key, n.properties || '{}', n.view_mode || 'list', n.feed_id || activeFeedId, n.created_at, n.updated_at, n.is_deleted || 0]
+          [n.id, n.parent_id, n.author_id, encrypt(n.content), n.sort_key, encrypt(n.properties || '{}'), n.view_mode || 'list', n.feed_id || activeFeedId, n.created_at, n.updated_at, n.is_deleted || 0]
         );
       }
       alert(`Импортировано ${notes.length} заметок`);

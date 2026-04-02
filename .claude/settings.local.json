@@ -22,7 +22,19 @@
       "Bash(gh search:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:docs.pears.com)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "WebFetch(domain:holepunch.to)",
+      "WebFetch(domain:keet.io)",
+      "WebFetch(domain:docs.holepunch.to)",
+      "WebFetch(domain:docs.ton.org)",
+      "WebFetch(domain:old-docs.ton.org)",
+      "WebFetch(domain:ton-storage.net)",
+      "WebFetch(domain:blog.ton.org)",
+      "WebFetch(domain:ton.org)",
+      "Bash(ls node_modules/@noble/ciphers/*.d.ts)",
+      "Bash(ls node_modules/@noble/hashes/sha256*)",
+      "Bash(ls node_modules/@noble/hashes/sha2*)",
+      "Bash(npm info:*)"
     ]
   }
 }

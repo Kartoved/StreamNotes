@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDB } from './DBContext';
+import { useCrypto } from '../crypto/CryptoContext';
 
 export interface Note {
   id: string;
@@ -51,6 +52,7 @@ export async function rescueOrphans(db: any) {
 
 export function useNotes(parentId: string | null = null, feedId: string | null = null) {
   const db = useDB();
+  const { decrypt } = useCrypto();
   const [notes, setNotes] = useState<Note[]>([]);
 
   useEffect(() => {
@@ -110,7 +112,12 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
       }
 
       const res = await db.execO(query, params);
-      if (isMounted) setNotes(res as Note[]);
+      const decrypted = (res as Note[]).map(row => ({
+        ...row,
+        content: decrypt(row.content),
+        properties: decrypt(row.properties),
+      }));
+      if (isMounted) setNotes(decrypted);
     };
 
     fetchNotes();
@@ -130,6 +137,7 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
 
 export function useFeeds() {
   const db = useDB();
+  const { decrypt } = useCrypto();
   const [feeds, setFeeds] = useState<Feed[]>([]);
 
   useEffect(() => {
@@ -137,7 +145,12 @@ export function useFeeds() {
 
     const fetch = async () => {
       const res = await db.execO(`SELECT * FROM feeds ORDER BY created_at ASC`);
-      if (isMounted) setFeeds(res as Feed[]);
+      const decrypted = (res as Feed[]).map(row => ({
+        ...row,
+        name: decrypt(row.name),
+        avatar: row.avatar ? decrypt(row.avatar) : null,
+      }));
+      if (isMounted) setFeeds(decrypted);
     };
 
     fetch();

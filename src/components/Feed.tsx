@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotes } from '../db/hooks';
 import { useDB } from '../db/DBContext';
+import { useCrypto } from '../crypto/CryptoContext';
 import { TweetEditor, LexicalRender } from './TiptapEditor';
 
 interface FeedProps {
@@ -51,6 +52,7 @@ function extractTags(content: string): string[] {
 // ─── Backlinks Section ────────────────────────────────────────────────
 const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string; onNoteClick?: (id: string) => void }) => {
   const db = useDB();
+  const { decrypt } = useCrypto();
   const [backlinks, setBacklinks] = useState<any[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -60,10 +62,16 @@ const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string; onNoteClick
 
   React.useEffect(() => {
     if (!db || !noteId) return;
-    db.execO(`SELECT id, content FROM notes WHERE content LIKE ?`, [`%note://${noteId}%`])
-      .then(res => setBacklinks(res || []))
+    db.execO(`SELECT id, content FROM notes WHERE is_deleted = 0`)
+      .then(res => {
+        const matches = (res || []).filter((r: any) => {
+          const plain = decrypt(r.content);
+          return plain.includes(`note://${noteId}`);
+        }).map((r: any) => ({ ...r, content: decrypt(r.content) }));
+        setBacklinks(matches);
+      })
       .catch(() => setBacklinks([]));
-  }, [db, noteId, isExpanded]);
+  }, [db, noteId, isExpanded, decrypt]);
 
   if (!backlinks || backlinks.length === 0) return null;
 
@@ -99,6 +107,7 @@ const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string; onNoteClick
 // ─── Note Modal (fullscreen overlay) ─────────────────────────────────
 const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; onClose: () => void; onNoteClick?: (id: string) => void }) => {
   const db = useDB();
+  const { encrypt, decrypt } = useCrypto();
   const [note, setNote] = useState<any>(null);
   const [children, setChildren] = useState<any[]>([]);
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
@@ -113,7 +122,7 @@ const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; onClose: 
   const load = React.useCallback(async () => {
     if (!db) return;
     const [row] = await db.execO(`SELECT * FROM notes WHERE id = ?`, [noteId]);
-    if (row) setNote(row);
+    if (row) setNote({ ...(row as any), content: decrypt((row as any).content), properties: decrypt((row as any).properties) });
     const rows = await db.execO(`
       WITH RECURSIVE tree(id, parent_id, author_id, content, sort_key, properties, created_at, updated_at, depth) AS (
         SELECT id, parent_id, author_id, content, sort_key, properties, created_at, updated_at, 0
@@ -124,7 +133,7 @@ const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; onClose: 
       )
       SELECT * FROM tree ORDER BY depth, sort_key
     `, [noteId]);
-    setChildren(rows || []);
+    setChildren((rows || []).map((r: any) => ({ ...r, content: decrypt(r.content), properties: decrypt(r.properties) })));
   }, [db, noteId]);
 
   React.useEffect(() => { load(); }, [load]);
@@ -140,13 +149,13 @@ const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; onClose: 
     const now = Date.now();
     await db.exec(
       `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
-      [id, parentId, 'local-user', ast, now.toString(), propsJson, now, now]
+      [id, parentId, 'local-user', encrypt(ast), now.toString(), encrypt(propsJson), now, now]
     );
     setReplyingToId(null);
   };
 
   const handleSubmitEdit = async (id: string, ast: string, propsJson: string) => {
-    await db.exec(`UPDATE notes SET content = ?, properties = ?, updated_at = ? WHERE id = ?`, [ast, propsJson, Date.now(), id]);
+    await db.exec(`UPDATE notes SET content = ?, properties = ?, updated_at = ? WHERE id = ?`, [encrypt(ast), encrypt(propsJson), Date.now(), id]);
     setEditingNote(null);
   };
 
@@ -178,7 +187,7 @@ const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; onClose: 
           <TweetEditor initialAst={note.content} initialPropsStr={note.properties} placeholder="Редактировать..." buttonText="Сохранить" onCancel={() => setEditingNote(null)} onSubmit={(ast, propsJson) => handleSubmitEdit(noteId, ast, propsJson)} autoFocus />
         ) : (
           <div style={{ fontSize: '15px', lineHeight: 1.6, color: 'var(--text-main)' }}>
-            <LexicalRender astString={note.content} onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [newAst, noteId])} />
+            <LexicalRender astString={note.content} onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), noteId])} />
           </div>
         )}
 
@@ -203,7 +212,7 @@ const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; onClose: 
                     <TweetEditor initialAst={child.content} initialPropsStr={child.properties} placeholder="Редактировать..." buttonText="Сохранить" onCancel={() => setEditingNote(null)} onSubmit={(ast, propsJson) => handleSubmitEdit(child.id, ast, propsJson)} autoFocus />
                   ) : (
                     <div style={{ fontSize: '13.5px', lineHeight: 1.45, color: 'var(--text-main)' }}>
-                      <LexicalRender astString={child.content} onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [newAst, child.id])} />
+                      <LexicalRender astString={child.content} onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), child.id])} />
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '2px', fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -251,6 +260,7 @@ export const Feed = ({
   selectedDate = null,
 }: FeedProps) => {
   const db = useDB();
+  const { encrypt } = useCrypto();
   const notes = useNotes(parentId, feedId);
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -363,7 +373,7 @@ export const Feed = ({
     try {
       const props = JSON.parse(currentPropsRaw || '{}');
       props[key] = value;
-      await db.exec(`UPDATE notes SET properties = ? WHERE id = ?`, [JSON.stringify(props), id]);
+      await db.exec(`UPDATE notes SET properties = ? WHERE id = ?`, [encrypt(JSON.stringify(props)), id]);
     } catch (e) { console.error(e); }
   };
 
@@ -619,7 +629,7 @@ export const Feed = ({
                           <div className="note-content" style={{ fontSize: '14px', lineHeight: 1.45 }}>
                             <LexicalRender
                               astString={note.content}
-                              onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [newAst, note.id])}
+                              onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), note.id])}
                             />
                             <BacklinksSection noteId={note.id} onNoteClick={onNoteClick} />
                           </div>

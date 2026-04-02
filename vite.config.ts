@@ -28,6 +28,7 @@ export default defineConfig({
         // OPFS / SharedArrayBuffer требуют особых заголовков —
         // service worker не должен перехватывать навигацию
         navigateFallback: null,
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
         // Не кешируем wasm — он большой и грузится через OPFS
         globIgnores: ['**/*.wasm'],
