@@ -44,7 +44,7 @@ export const RightSidebar = ({
         />
       </div>
 
-      <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px' }}>
+      <div style={{ background: 'var(--bg-aside)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', padding: '12px', boxShadow: 'var(--shadow-sm)' }}>
         <MiniCalendar
           activeDays={activeDays}
           selectedDate={selectedDate}
@@ -53,14 +53,14 @@ export const RightSidebar = ({
         {selectedDate && (
           <button
             onClick={() => setSelectedDate(null)}
-            style={{ marginTop: '6px', width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: '6px', padding: '3px', fontSize: '0.72rem', cursor: 'pointer' }}
+            style={{ marginTop: '8px', width: '100%', background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: 'var(--radius)', padding: '4px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
           >✕ Сбросить дату</button>
         )}
       </div>
 
       {allTags.length > 0 && (
-        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px' }}>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Теги</div>
+        <div style={{ background: 'var(--bg-aside)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', padding: '12px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Теги</div>
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
             {allTags.map(tag => (
               <span

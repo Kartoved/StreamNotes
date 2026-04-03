@@ -405,14 +405,29 @@ export const TweetEditor = ({
   useEffect(() => { handleSubmitRef.current = handleSubmit; }, [handleSubmit]);
 
   const selStyle: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.05)', color: '#93c5fd',
-    border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px',
-    fontSize: '0.8rem', padding: '4px 6px', cursor: 'pointer',
+    background: 'var(--bg-hover)',
+    color: 'var(--text-sub)',
+    border: '1px solid var(--line)',
+    borderRadius: 'var(--radius)',
+    fontSize: '0.8rem',
+    padding: '4px 8px',
+    cursor: 'pointer',
+    fontFamily: 'var(--font-body)',
   };
-  const optStyle: React.CSSProperties = { backgroundColor: '#1e293b', color: '#e2e8f0' };
+  const optStyle: React.CSSProperties = { backgroundColor: 'var(--bg)', color: 'var(--text)' };
 
   return (
-    <div style={{ position: 'relative', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 12px', background: 'var(--card-bg)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', color: 'var(--text-main)' }}>
+    <div style={{
+      position: 'relative',
+      border: '1px solid var(--line)',
+      borderRadius: 'var(--radius-lg)',
+      padding: '14px 20px',
+      background: 'var(--bg)',
+      color: 'var(--text)',
+      fontFamily: 'var(--font-body)',
+      lineHeight: 1.85,
+      letterSpacing: '0.01em',
+    }}>
       <Toolbar editor={editor} onUpload={(files) => uploadFiles(files)} />
 
       <div style={{ position: 'relative' }}>
@@ -430,22 +445,22 @@ export const TweetEditor = ({
 
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center',
-        marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)',
+        marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--line)',
       }}>
         <select value={type} onChange={(e) => setType(e.target.value)} style={selStyle}>
           {TYPES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
         </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...selStyle, color: '#dcfce7' }}>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} style={selStyle}>
           {STATUSES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
         </select>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...selStyle, color: 'white', colorScheme: 'dark' }} />
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...selStyle }} />
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {uploadProgress && <UploadRing done={uploadProgress.done} total={uploadProgress.total} />}
           {onCancel && (
-            <button type="button" onClick={onCancel} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '6px 16px', borderRadius: '6px', cursor: 'pointer' }}>Отмена</button>
+            <button type="button" onClick={onCancel} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', padding: '6px 16px', borderRadius: 'var(--radius)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.85rem' }}>Отмена</button>
           )}
-          <button type="button" onClick={handleSubmit} disabled={!!uploadProgress} style={{ background: 'var(--accent)', border: 'none', color: 'white', padding: '6px 20px', borderRadius: '6px', cursor: uploadProgress ? 'not-allowed' : 'pointer', fontWeight: 'bold', opacity: uploadProgress ? 0.6 : 1 }}>{buttonText}</button>
+          <button type="button" onClick={handleSubmit} disabled={!!uploadProgress} style={{ background: 'var(--accent)', border: 'none', color: '#fff', padding: '6px 20px', borderRadius: 'var(--radius)', cursor: uploadProgress ? 'not-allowed' : 'pointer', fontWeight: 600, fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: uploadProgress ? 0.6 : 1 }}>{buttonText}</button>
         </div>
       </div>
     </div>

@@ -65,14 +65,14 @@ export const NoteCard = ({
   const isDragOverChild = dragOverInfo?.id === note.id && dragOverInfo?.zone === 'child';
   const isDragOverSibling = dragOverInfo?.id === note.id && dragOverInfo?.zone === 'sibling';
 
-  let baseBg = 'rgba(255,255,255,0.02)';
-  if (status === 'done') baseBg = 'rgba(34, 197, 94, 0.1)';
-  else if (status === 'todo') baseBg = 'rgba(239, 68, 68, 0.12)';
-  else if (status === 'doing') baseBg = 'rgba(59, 130, 246, 0.1)';
-  else if (status === 'archived') baseBg = 'rgba(15, 23, 42, 0.5)';
+  let baseBg = 'transparent';
+  if (status === 'done') baseBg = 'rgba(34, 197, 94, 0.06)';
+  else if (status === 'todo') baseBg = 'rgba(239, 68, 68, 0.06)';
+  else if (status === 'doing') baseBg = 'rgba(232, 160, 69, 0.08)';
+  else if (status === 'archived') baseBg = 'var(--bg-hover)';
 
-  let finalBg = isReplying ? 'rgba(167, 139, 250, 0.1)' : baseBg;
-  if (isDragOverChild) finalBg = 'rgba(96, 165, 250, 0.15)';
+  let finalBg = isReplying ? 'var(--accent-bg)' : baseBg;
+  if (isDragOverChild) finalBg = 'rgba(232, 160, 69, 0.1)';
 
   return (
     <div
@@ -90,7 +90,7 @@ export const NoteCard = ({
       style={{
         position: 'absolute', top: 0, left: 0, width: '100%',
         transform: `translateY(${virtualItem.start}px)`,
-        padding: '6px 6px 6px 6px',
+        padding: '5px 6px',
         opacity: draggedId === note.id ? 0.3 : 1,
       }}
     >
@@ -100,7 +100,7 @@ export const NoteCard = ({
           position: 'absolute',
           left: `calc(6px + ${indent - 10}px)`,
           top: 0, bottom: 0,
-          width: '2px', background: 'var(--border)',
+          width: '1px', background: 'var(--line)',
           pointerEvents: 'none',
         }} />
       )}
@@ -108,18 +108,17 @@ export const NoteCard = ({
       {/* ── Card panel ────────────────────────────────────── */}
       <div style={{
         marginLeft: `${indent}px`,
-        background: finalBg !== 'rgba(255,255,255,0.02)' ? finalBg : 'var(--card-bg)',
+        background: finalBg !== 'transparent' ? finalBg : 'var(--card-bg)',
         border: isDragOverSibling
-          ? '2px solid var(--accent)'
+          ? '1px solid var(--accent)'
           : isDragOverChild
-            ? '2px solid rgba(96,165,250,0.8)'
-            : '1px solid var(--border)',
-        borderRadius: '10px',
-        padding: '8px 10px',
+            ? '1px solid var(--accent)'
+            : '1px solid var(--line)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '14px 20px',
         position: 'relative',
         overflow: 'hidden',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        transition: 'border-color 0.12s, background 0.12s',
       }}>
 
         {/* DnD zone overlay */}
@@ -136,23 +135,23 @@ export const NoteCard = ({
 
         {/* ── Card body: left sidebar + right content ─────── */}
         <div
-          style={{ display: 'flex', gap: '8px', position: 'relative', zIndex: 2 }}
+          style={{ display: 'flex', gap: '16px', position: 'relative', zIndex: 2 }}
           onContextMenu={(e) => openContextMenu(e, note.id)}
         >
           {/* LEFT: avatar + name + time (clickable → navigate) */}
           <div
             onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
             style={{
-              width: 50, flexShrink: 0,
+              width: 44, flexShrink: 0,
               display: 'flex', flexDirection: 'column', alignItems: 'center',
-              gap: '2px', cursor: 'pointer', paddingTop: '1px', userSelect: 'none',
+              gap: '3px', cursor: 'pointer', paddingTop: '2px', userSelect: 'none',
             }}
           >
-            <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)' }} />
-            <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--text-main)', textAlign: 'center', lineHeight: 1.2, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--line-strong)', flexShrink: 0 }} />
+            <span style={{ fontSize: '0.58rem', fontWeight: 500, color: 'var(--text-faint)', textAlign: 'center', lineHeight: 1.2, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {note.author_id}
             </span>
-            <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: '0.56rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
               {new Date(note.created_at).toLocaleTimeString().slice(0, 5)}
             </span>
           </div>
@@ -181,10 +180,10 @@ export const NoteCard = ({
                   <BacklinksSection noteId={note.id} onNoteClick={onNoteClick} />
                 </div>
                 {(type !== 'tweet' || (status && status !== 'none') || targetDate) && (
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
-                    {type !== 'tweet' && <span style={{ background: 'rgba(147,197,253,0.12)', color: '#93c5fd', borderRadius: '4px', padding: '0px 6px', fontSize: '0.68rem' }}>{type}</span>}
-                    {status !== 'none' && <span style={{ background: 'rgba(134,239,172,0.12)', color: '#86efac', borderRadius: '4px', padding: '0px 6px', fontSize: '0.68rem' }}>{status}</span>}
-                    {targetDate && <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', borderRadius: '4px', padding: '0px 6px', fontSize: '0.68rem' }}>{targetDate}</span>}
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
+                    {type !== 'tweet' && <span style={{ background: 'var(--bg-hover)', color: 'var(--text-sub)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.7rem', border: '1px solid var(--line)' }}>{type}</span>}
+                    {status !== 'none' && <span style={{ background: 'var(--bg-hover)', color: 'var(--text-sub)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.7rem', border: '1px solid var(--line)' }}>{status}</span>}
+                    {targetDate && <span style={{ background: 'var(--bg-hover)', color: 'var(--text-faint)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.7rem', border: '1px solid var(--line)', fontFamily: 'var(--font-mono)' }}>{targetDate}</span>}
                   </div>
                 )}
               </>

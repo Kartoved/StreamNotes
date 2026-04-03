@@ -28,18 +28,20 @@ const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
   const initials = feed.name.slice(0, 2).toUpperCase();
   return (
     <div style={{
-      width: '44px', height: '44px', borderRadius: active ? '14px' : '50%',
+      width: '36px', height: '36px',
+      borderRadius: active ? '10px' : '8px',
       background: feed.avatar ? 'transparent' : feed.color,
       border: active ? `2px solid ${feed.color}` : '2px solid transparent',
       overflow: 'hidden',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       cursor: 'pointer', flexShrink: 0,
-      boxShadow: active ? `0 0 0 2px ${feed.color}44` : 'none',
-      transition: 'border-radius 0.2s, box-shadow 0.2s, border 0.2s',
+      opacity: active ? 1 : 0.6,
+      transition: 'all 0.15s ease',
+      boxShadow: active ? `0 2px 8px ${feed.color}40` : 'none',
     }}>
       {feed.avatar
         ? <img src={feed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : <span style={{ color: 'white', fontWeight: 700, fontSize: '1rem', userSelect: 'none' }}>{initials}</span>
+        : <span style={{ color: 'white', fontWeight: 700, fontSize: '0.8rem', userSelect: 'none' }}>{initials}</span>
       }
     </div>
   );
@@ -107,25 +109,24 @@ export const FeedsSidebar = ({
   return (
     <>
       <div className="feeds-sidebar" style={{
-        width: '64px', flexShrink: 0,
+        width: '56px', flexShrink: 0,
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        paddingTop: '12px', paddingBottom: '12px', gap: '8px',
-        borderRight: '1px solid var(--border)',
-        background: 'var(--card-bg)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        paddingTop: '14px', paddingBottom: '14px', gap: '4px',
+        borderRight: '1px solid var(--line)',
+        background: 'var(--sidebar-bg)',
         overflowY: 'auto',
         overflowX: 'hidden',
       }}>
         {/* Logo */}
-        <div style={{ fontSize: '1.4rem', marginBottom: '4px', userSelect: 'none' }}>📝</div>
-        <div className="feed-logo-sep" style={{ width: '32px', height: '1px', background: 'var(--border)', marginBottom: '4px' }} />
+        <div style={{ fontSize: '1.3rem', marginBottom: '8px', userSelect: 'none', lineHeight: 1 }}>✦</div>
+        <div className="feed-logo-sep" style={{ width: '24px', height: '1px', background: 'var(--line)', marginBottom: '8px' }} />
 
         {feeds.map(feed => (
           <div
             key={feed.id}
             className="feed-item"
             onClick={() => activeFeedId === feed.id ? openEdit(feed) : onSelect(feed.id)}
+            style={{ padding: '4px 0' }}
           >
             <FeedIcon feed={feed} active={feed.id === activeFeedId} />
             <div className="feed-tooltip">{feed.name}</div>
@@ -133,18 +134,18 @@ export const FeedsSidebar = ({
         ))}
 
         {/* Add feed */}
-        <div className="feed-item" style={{ marginTop: '4px' }}>
+        <div className="feed-item" style={{ marginTop: '8px', padding: '4px 0' }}>
           <div
             onClick={openCreate}
             style={{
-              width: '44px', height: '44px', borderRadius: '50%',
-              border: '2px dashed var(--border)', display: 'flex',
+              width: '36px', height: '36px', borderRadius: '8px',
+              border: '1.5px dashed var(--line-strong)', display: 'flex',
               alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.4rem',
-              transition: 'border-color 0.15s, color 0.15s',
+              cursor: 'pointer', color: 'var(--text-faint)', fontSize: '1.2rem',
+              transition: 'all 0.15s',
             }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLElement).style.color = 'var(--accent)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLElement).style.color = 'var(--accent)'; (e.currentTarget as HTMLElement).style.background = 'var(--accent-bg)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line-strong)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >+</div>
           <div className="feed-tooltip">Новая лента</div>
         </div>
@@ -159,13 +160,13 @@ export const FeedsSidebar = ({
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: 'var(--card-bg)', border: '1px solid var(--border)',
-              borderRadius: '14px', padding: '24px', width: '300px',
-              backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+              background: 'var(--bg)', border: '1px solid var(--line)',
+              borderRadius: 'var(--radius-lg)', padding: '24px', width: '300px',
               display: 'flex', flexDirection: 'column', gap: '16px',
+              boxShadow: 'var(--shadow-md)',
             }}
           >
-            <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)' }}>
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em' }}>
               {modal === 'create' ? 'Новая лента' : 'Редактировать ленту'}
             </div>
 

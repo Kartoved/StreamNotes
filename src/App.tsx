@@ -114,11 +114,18 @@ function App() {
   }, [db, activeFeedId, feeds]);
 
   // ── Theme ──────────────────────────────────────────────────────────
-  const [theme, setTheme] = useState<'dark' | 'light'>(
-    () => (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
-  );
+  // Force light theme for the new minimalist design (reset old localStorage)
+  const DESIGN_VERSION = 'minimalist-v1';
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (localStorage.getItem('design_version') !== DESIGN_VERSION) {
+      localStorage.setItem('design_version', DESIGN_VERSION);
+      localStorage.setItem('theme', 'light');
+      return 'light';
+    }
+    return (localStorage.getItem('theme') as 'dark' | 'light') || 'light';
+  });
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : '');
     localStorage.setItem('theme', theme);
   }, [theme]);
 
@@ -236,13 +243,21 @@ function App() {
   const activeFeed = feeds.find(f => f.id === activeFeedId);
 
   const iconBtn: React.CSSProperties = {
-    background: 'transparent', border: '1px solid var(--border)',
-    color: 'var(--text-muted)', padding: '2px 9px', borderRadius: '6px',
-    cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap',
+    background: 'transparent',
+    border: '1px solid var(--line)',
+    color: 'var(--text-sub)',
+    padding: '3px 10px',
+    borderRadius: 'var(--radius)',
+    cursor: 'pointer',
+    fontSize: '0.78rem',
+    whiteSpace: 'nowrap',
+    fontFamily: 'var(--font-body)',
+    fontWeight: 500,
+    transition: 'background 0.12s, color 0.12s',
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
       {/* ── Feeds sidebar ── */}
       <FeedsSidebar
         feeds={feeds}
@@ -254,32 +269,32 @@ function App() {
       />
 
       {/* ── Main content ── */}
-      <div className="main-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1rem', boxSizing: 'border-box', alignItems: 'center' }}>
+      <div className="main-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1.5rem', boxSizing: 'border-box', alignItems: 'center', background: 'var(--bg)' }}>
         {/* Header */}
-        <header className="app-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '0.75rem', flexShrink: 0, width: '100%', maxWidth: '980px' }}>
-          <h1 style={{ margin: 0, fontSize: '1.1rem', background: '-webkit-linear-gradient(45deg, #60a5fa, #c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', flexShrink: 0 }}>
+        <header className="app-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem', flexShrink: 0, width: '100%', maxWidth: '980px', borderBottom: '1px solid var(--line)', paddingBottom: '12px' }}>
+          <h1 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)', flexShrink: 0, letterSpacing: '-0.01em' }}>
             {activeFeed?.name || 'StreamNotes'}
           </h1>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', flexShrink: 0 }}>
-            {focusedTweetId ? 'Ветка обсуждения' : 'Главная лента'}
+          <span style={{ color: 'var(--text-faint)', fontSize: '0.8rem', flexShrink: 0 }}>
+            {focusedTweetId ? '/ ветка' : ''}
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
             {nostrPubKey && (
               <span
                 onClick={() => setShowSettings(true)}
-                style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'monospace', padding: '2px 6px', border: '1px solid var(--border)', borderRadius: '4px' }}
+                style={{ fontSize: '0.7rem', color: 'var(--text-faint)', cursor: 'pointer', fontFamily: 'var(--font-mono)', padding: '2px 6px', border: '1px solid var(--line)', borderRadius: 'var(--radius)' }}
               >
                 {nostrPubKey.slice(0, 6)}…{nostrPubKey.slice(-4)}
               </span>
             )}
-            <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} style={iconBtn}>{theme === 'dark' ? '☀' : '🌙'}</button>
-            <button onClick={handleExport} style={iconBtn}>↑ Export</button>
+            <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} style={iconBtn}>{theme === 'dark' ? '☀ Светлая' : '🌙 Тёмная'}</button>
+            <button onClick={handleExport} style={iconBtn}>↑ Экспорт</button>
             <label style={{ ...iconBtn, display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
-              ↓ Import<input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+              ↓ Импорт<input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
             </label>
-            <button onClick={() => setShowSettings(true)} style={iconBtn}>⚙</button>
+            <button onClick={() => setShowSettings(true)} style={iconBtn}>⚙ Настройки</button>
             {focusedTweetId && (
-              <button onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }} style={{ ...iconBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}>← В корень</button>
+              <button onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }} style={{ ...iconBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}>← В ленту</button>
             )}
           </div>
         </header>
