@@ -133,69 +133,70 @@ export const NoteCard = ({
           </div>
         )}
 
-        {/* ── Card body: left sidebar + right content ─────── */}
+        {/* ── Card body: flat vertical layout ───────────────── */}
         <div
-          style={{ display: 'flex', gap: '16px', position: 'relative', zIndex: 2 }}
+          style={{ position: 'relative', zIndex: 2 }}
           onContextMenu={(e) => openContextMenu(e, note.id)}
         >
-          {/* LEFT: avatar + name + time (clickable → navigate) */}
+          {/* TOP ROW: author + time + click-to-navigate */}
           <div
-            onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
             style={{
-              width: 44, flexShrink: 0,
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              gap: '3px', cursor: 'pointer', paddingTop: '2px', userSelect: 'none',
+              display: 'flex', alignItems: 'baseline', gap: '10px',
+              marginBottom: '8px', cursor: 'pointer', userSelect: 'none',
             }}
+            onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
           >
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--line-strong)', flexShrink: 0 }} />
-            <span style={{ fontSize: '0.58rem', fontWeight: 500, color: 'var(--text-faint)', textAlign: 'center', lineHeight: 1.2, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{
+              fontSize: '0.78rem', fontWeight: 700,
+              color: 'var(--text-sub)', letterSpacing: '0.02em',
+            }}>
               {note.author_id}
             </span>
-            <span style={{ fontSize: '0.56rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
-              {new Date(note.created_at).toLocaleTimeString().slice(0, 5)}
+            <span style={{
+              fontSize: '0.72rem', color: 'var(--text-faint)',
+              fontFamily: 'var(--font-mono)',
+            }}>
+              {new Date(note.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
 
-          {/* RIGHT: content + meta */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          {/* DIVIDER */}
+          <div style={{ height: '1px', background: 'var(--line)', marginBottom: '10px' }} />
 
-            {/* Content */}
-            {editingNoteId === note.id ? (
-              <div onClick={(e: any) => e.stopPropagation()}>
-                <TweetEditor
-                  initialAst={note.content} initialPropsStr={note.properties}
-                  placeholder="Редактировать..." buttonText="Сохранить"
-                  onCancel={() => onCancelEdit && onCancelEdit()}
-                  onSubmit={(ast, propsJson) => { if (onSubmitEdit) onSubmitEdit(note.id, ast, propsJson); }}
-                  autoFocus
+          {/* CONTENT */}
+          {editingNoteId === note.id ? (
+            <div onClick={(e: any) => e.stopPropagation()}>
+              <TweetEditor
+                initialAst={note.content} initialPropsStr={note.properties}
+                placeholder="Редактировать..." buttonText="Сохранить"
+                onCancel={() => onCancelEdit && onCancelEdit()}
+                onSubmit={(ast, propsJson) => { if (onSubmitEdit) onSubmitEdit(note.id, ast, propsJson); }}
+                autoFocus
+              />
+            </div>
+          ) : (
+            <>
+              <div className="note-content">
+                <TiptapRender
+                  astString={note.content}
+                  onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), note.id])}
                 />
+                <BacklinksSection noteId={note.id} onNoteClick={onNoteClick} />
               </div>
-            ) : (
-              <>
-                <div className="note-content" style={{ fontSize: '14px', lineHeight: 1.45 }}>
-                  <TiptapRender
-                    astString={note.content}
-                    onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), note.id])}
-                  />
-                  <BacklinksSection noteId={note.id} onNoteClick={onNoteClick} />
+              {(type !== 'tweet' || (status && status !== 'none') || targetDate) && (
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' }}>
+                  {type !== 'tweet' && <span style={{ background: 'var(--bg-hover)', color: 'var(--text-sub)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.7rem', border: '1px solid var(--line)' }}>{type}</span>}
+                  {status !== 'none' && <span style={{ background: 'var(--bg-hover)', color: 'var(--text-sub)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.7rem', border: '1px solid var(--line)' }}>{status}</span>}
+                  {targetDate && <span style={{ background: 'var(--bg-hover)', color: 'var(--text-faint)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.7rem', border: '1px solid var(--line)', fontFamily: 'var(--font-mono)' }}>{targetDate}</span>}
                 </div>
-                {(type !== 'tweet' || (status && status !== 'none') || targetDate) && (
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
-                    {type !== 'tweet' && <span style={{ background: 'var(--bg-hover)', color: 'var(--text-sub)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.7rem', border: '1px solid var(--line)' }}>{type}</span>}
-                    {status !== 'none' && <span style={{ background: 'var(--bg-hover)', color: 'var(--text-sub)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.7rem', border: '1px solid var(--line)' }}>{status}</span>}
-                    {targetDate && <span style={{ background: 'var(--bg-hover)', color: 'var(--text-faint)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.7rem', border: '1px solid var(--line)', fontFamily: 'var(--font-mono)' }}>{targetDate}</span>}
-                  </div>
-                )}
-              </>
-            )}
-
-
-          </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Reply form — full width below */}
         {isReplying && (
-          <div style={{ marginTop: '0.75rem', paddingLeft: '58px' }}>
+          <div style={{ marginTop: '0.75rem' }}>
             <TweetEditor
               placeholder="Напиши ответ..." buttonText="Отправить"
               onCancel={() => onCancelReply && onCancelReply()}
@@ -205,6 +206,7 @@ export const NoteCard = ({
           </div>
         )}
       </div>{/* end card panel */}
+
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const DAYS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
 export const MiniCalendar = ({
@@ -16,7 +16,8 @@ export const MiniCalendar = ({
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
 
-  const firstDay = new Date(year, month, 1).getDay();
+  const rawDay = new Date(year, month, 1).getDay(); // 0=Sun
+  const firstDay = (rawDay + 6) % 7; // convert to Mon=0 … Sun=6
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayStr = today.toISOString().slice(0, 10);
 
@@ -26,21 +27,28 @@ export const MiniCalendar = ({
   const cells: (number | null)[] = Array(firstDay).fill(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
+  // All sizes ×1.3 vs original
   const btnBase: React.CSSProperties = {
-    background: 'none', border: 'none', color: 'var(--text-muted)',
-    cursor: 'pointer', fontSize: '0.9rem', padding: '2px 6px',
+    background: 'none', border: 'none', color: 'var(--text-sub)',
+    cursor: 'pointer', fontSize: '1.17rem', padding: '2px 8px',
+    lineHeight: 1,
   };
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+      {/* Month header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
         <button style={btnBase} onClick={prev}>‹</button>
-        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)' }}>{MONTHS[month]} {year}</span>
+        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.01em' }}>{MONTHS[month]} {year}</span>
         <button style={btnBase} onClick={next}>›</button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', marginBottom: '2px' }}>
-        {DAYS.map(d => <div key={d} style={{ fontSize: '0.65rem', color: 'var(--text-muted)', padding: '2px 0' }}>{d}</div>)}
+
+      {/* Day-of-week headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', marginBottom: '4px' }}>
+        {DAYS.map(d => <div key={d} style={{ fontSize: '0.72rem', color: 'var(--text-faint)', padding: '3px 0', fontWeight: 600 }}>{d}</div>)}
       </div>
+
+      {/* Day cells */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
         {cells.map((day, i) => {
           if (!day) return <div key={`e${i}`} />;
@@ -53,19 +61,37 @@ export const MiniCalendar = ({
               key={iso}
               onClick={() => onSelectDate(isSelected ? null : iso)}
               style={{
-                textAlign: 'center', padding: '4px 2px',
-                borderRadius: '6px', cursor: hasNotes ? 'pointer' : 'default',
-                fontSize: '0.78rem',
-                background: isSelected ? 'var(--accent)' : isToday ? 'rgba(59,130,246,0.15)' : 'transparent',
-                color: isSelected ? 'white' : isToday ? 'var(--accent)' : hasNotes ? 'var(--text-main)' : 'var(--text-muted)',
+                textAlign: 'center',
+                padding: '6px 2px',          /* was 4px — ×1.3 */
+                borderRadius: '5px',
+                cursor: hasNotes ? 'pointer' : 'default',
+                fontSize: '0.85rem',          /* was 0.78rem — ×1.3 */
+                background: isSelected
+                  ? 'var(--text)'
+                  : isToday
+                    ? 'var(--bg-hover)'
+                    : 'transparent',
+                color: isSelected
+                  ? 'var(--bg)'
+                  : isToday
+                    ? 'var(--text)'
+                    : hasNotes
+                      ? 'var(--text)'
+                      : 'var(--text-faint)',
                 fontWeight: isToday || isSelected ? 700 : hasNotes ? 500 : 400,
-                opacity: hasNotes || isToday ? 1 : 0.4,
-                position: 'relative', transition: 'background 0.12s',
+                opacity: hasNotes || isToday || isSelected ? 1 : 0.55,
+                position: 'relative',
+                transition: 'background 0.1s',
               }}
             >
               {day}
               {hasNotes && !isSelected && (
-                <div style={{ position: 'absolute', bottom: '1px', left: '50%', transform: 'translateX(-50%)', width: '4px', height: '4px', borderRadius: '50%', background: 'var(--accent)' }} />
+                <div style={{
+                  position: 'absolute', bottom: '2px', left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '4px', height: '4px',
+                  borderRadius: '50%', background: 'var(--text-sub)',
+                }} />
               )}
             </div>
           );
