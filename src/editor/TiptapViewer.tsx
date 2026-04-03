@@ -61,7 +61,7 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
     if (marks.includes('italic')) el = <em>{el}</em>;
     if (marks.includes('strike')) el = <s style={{ textDecoration: 'line-through' }}>{el}</s>;
     if (marks.includes('underline')) el = <u>{el}</u>;
-    if (marks.includes('code')) el = <code style={{ background: '#2d3748', padding: '2px 4px', borderRadius: '4px', fontSize: '0.88em' }}>{el}</code>;
+    if (marks.includes('code')) el = <code style={{ background: 'var(--bg-hover)', padding: '1px 5px', borderRadius: '3px', fontSize: '0.88em', fontFamily: 'var(--font-mono)', border: '1px solid var(--line)' }}>{el}</code>;
     if (linkMark) {
       const href: string = linkMark.attrs?.href || '';
       const isInternal = href.startsWith('note://');
@@ -110,7 +110,8 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
     const isDone = state === 'done';
     const isCancelled = state === 'cancelled';
     return (
-      <li key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+      <li key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '6px' }}>
+        {/* checkbox box */}
         <div
           onClick={(e) => {
             e.stopPropagation();
@@ -120,18 +121,36 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
             onUpdateAST(JSON.stringify(docJson));
           }}
           style={{
-            marginTop: '0.2rem', width: '24px', height: '24px', flexShrink: 0,
-            border: '2px solid',
-            borderColor: isDone ? '#4ade80' : isCancelled ? '#f87171' : '#a78bfa',
-            background: isDone ? '#4ade80' : isCancelled ? '#f87171' : 'rgba(0,0,0,0.5)',
-            borderRadius: '4px', cursor: onUpdateAST ? 'pointer' : 'default',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s all',
+            marginTop: '4px',
+            width: '16px', height: '16px', flexShrink: 0,
+            border: '1.5px solid',
+            borderColor: isDone ? 'var(--text)' : isCancelled ? 'var(--line-strong)' : 'var(--line-strong)',
+            background: isDone ? 'var(--text)' : isCancelled ? 'var(--bg-hover)' : 'var(--bg)',
+            borderRadius: '3px',
+            cursor: onUpdateAST ? 'pointer' : 'default',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'border-color 0.12s, background 0.12s',
           }}
         >
-          {isDone && <span style={{ color: 'black', fontSize: '14px', fontWeight: 'bold', lineHeight: 1, pointerEvents: 'none' }}>✓</span>}
-          {isCancelled && <span style={{ color: 'white', fontSize: '12px', fontWeight: 'bold', lineHeight: 1, pointerEvents: 'none' }}>✕</span>}
+          {isDone && (
+            <svg width="10" height="8" viewBox="0 0 10 8" fill="none" style={{ pointerEvents: 'none' }}>
+              <path d="M1 3.5L3.8 6.5L9 1" stroke="var(--bg)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+          {isCancelled && (
+            <svg width="8" height="2" viewBox="0 0 8 2" fill="none" style={{ pointerEvents: 'none' }}>
+              <path d="M0 1H8" stroke="var(--text-faint)" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          )}
         </div>
-        <span style={{ textDecoration: isCancelled ? 'line-through' : 'none', color: isDone ? '#4ade80' : isCancelled ? '#718096' : 'inherit', transition: '0.2s', opacity: isCancelled ? 0.6 : 1, marginTop: '0.1rem' }}>
+        {/* text */}
+        <span style={{
+          textDecoration: (isDone || isCancelled) ? 'line-through' : 'none',
+          textDecorationColor: 'var(--line-strong)',
+          color: (isDone || isCancelled) ? 'var(--text-faint)' : 'inherit',
+          opacity: isCancelled ? 0.6 : 1,
+          marginTop: '0.05rem',
+        }}>
           {ch()}
         </span>
       </li>
@@ -139,12 +158,12 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
   }
 
   if (node.type === 'blockquote') {
-    return <blockquote key={index} style={{ borderLeft: '3px solid var(--accent)', paddingLeft: '10px', margin: '0.5em 0', color: '#a0aec0' }}>{ch()}</blockquote>;
+    return <blockquote key={index} style={{ borderLeft: '2px solid var(--line-strong)', paddingLeft: '12px', margin: '0.5em 0', color: 'var(--text-sub)' }}>{ch()}</blockquote>;
   }
 
   if (node.type === 'codeBlock') {
     const code = (node.content || []).map((c: any) => c.text ?? '').join('');
-    return <pre key={index} style={{ background: '#1a202c', padding: '12px', borderRadius: '8px', border: '1px solid #2d3748', overflowX: 'auto', margin: '0.5em 0' }}><code style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>{code}</code></pre>;
+    return <pre key={index} style={{ background: 'var(--bg-hover)', padding: '12px 16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)', overflowX: 'auto', margin: '0.5em 0', fontFamily: 'var(--font-mono)' }}><code style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)', fontSize: '0.9em' }}>{code}</code></pre>;
   }
 
   if (node.type === 'hardBreak') return <br key={index} />;

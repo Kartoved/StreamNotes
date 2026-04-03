@@ -1,108 +1,99 @@
-/* ─── Light theme overrides ─── */
-[data-theme="light"] .tiptap-editor {
-  color: var(--text-main);
-}
-[data-theme="light"] .tiptap-editor blockquote {
-  color: var(--text-muted);
-}
-[data-theme="light"] .tiptap-editor pre {
-  background: #e2e8f0;
-  border-color: #cbd5e1;
-}
-[data-theme="light"] .tiptap-editor pre code {
-  color: #1e293b;
-}
-[data-theme="light"] .tiptap-editor code {
-  background-color: #e2e8f0;
-  color: #1e293b;
-}
-[data-theme="light"] .editor-text-code {
-  background-color: #e2e8f0;
-  color: #1e293b;
-}
-
-/* ─── Text formatting ─── */
-.editor-text-bold { font-weight: bold; }
-.editor-text-italic { font-style: italic; }
-.editor-text-underline { text-decoration: underline; }
-.editor-text-strikethrough { text-decoration: line-through; }
-.editor-text-underlineStrikethrough { text-decoration: underline line-through; }
-.editor-text-code { background-color: #2d3748; padding: 2px 4px; border-radius: 4px; font-family: monospace; }
-
-/* ─── Lists ─── */
-.editor-ul { padding-left: 20px; list-style-type: disc; margin: 0.5em 0; }
-.editor-ol { padding-left: 20px; list-style-type: decimal; margin: 0.5em 0; }
-.editor-listitem { margin-bottom: 4px; }
-
-/* ─── Headings ─── */
-.editor-h1 { font-size: 1.6rem; font-weight: bold; margin: 0.8em 0 0.4em 0; line-height: 1.2; }
-.editor-h2 { font-size: 1.4rem; font-weight: bold; margin: 0.8em 0 0.4em 0; line-height: 1.2; }
-.editor-h3 { font-size: 1.2rem; font-weight: bold; margin: 0.8em 0 0.4em 0; line-height: 1.2; }
-
-/* ─── TipTap Editor Base ─── */
+/* ─── Base editor ─────────────────────────────────────────────────── */
 .tiptap-editor {
   outline: none;
   min-height: 60px;
   padding: 4px;
-  font-size: 15px;
-  color: #e2e8f0;
-  line-height: 1.5;
+  font-size: 1rem;
+  font-family: var(--font-body);
+  color: var(--text);
+  line-height: 1.85;
+  letter-spacing: 0.01em;
 }
 
 .tiptap-editor p { margin: 0 0 0.5em; }
-.tiptap-editor h1 { font-size: 1.6rem; font-weight: bold; margin: 0.8em 0 0.4em; line-height: 1.2; }
-.tiptap-editor h2 { font-size: 1.4rem; font-weight: bold; margin: 0.8em 0 0.4em; line-height: 1.2; }
-.tiptap-editor h3 { font-size: 1.2rem; font-weight: bold; margin: 0.8em 0 0.4em; line-height: 1.2; }
+.tiptap-editor h1 { font-size: 1.5rem; font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
+.tiptap-editor h2 { font-size: 1.25rem; font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
+.tiptap-editor h3 { font-size: 1.1rem;  font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
 
-.tiptap-editor ul { padding-left: 20px; list-style-type: disc; margin: 0.5em 0; }
+.tiptap-editor ul { padding-left: 20px; list-style-type: disc;    margin: 0.5em 0; }
 .tiptap-editor ol { padding-left: 20px; list-style-type: decimal; margin: 0.5em 0; }
 .tiptap-editor li { margin-bottom: 4px; }
 
 .tiptap-editor blockquote {
-  border-left: 3px solid var(--accent, #a78bfa);
-  padding-left: 10px;
+  border-left: 2px solid var(--line-strong);
+  padding-left: 12px;
   margin: 0.5em 0;
-  color: #a0aec0;
+  color: var(--text-sub);
 }
 
 .tiptap-editor pre {
-  background: #1a202c;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #2d3748;
+  background: var(--bg-hover);
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
   overflow-x: auto;
   margin: 0.5em 0;
+  font-family: var(--font-mono);
 }
 .tiptap-editor pre code {
-  font-family: monospace;
-  color: #e2e8f0;
+  font-family: var(--font-mono);
+  color: var(--text);
   background: none;
   padding: 0;
 }
 
 .tiptap-editor code {
-  background-color: #2d3748;
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-family: monospace;
+  background: var(--bg-hover);
+  color: var(--text);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  border: 1px solid var(--line);
 }
 
 .tiptap-editor a {
-  color: var(--accent, #a78bfa);
+  color: var(--text);
   text-decoration: underline;
+  text-decoration-color: var(--line-strong);
   cursor: pointer;
 }
+.tiptap-editor a:hover { text-decoration-color: var(--text); }
 
-/* ─── TipTap Placeholder ─── */
+/* ─── Placeholder ──────────────────────────────────────────────────── */
 .tiptap-editor p.is-editor-empty:first-child::before {
-  color: #718096;
+  color: var(--text-faint);
   content: attr(data-placeholder);
   float: left;
   height: 0;
   pointer-events: none;
 }
 
-/* ─── 3-State Task List (TipTap) ─── */
+/* ─── Text formatting ──────────────────────────────────────────────── */
+.editor-text-bold               { font-weight: bold; }
+.editor-text-italic             { font-style: italic; }
+.editor-text-underline          { text-decoration: underline; }
+.editor-text-strikethrough      { text-decoration: line-through; }
+.editor-text-underlineStrikethrough { text-decoration: underline line-through; }
+.editor-text-code {
+  background: var(--bg-hover);
+  color: var(--text);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  border: 1px solid var(--line);
+}
+
+/* ─── Legacy list classes ──────────────────────────────────────────── */
+.editor-ul { padding-left: 20px; list-style-type: disc;    margin: 0.5em 0; }
+.editor-ol { padding-left: 20px; list-style-type: decimal; margin: 0.5em 0; }
+.editor-listitem { margin-bottom: 4px; }
+.editor-h1 { font-size: 1.5rem;  font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
+.editor-h2 { font-size: 1.25rem; font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
+.editor-h3 { font-size: 1.1rem;  font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
+
+/* ─── 3-State Task List ────────────────────────────────────────────── */
 .editor-task-list {
   list-style: none;
   padding-left: 0;
@@ -113,7 +104,7 @@ li[data-type="taskItem"] {
   display: flex !important;
   align-items: flex-start;
   gap: 0;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   list-style: none;
 }
 
@@ -129,63 +120,76 @@ li[data-type="taskItem"] > .task-item-content {
   min-width: 0;
 }
 
+/* done: subtle strikethrough, muted text */
 li[data-type="taskItem"][data-state="done"] > .task-item-content {
   text-decoration: line-through;
-  color: #a0aec0;
+  text-decoration-color: var(--line-strong);
+  color: var(--text-faint);
 }
 
+/* cancelled: same but more faded */
 li[data-type="taskItem"][data-state="cancelled"] > .task-item-content {
   text-decoration: line-through;
+  text-decoration-color: var(--line);
+  color: var(--text-faint);
   opacity: 0.6;
-  color: #718096;
 }
 
-/* ─── .tsc-box — visual checkbox via data-state + ::after (no innerHTML) ─── */
+/* ─── .tsc-box — the visual checkbox ──────────────────────────────── */
 .tsc-box {
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
-  border: 2px solid #a78bfa;
-  border-radius: 4px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 3px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: border-color 0.12s, background 0.12s;
   margin-right: 10px;
-  margin-top: 1px;
-  background: rgba(0, 0, 0, 0.5);
+  margin-top: 4px;
+  background: var(--bg);
 }
+
+.tsc-box:hover {
+  border-color: var(--text-sub);
+}
+
+/* ── done: filled dark ── */
 .tsc-box[data-state="done"] {
-  border-color: #4ade80;
-  background: #4ade80;
+  border-color: var(--text);
+  background: var(--text);
 }
 .tsc-box[data-state="done"]::after {
-  content: '✓';
-  color: black;
-  font-size: 13px;
-  font-weight: bold;
+  content: '';
+  display: block;
+  width: 4px;
+  height: 7px;
+  border-right: 1.5px solid var(--bg);
+  border-bottom: 1.5px solid var(--bg);
+  transform: rotate(45deg) translate(-1px, -1px);
   pointer-events: none;
 }
+
+/* ── cancelled: strikethrough line, muted border ── */
 .tsc-box[data-state="cancelled"] {
-  border-color: #f87171;
-  background: #f87171;
+  border-color: var(--line-strong);
+  background: var(--bg-hover);
 }
 .tsc-box[data-state="cancelled"]::after {
-  content: '✕';
-  color: white;
-  font-size: 11px;
-  font-weight: bold;
+  content: '';
+  display: block;
+  width: 8px;
+  height: 1.5px;
+  background: var(--text-faint);
   pointer-events: none;
 }
 
-/* Hide default TipTap checkbox input */
-li[data-type="taskItem"] input[type="checkbox"] {
-  display: none;
-}
+/* Hide native checkbox */
+li[data-type="taskItem"] input[type="checkbox"] { display: none; }
 
-/* ─── Attachment image grid in editor ─── */
-/* Image attachment node views sit inline so adjacent ones form a grid */
+/* ─── Attachment image grid ────────────────────────────────────────── */
 .attachment-node-img {
   display: inline-block !important;
   vertical-align: top;
