@@ -5,7 +5,9 @@ import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
-
+import { BacklinksSection } from './BacklinksSection';
+import { NoteModal } from './NoteModal';
+import { NoteCard } from './NoteCard';
 interface FeedProps {
   parentId?: string | null;
   feedId?: string | null;
@@ -50,198 +52,7 @@ function extractTags(content: string): string[] {
   return [...new Set(matches.map((t: string) => t.toLocaleLowerCase()))];
 }
 
-// ─── Backlinks Section ────────────────────────────────────────────────
-const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string; onNoteClick?: (id: string) => void }) => {
-  const db = useDB();
-  const { decrypt } = useCrypto();
-  const [backlinks, setBacklinks] = useState<any[]>([]);
-  const [isExpanded, setIsExpanded] = useState(false);
 
-  React.useEffect(() => {
-    (window as any).onNoteClick = onNoteClick;
-  }, [onNoteClick]);
-
-  React.useEffect(() => {
-    if (!db || !noteId) return;
-    db.execO(`SELECT id, content FROM notes WHERE is_deleted = 0`)
-      .then(res => {
-        const matches = (res || []).filter((r: any) => {
-          const plain = decrypt(r.content);
-          return plain.includes(`note://${noteId}`);
-        }).map((r: any) => ({ ...r, content: decrypt(r.content) }));
-        setBacklinks(matches);
-      })
-      .catch(() => setBacklinks([]));
-  }, [db, noteId, isExpanded, decrypt]);
-
-  if (!backlinks || backlinks.length === 0) return null;
-
-  return (
-    <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed rgba(255,255,255,0.08)' }} onClick={e => e.stopPropagation()}>
-      <button
-        onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
-        style={{ background: 'none', border: 'none', color: '#93c5fd', fontSize: '0.72rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
-      >
-        🔗 {isExpanded ? '▼' : '▶'} Упомянуто в {backlinks.length} {backlinks.length === 1 ? 'заметке' : 'заметках'}
-      </button>
-      {isExpanded && (
-        <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {backlinks.map(b => (
-            <div key={b.id} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '6px 10px' }}>
-              <div style={{ fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.45 }}>
-                <TiptapRender astString={b.content} />
-              </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); onNoteClick?.(b.id); }}
-                style={{ marginTop: '4px', background: 'none', border: 'none', color: '#93c5fd', fontSize: '0.7rem', cursor: 'pointer', padding: 0 }}
-              >
-                → Перейти к заметке
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ─── Note Modal (fullscreen overlay) ─────────────────────────────────
-const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; onClose: () => void; onNoteClick?: (id: string) => void }) => {
-  const db = useDB();
-  const { encrypt, decrypt } = useCrypto();
-  const [note, setNote] = useState<any>(null);
-  const [children, setChildren] = useState<any[]>([]);
-  const [replyingToId, setReplyingToId] = useState<string | null>(null);
-  const [editingNote, setEditingNote] = useState<any>(null);
-
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  const load = React.useCallback(async () => {
-    if (!db) return;
-    const [row] = await db.execO(`SELECT * FROM notes WHERE id = ?`, [noteId]);
-    if (row) setNote({ ...(row as any), content: decrypt((row as any).content), properties: decrypt((row as any).properties) });
-    const rows = await db.execO(`
-      WITH RECURSIVE tree(id, parent_id, author_id, content, sort_key, properties, created_at, updated_at, depth) AS (
-        SELECT id, parent_id, author_id, content, sort_key, properties, created_at, updated_at, 0
-        FROM notes WHERE parent_id = ?
-        UNION ALL
-        SELECT n.id, n.parent_id, n.author_id, n.content, n.sort_key, n.properties, n.created_at, n.updated_at, t.depth + 1
-        FROM notes n JOIN tree t ON n.parent_id = t.id
-      )
-      SELECT * FROM tree ORDER BY depth, sort_key
-    `, [noteId]);
-    setChildren((rows || []).map((r: any) => ({ ...r, content: decrypt(r.content), properties: decrypt(r.properties) })));
-  }, [db, noteId]);
-
-  React.useEffect(() => { load(); }, [load]);
-  React.useEffect(() => { if (!db) return; return db.onUpdate(() => load()); }, [db, load]);
-
-  if (!note) return null;
-
-  let props: any = {};
-  try { props = JSON.parse(note.properties || '{}'); } catch { /* */ }
-
-  const handleSubmitReply = async (parentId: string, ast: string, propsJson: string) => {
-    const id = 'note-' + Math.random().toString(36).substring(2, 9);
-    const now = Date.now();
-    await db.exec(
-      `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
-      [id, parentId, 'local-user', encrypt(ast), now.toString(), encrypt(propsJson), now, now]
-    );
-    setReplyingToId(null);
-  };
-
-  const handleSubmitEdit = async (id: string, ast: string, propsJson: string) => {
-    await db.exec(`UPDATE notes SET content = ?, properties = ?, updated_at = ? WHERE id = ?`, [encrypt(ast), encrypt(propsJson), Date.now(), id]);
-    setEditingNote(null);
-  };
-
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'stretch', justifyContent: 'center', padding: '1rem' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '760px', background: 'var(--bg-color)', border: '1px solid var(--border)', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', overflowY: 'auto' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
-          <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{note.author_id}</strong>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{new Date(note.created_at).toLocaleString()}</span>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
-            <button onClick={() => { onNoteClick?.(noteId); onClose(); }} style={{ background: 'none', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: '6px', padding: '2px 10px', fontSize: '0.75rem', cursor: 'pointer' }}>→ В ленте</button>
-            <button onClick={onClose} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: '6px', padding: '2px 8px', fontSize: '0.85rem', cursor: 'pointer' }}>✕</button>
-          </div>
-        </div>
-
-        {/* Props badges */}
-        {(props.status || props.type || props.date) && (
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {props.type && props.type !== 'tweet' && <span style={{ background: 'rgba(147,197,253,0.1)', color: '#93c5fd', borderRadius: '4px', padding: '1px 7px', fontSize: '0.72rem' }}>{props.type}</span>}
-            {props.status && props.status !== 'none' && <span style={{ background: 'rgba(134,239,172,0.1)', color: '#86efac', borderRadius: '4px', padding: '1px 7px', fontSize: '0.72rem' }}>{props.status}</span>}
-            {props.date && <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.72rem' }}>{props.date}</span>}
-          </div>
-        )}
-
-        {/* Content */}
-        {editingNote?.id === noteId ? (
-          <TweetEditor initialAst={note.content} initialPropsStr={note.properties} placeholder="Редактировать..." buttonText="Сохранить" onCancel={() => setEditingNote(null)} onSubmit={(ast, propsJson) => handleSubmitEdit(noteId, ast, propsJson)} autoFocus />
-        ) : (
-          <div style={{ fontSize: '15px', lineHeight: 1.6, color: 'var(--text-main)' }}>
-            <TiptapRender astString={note.content} onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), noteId])} />
-          </div>
-        )}
-
-        {replyingToId === noteId && (
-          <TweetEditor placeholder="Напиши ответ..." buttonText="Отправить" onCancel={() => setReplyingToId(null)} onSubmit={(ast, propsJson) => handleSubmitReply(noteId, ast, propsJson)} autoFocus />
-        )}
-
-        {/* Children */}
-        {children.length > 0 && (
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            {children.map(child => {
-              const childIndent = (child.depth || 0) * 20;
-              return (
-                <div key={child.id} style={{ paddingLeft: `calc(0.5rem + ${childIndent}px)`, paddingTop: '0.4rem', paddingBottom: '0.4rem', paddingRight: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
-                  {child.depth > 0 && <div style={{ position: 'absolute', left: `calc(0.5rem + ${childIndent - 10}px)`, top: 0, bottom: 0, width: '2px', background: 'var(--border)' }} />}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
-                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
-                    <strong style={{ fontSize: '0.78rem', color: 'var(--text-main)' }}>{child.author_id}</strong>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{new Date(child.created_at).toLocaleTimeString().slice(0, 5)}</span>
-                  </div>
-                  {editingNote?.id === child.id ? (
-                    <TweetEditor initialAst={child.content} initialPropsStr={child.properties} placeholder="Редактировать..." buttonText="Сохранить" onCancel={() => setEditingNote(null)} onSubmit={(ast, propsJson) => handleSubmitEdit(child.id, ast, propsJson)} autoFocus />
-                  ) : (
-                    <div style={{ fontSize: '13.5px', lineHeight: 1.45, color: 'var(--text-main)' }}>
-                      <TiptapRender astString={child.content} onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), child.id])} />
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '2px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                    <button type="button" onClick={() => setReplyingToId(child.id)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>💬</button>
-                    <button type="button" onClick={() => setEditingNote(child)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>✏️</button>
-                  </div>
-                  {replyingToId === child.id && (
-                    <div style={{ marginTop: '0.5rem' }}>
-                      <TweetEditor placeholder="Ответить..." buttonText="Отправить" onCancel={() => setReplyingToId(null)} onSubmit={(ast, propsJson) => handleSubmitReply(child.id, ast, propsJson)} autoFocus />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Bottom action bar */}
-        {replyingToId !== noteId && (
-          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '12px', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginTop: 'auto' }}>
-            <button type="button" onClick={() => setReplyingToId(noteId)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>💬 Ответить</button>
-            <button type="button" onClick={() => setEditingNote({ id: noteId })} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>✏️ Изменить</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 // ─── Feed ─────────────────────────────────────────────────────────────
 export const Feed = ({
@@ -540,143 +351,36 @@ export const Feed = ({
               if (isDragOverChild) finalBg = 'rgba(96, 165, 250, 0.15)';
 
               return (
-                <div
+                <NoteCard
                   key={virtualItem.key}
-                  data-index={virtualItem.index}
-                  data-note-id={note.id}
-                  ref={virtualizer.measureElement}
-                  draggable
-                  onDragStart={(e) => { setDraggedId(note.id); e.dataTransfer.effectAllowed = 'move'; }}
-                  onDragOver={(e) => {
+                  note={note}
+                  virtualItem={virtualItem}
+                  virtualizer={virtualizer}
+                  indent={indent}
+                  isReplying={isReplying}
+                  editingNoteId={editingNote?.id || null}
+                  draggedId={draggedId}
+                  dragOverInfo={dragOverInfo}
+                  onNoteClick={onNoteClick}
+                  openContextMenu={openContextMenu}
+                  onDragStart={(e, id) => { setDraggedId(id); e.dataTransfer.effectAllowed = 'move'; }}
+                  onDragOver={(e, id) => {
                     e.preventDefault();
                     const rect = e.currentTarget.getBoundingClientRect();
                     const zone = (e.clientX - rect.left) < rect.width / 2 ? 'sibling' : 'child';
-                    if (dragOverInfo?.id !== note.id || dragOverInfo?.zone !== zone) setDragOverInfo({ id: note.id, zone });
+                    if (dragOverInfo?.id !== id || dragOverInfo?.zone !== zone) setDragOverInfo({ id, zone });
                   }}
                   onDragLeave={() => setDragOverInfo(null)}
-                  onDrop={(e) => { e.preventDefault(); if (dragOverInfo) handleDrop(note.id, dragOverInfo.zone); }}
+                  onDrop={(e, id) => { e.preventDefault(); if (dragOverInfo) handleDrop(id, dragOverInfo.zone); }}
                   onDragEnd={() => { setDraggedId(null); setDragOverInfo(null); }}
-                  className="note-card"
-                  style={{
-                    position: 'absolute', top: 0, left: 0, width: '100%',
-                    transform: `translateY(${virtualItem.start}px)`,
-                    padding: '6px 6px 6px 6px',
-                    opacity: draggedId === note.id ? 0.3 : 1,
-                  }}
-                >
-                  {/* Vertical connector line for nested notes — sits outside the card */}
-                  {note.depth > 0 && (
-                    <div style={{
-                      position: 'absolute',
-                      left: `calc(6px + ${indent - 10}px)`,
-                      top: 0, bottom: 0,
-                      width: '2px', background: 'var(--border)',
-                      pointerEvents: 'none',
-                    }} />
-                  )}
-
-                  {/* ── Card panel ────────────────────────────────────── */}
-                  <div style={{
-                    marginLeft: `${indent}px`,
-                    background: finalBg !== 'rgba(255,255,255,0.02)' ? finalBg : 'var(--card-bg)',
-                    border: isDragOverSibling
-                      ? '2px solid var(--accent)'
-                      : isDragOverChild
-                        ? '2px solid rgba(96,165,250,0.8)'
-                        : '1px solid var(--border)',
-                    borderRadius: '10px',
-                    padding: '8px 10px',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    backdropFilter: 'blur(8px)',
-                    WebkitBackdropFilter: 'blur(8px)',
-                  }}>
-
-                  {/* DnD zone overlay */}
-                  {draggedId && draggedId !== note.id && (
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', pointerEvents: 'none', borderRadius: 'inherit', overflow: 'hidden', zIndex: 1 }}>
-                      <div style={{ flex: 1, background: isDragOverSibling ? 'rgba(167,139,250,0.12)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {isDragOverSibling && <span style={{ fontSize: '0.6rem', color: '#a78bfa' }}>сиблинг</span>}
-                      </div>
-                      <div style={{ flex: 1, background: isDragOverChild ? 'rgba(96,165,250,0.12)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {isDragOverChild && <span style={{ fontSize: '0.6rem', color: '#60a5fa' }}>дочерний</span>}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ── Card body: left sidebar + right content ─────── */}
-                  <div
-                    style={{ display: 'flex', gap: '8px', position: 'relative', zIndex: 2 }}
-                    onContextMenu={(e) => openContextMenu(e, note.id)}
-                  >
-                    {/* LEFT: avatar + name + time (clickable → navigate) */}
-                    <div
-                      onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
-                      style={{
-                        width: 50, flexShrink: 0,
-                        display: 'flex', flexDirection: 'column', alignItems: 'center',
-                        gap: '2px', cursor: 'pointer', paddingTop: '1px', userSelect: 'none',
-                      }}
-                    >
-                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)' }} />
-                      <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--text-main)', textAlign: 'center', lineHeight: 1.2, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {note.author_id}
-                      </span>
-                      <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>
-                        {new Date(note.created_at).toLocaleTimeString().slice(0, 5)}
-                      </span>
-                    </div>
-
-                    {/* RIGHT: content + meta */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-
-                      {/* Content */}
-                      {editingNote?.id === note.id ? (
-                        <div onClick={(e: any) => e.stopPropagation()}>
-                          <TweetEditor
-                            initialAst={note.content} initialPropsStr={note.properties}
-                            placeholder="Редактировать..." buttonText="Сохранить"
-                            onCancel={() => onCancelEdit && onCancelEdit()}
-                            onSubmit={(ast, propsJson) => { if (onSubmitEdit) onSubmitEdit(note.id, ast, propsJson); }}
-                            autoFocus
-                          />
-                        </div>
-                      ) : (
-                        <>
-                          <div className="note-content" style={{ fontSize: '14px', lineHeight: 1.45 }}>
-                            <TiptapRender
-                              astString={note.content}
-                              onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), note.id])}
-                            />
-                            <BacklinksSection noteId={note.id} onNoteClick={onNoteClick} />
-                          </div>
-                          {(type !== 'tweet' || (status && status !== 'none') || targetDate) && (
-                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
-                              {type !== 'tweet' && <span style={{ background: 'rgba(147,197,253,0.12)', color: '#93c5fd', borderRadius: '4px', padding: '0px 6px', fontSize: '0.68rem' }}>{type}</span>}
-                              {status !== 'none' && <span style={{ background: 'rgba(134,239,172,0.12)', color: '#86efac', borderRadius: '4px', padding: '0px 6px', fontSize: '0.68rem' }}>{status}</span>}
-                              {targetDate && <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', borderRadius: '4px', padding: '0px 6px', fontSize: '0.68rem' }}>{targetDate}</span>}
-                            </div>
-                          )}
-                        </>
-                      )}
-
-
-                    </div>
-                  </div>
-
-                  {/* Reply form — full width below */}
-                  {isReplying && (
-                    <div style={{ marginTop: '0.75rem', paddingLeft: '58px' }}>
-                      <TweetEditor
-                        placeholder="Напиши ответ..." buttonText="Отправить"
-                        onCancel={() => onCancelReply && onCancelReply()}
-                        onSubmit={(ast, propsJson) => { if (onSubmitReply) onSubmitReply(note.id, ast, propsJson); }}
-                        autoFocus
-                      />
-                    </div>
-                  )}
-                  </div>{/* end card panel */}
-                </div>
+                  onCancelEdit={onCancelEdit}
+                  onSubmitEdit={onSubmitEdit}
+                  onCancelReply={onCancelReply}
+                  onSubmitReply={onSubmitReply}
+                  setDragOverInfo={setDragOverInfo}
+                  encrypt={encrypt}
+                  db={db}
+                />
               );
             })}
           </div>
