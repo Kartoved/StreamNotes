@@ -596,6 +596,9 @@ export const TweetEditor = ({
         'data-enable-grammarly': 'false',
         'data-lpignore': 'true',
         'data-1p-ignore': 'true',
+        'data-bwignore': 'true',
+        'data-kpm-ignore': 'true',
+        'data-dashlane-ignore': 'true',
         spellcheck: 'false',
       },
       handleDrop: (_view, event) => {

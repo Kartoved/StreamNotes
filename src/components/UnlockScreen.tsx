@@ -58,20 +58,18 @@ export default function UnlockScreen({ onUnlock, onRecover }: Props) {
           Введите пароль для разблокировки
         </p>
         <form onSubmit={handleSubmit}>
-          <input
-            style={{ ...inputStyle, WebkitTextSecurity: 'disc' } as any}
-            type="text"
-            placeholder="Пароль"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            autoFocus
-            autoComplete="off"
-            data-lpignore="true"
-            data-1p-ignore="true"
-            data-kpm-ignore="true"
-            data-dashlane-ignore="true"
-            data-form-type="other"
-          />
+          <div style={{ position: 'relative', width: '100%' }}>
+            <input
+              style={inputStyle}
+              type="password"
+              placeholder="Пароль"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              autoFocus
+              id="unlock-password"
+              name="unlock-password"
+            />
+          </div>
           {error && <p style={{ color: '#ef4444', fontSize: '13px', margin: '0.5rem 0 0' }}>{error}</p>}
           <button type="submit" style={btnStyle}>Разблокировать</button>
         </form>

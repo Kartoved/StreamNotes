@@ -4,7 +4,11 @@ import App from './App.tsx'
 import { AppDBProvider } from './db/DBContext.tsx'
 import { AppErrorBoundary } from './ErrorBoundary.tsx'
 import { CryptoProvider } from './crypto/CryptoContext.tsx'
+import { startExtensionBlocker } from './utils/extensionBlocker'
 import './index.css'
+
+// Start blocking browser extension injections before React renders
+startExtensionBlocker();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

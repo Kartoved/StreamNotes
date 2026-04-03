@@ -636,6 +636,12 @@ function App() {
                 placeholder="🔍 Поиск..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
+                data-lpignore="true"
+                data-1p-ignore="true"
+                data-kpm-ignore="true"
+                data-bwignore="true"
+                data-dashlane-ignore="true"
+                data-form-type="other"
               />
             </div>
 

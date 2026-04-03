@@ -200,16 +200,34 @@ h1 {
   }
 }
 
-/* Hide Edge/Chrome default password reveal icon which can look like a bug */
-input[type="password"]::-ms-reveal,
-input[type="password"]::-ms-clear {
-  display: none;
-}
-input[type="password"]::-webkit-contacts-auto-fill-button,
-input[type="password"]::-webkit-credentials-auto-fill-button {
-  visibility: hidden;
+/* ── Hide browser extension injections ─────────────────────────────────
+   Extensions (Kaspersky, Grammarly, etc) inject iframes & divs into the
+   page body. We hide them globally without breaking our own UI.
+   Password managers (Bitwarden, 1Password) inject INSIDE input fields
+   and those are fine — we only nuke the floating top-level junk. ────── */
+
+/* Edge built-in password reveal / clear buttons */
+input::-ms-reveal,
+input::-ms-clear {
   display: none !important;
-  pointer-events: none;
-  position: absolute;
-  right: 0;
+}
+
+/* Iframes injected by extensions directly into body or #root */
+body > iframe,
+#root ~ iframe,
+body > div:not(#root),
+#root ~ div:not([class]):not([id]) {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+
+/* Extension containers inside form fields — clip to input bounds */
+input[type="password"] ~ div:not([class]),
+input[type="password"] ~ iframe {
+  display: none !important;
 }
