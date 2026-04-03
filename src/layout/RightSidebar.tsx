@@ -28,14 +28,22 @@ export const RightSidebar = ({
       display: 'flex', flexDirection: 'column', gap: '8px',
       overflowY: 'auto', paddingTop: '14px',
     }}>
-      <div style={{ marginBottom: '8px' }}>
+      <div style={{ marginBottom: '8px', position: 'relative' }}>
+        <svg
+          width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+        >
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
         <input
           type="search"
           className="search-bar"
-          placeholder="🔍 Поиск..."
+          placeholder="Поиск..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           data-lpignore="true"
+          style={{ paddingLeft: '28px' }}
         />
       </div>
 

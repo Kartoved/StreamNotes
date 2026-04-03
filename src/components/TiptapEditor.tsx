@@ -21,7 +21,7 @@ const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
 );
 
 // ─── Toolbar Component ────────────────────────────────────────────────
-function Toolbar({ editor, onUpload }: { editor: any; onUpload: (files: FileList) => void }) {
+function Toolbar({ editor, onUpload, onExpand }: { editor: any; onUpload: (files: FileList) => void; onExpand?: (ast: string, propsJson: string) => void }) {
   if (!editor) return null;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -167,7 +167,11 @@ function Toolbar({ editor, onUpload }: { editor: any; onUpload: (files: FileList
         <button type="button" title="Раскрыть заметку"
           style={btn}
           onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
-          onClick={() => (window as any).onExpandNote?.()}>
+          onClick={() => {
+            const json = editor.getJSON();
+            const props = (window as any)._tmp_editor_props || { type: 'tweet', status: 'none', date: '' };
+            onExpand?.(JSON.stringify(json), JSON.stringify(props));
+          }}>
           <Ic d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
         </button>
 
@@ -325,6 +329,7 @@ export const TweetEditor = ({
   initialAst,
   initialPropsStr,
   autoFocus,
+  onExpand,
 }: {
   onSubmit: (ast: string, propsJson: string) => void;
   onCancel?: () => void;
@@ -333,12 +338,18 @@ export const TweetEditor = ({
   initialAst?: string;
   initialPropsStr?: string;
   autoFocus?: boolean;
+  onExpand?: (ast: string, propsJson: string) => void;
 }) => {
   const [editorKey, setEditorKey] = useState(0);
   const initP = initialPropsStr ? JSON.parse(initialPropsStr) : {};
   const [type, setType] = useState(initP.type || 'tweet');
   const [status, setStatus] = useState(initP.status || 'none');
   const [date, setDate] = useState(initP.date || '');
+
+  // Keep props in a global-ish way for the Expand button to grab
+  useEffect(() => {
+    (window as any)._tmp_editor_props = { type, status, date };
+  }, [type, status, date]);
 
   // Backlink state
   const [blQuery, setBlQuery] = useState<string | null>(null);
@@ -535,7 +546,7 @@ export const TweetEditor = ({
       lineHeight: 1.85,
       letterSpacing: '0.01em',
     }}>
-      <Toolbar editor={editor} onUpload={(files) => uploadFiles(files)} />
+      <Toolbar editor={editor} onUpload={(files) => uploadFiles(files)} onExpand={onExpand} />
 
       <div style={{ position: 'relative' }}>
         <EditorContent editor={editor} />

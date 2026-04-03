@@ -72,7 +72,7 @@ export const Feed = ({
   selectedDate = null,
 }: FeedProps) => {
   const db = useDB();
-  const { encrypt } = useCrypto();
+  const { encrypt, decrypt } = useCrypto();
   const notes = useNotes(parentId, feedId);
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -330,7 +330,10 @@ export const Feed = ({
               const note = visibleNotes[virtualItem.index];
 
               let props: any = {};
-              try { props = JSON.parse(note.properties || '{}'); } catch { /* */ }
+              try { 
+                const raw = decrypt(note.properties) || '{}';
+                props = JSON.parse(raw); 
+              } catch { /* */ }
 
               const status = props.status || 'none';
               const type = props.type || 'tweet';
@@ -341,14 +344,14 @@ export const Feed = ({
               const isDragOverChild = dragOverInfo?.id === note.id && dragOverInfo.zone === 'child';
               const isDragOverSibling = dragOverInfo?.id === note.id && dragOverInfo.zone === 'sibling';
 
-              let baseBg = 'rgba(255,255,255,0.02)';
-              if (status === 'done') baseBg = 'rgba(34, 197, 94, 0.1)';
-              else if (status === 'todo') baseBg = 'rgba(239, 68, 68, 0.12)';
-              else if (status === 'doing') baseBg = 'rgba(59, 130, 246, 0.1)';
-              else if (status === 'archived') baseBg = 'rgba(15, 23, 42, 0.5)';
+              let baseBg = 'transparent';
+              if (status === 'done') baseBg = 'rgba(134, 239, 172, 0.04)';
+              else if (status === 'todo') baseBg = 'rgba(239, 68, 68, 0.04)';
+              else if (status === 'doing') baseBg = 'rgba(96, 165, 250, 0.04)';
+              else if (status === 'archived') baseBg = 'rgba(15, 23, 42, 0.04)';
 
-              let finalBg = isReplying ? 'rgba(167, 139, 250, 0.1)' : baseBg;
-              if (isDragOverChild) finalBg = 'rgba(96, 165, 250, 0.15)';
+              let finalBg = isReplying ? 'rgba(167, 139, 250, 0.08)' : baseBg;
+              if (isDragOverChild) finalBg = 'rgba(96, 165, 250, 0.12)';
 
               return (
                 <NoteCard
@@ -377,8 +380,10 @@ export const Feed = ({
                   onSubmitEdit={onSubmitEdit}
                   onCancelReply={onCancelReply}
                   onSubmitReply={onSubmitReply}
+                  onExpandNote={(id) => setExpandedNoteId(id)}
                   setDragOverInfo={setDragOverInfo}
                   encrypt={encrypt}
+                  decrypt={decrypt}
                   db={db}
                 />
               );

@@ -1,7 +1,174 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
 import { BacklinksSection } from './BacklinksSection';
+
+const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
+const TYPES    = ['tweet', 'note', 'task', 'idea', 'link'];
+
+// ── Status cycle colors ─────────────────────────────────────────────
+const STATUS_COLOR: Record<string, string> = {
+  none:     'var(--text-faint)',
+  todo:     '#e06c75',
+  doing:    '#6095ed',
+  done:     '#5c9e6e',
+  archived: 'var(--text-faint)',
+};
+
+// ── Inline editable prop chip ───────────────────────────────────────
+export function PropChip({
+  value, options, onChange, mono,
+}: {
+  value: string; options: string[]; onChange: (v: string) => void; mono?: boolean;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = React.useState<{ top: number; left: number } | null>(null);
+  const isStatus = options === STATUSES;
+  const color = isStatus ? (STATUS_COLOR[value] || 'var(--text-sub)') : 'var(--text-sub)';
+
+  const toggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setCoords({ top: r.bottom + 4, left: r.left });
+    }
+    setOpen(v => !v);
+  };
+
+  const pick = (e: React.MouseEvent, opt: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onChange(opt);
+    setOpen(false);
+    setCoords(null);
+  };
+
+  const close = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpen(false);
+    setCoords(null);
+  };
+
+  return (
+    <div style={{ display: 'inline-block', position: 'relative' }}>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={toggle}
+        onMouseDown={e => e.stopPropagation()}
+        style={{
+          background: 'var(--bg-hover)',
+          color,
+          border: '1px solid var(--line)',
+          borderRadius: '4px',
+          padding: '1px 7px',
+          fontSize: '0.7rem',
+          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-body)',
+          cursor: 'pointer',
+          userSelect: 'none',
+          lineHeight: 1.6,
+          transition: 'all 0.1s',
+          outline: 'none',
+        }}
+        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-active)'}
+        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
+      >
+        {value}
+      </button>
+
+      {open && coords && ReactDOM.createPortal(
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+            onMouseDown={close}
+            onClick={close}
+          />
+          <div style={{
+            position: 'fixed',
+            top: coords.top,
+            left: coords.left,
+            zIndex: 9999,
+            background: 'var(--bg)',
+            border: '1px solid var(--line)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: '110px',
+            overflow: 'hidden',
+          }}>
+            {options.map(opt => (
+              <button
+                key={opt}
+                type="button"
+                onMouseDown={e => pick(e, opt)}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '0.75rem',
+                  fontFamily: mono ? 'var(--font-mono)' : 'var(--font-body)',
+                  color: isStatus ? (STATUS_COLOR[opt] || 'var(--text)') : 'var(--text)',
+                  background: opt === value ? 'var(--bg-hover)' : 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  whiteSpace: 'nowrap',
+                  fontWeight: opt === value ? 600 : 400,
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = opt === value ? 'var(--bg-hover)' : 'transparent'}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+// ── Date chip ───────────────────────────────────────────────────────
+export function DateChip({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return (
+      <input
+        type="date"
+        autoFocus
+        defaultValue={value}
+        onChange={e => onChange(e.target.value)}
+        onBlur={() => setEditing(false)}
+        onClick={e => e.stopPropagation()}
+        style={{
+          fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
+          background: 'var(--bg)', border: '1px solid var(--line-strong)',
+          borderRadius: '4px', padding: '1px 6px', color: 'var(--text)',
+          outline: 'none', cursor: 'pointer',
+        }}
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={e => { e.stopPropagation(); setEditing(true); }}
+      style={{
+        background: 'var(--bg-hover)', color: 'var(--text-faint)',
+        borderRadius: '4px', padding: '1px 7px',
+        fontSize: '0.7rem', border: '1px solid var(--line)',
+        fontFamily: 'var(--font-mono)', cursor: 'pointer', userSelect: 'none',
+        transition: 'all 0.1s', outline: 'none',
+      }}
+      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-active)'}
+      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
+    >{value}</button>
+  );
+}
 
 interface NoteCardProps {
   note: any;
@@ -25,9 +192,11 @@ interface NoteCardProps {
   onSubmitEdit?: (id: string, ast: string, propsJson: string) => void;
   onCancelReply?: () => void;
   onSubmitReply?: (id: string, ast: string, propsJson: string) => void;
+  onExpandNote?: (id: string) => void;
   
   setDragOverInfo: (info: { id: string; zone: 'sibling' | 'child' } | null) => void;
   encrypt: (s: string) => string;
+  decrypt: (s: string) => string;
   db: any;
 }
 
@@ -51,28 +220,49 @@ export const NoteCard = ({
   onSubmitEdit,
   onCancelReply,
   onSubmitReply,
+  onExpandNote,
   setDragOverInfo,
   encrypt,
+  decrypt,
   db,
 }: NoteCardProps) => {
   let props: any = {};
-  try { props = JSON.parse(note.properties || '{}'); } catch { /* */ }
+  try { 
+    const raw = decrypt(note.properties) || '{}';
+    props = JSON.parse(raw); 
+  } catch { /* */ }
 
-  const status = props.status || 'none';
-  const type = props.type || 'tweet';
-  const targetDate = props.date || '';
+  const [status, setStatus]     = useState<string>(props.status || 'none');
+  const [type, setType]         = useState<string>(props.type || 'tweet');
+  const [targetDate, setDate]   = useState<string>(props.date || '');
 
-  const isDragOverChild = dragOverInfo?.id === note.id && dragOverInfo?.zone === 'child';
+  // Save a single prop change to DB immediately
+  const saveProp = useCallback(async (key: string, val: string) => {
+    const current = { ...props, status, type, date: targetDate, [key]: val };
+    await db.exec(
+      `UPDATE notes SET properties = ?, updated_at = ? WHERE id = ?`,
+      [encrypt(JSON.stringify(current)), Date.now(), note.id]
+    );
+  }, [db, encrypt, note.id, props, status, type, targetDate]);
+
+  const handleStatus = (v: string) => { setStatus(v); saveProp('status', v); };
+  const handleType   = (v: string) => { setType(v);   saveProp('type', v); };
+  const handleDate   = (v: string) => { setDate(v);   saveProp('date', v); };
+
+  const isDragOverChild   = dragOverInfo?.id === note.id && dragOverInfo?.zone === 'child';
   const isDragOverSibling = dragOverInfo?.id === note.id && dragOverInfo?.zone === 'sibling';
 
   let baseBg = 'transparent';
-  if (status === 'done') baseBg = 'rgba(34, 197, 94, 0.06)';
-  else if (status === 'todo') baseBg = 'rgba(239, 68, 68, 0.06)';
-  else if (status === 'doing') baseBg = 'rgba(96, 149, 237, 0.09)';
+  if (status === 'done')     baseBg = 'rgba(34, 197, 94, 0.06)';
+  else if (status === 'todo')    baseBg = 'rgba(239, 68, 68, 0.06)';
+  else if (status === 'doing')   baseBg = 'rgba(96, 149, 237, 0.09)';
   else if (status === 'archived') baseBg = 'var(--bg-hover)';
 
   let finalBg = isReplying ? 'var(--accent-bg)' : baseBg;
   if (isDragOverChild) finalBg = 'rgba(232, 160, 69, 0.1)';
+
+  // Show prop row only if there's something meaningful
+  const showProps = type !== 'tweet' || (status && status !== 'none') || !!targetDate;
 
   return (
     <div
@@ -94,7 +284,7 @@ export const NoteCard = ({
         opacity: draggedId === note.id ? 0.3 : 1,
       }}
     >
-      {/* Vertical connector line for nested notes — sits outside the card */}
+      {/* Vertical connector line for nested notes */}
       {note.depth > 0 && (
         <div style={{
           position: 'absolute',
@@ -105,15 +295,13 @@ export const NoteCard = ({
         }} />
       )}
 
-      {/* ── Card panel ────────────────────────────────────── */}
+      {/* ── Card panel ── */}
       <div style={{
         marginLeft: `${indent}px`,
         background: finalBg !== 'transparent' ? finalBg : 'var(--card-bg)',
-        border: isDragOverSibling
+        border: (isDragOverSibling || isDragOverChild)
           ? '1px solid var(--accent)'
-          : isDragOverChild
-            ? '1px solid var(--accent)'
-            : '1px solid var(--line)',
+          : '1px solid var(--line)',
         borderRadius: 'var(--radius-lg)',
         padding: '14px 20px',
         position: 'relative',
@@ -121,41 +309,30 @@ export const NoteCard = ({
         transition: 'border-color 0.12s, background 0.12s',
       }}>
 
-        {/* DnD zone overlay */}
+        {/* DnD overlays */}
         {draggedId && draggedId !== note.id && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', pointerEvents: 'none', borderRadius: 'inherit', overflow: 'hidden', zIndex: 1 }}>
             <div style={{ flex: 1, background: isDragOverSibling ? 'rgba(167,139,250,0.12)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {isDragOverSibling && <span style={{ fontSize: '0.6rem', color: '#a78bfa' }}>сиблинг</span>}
+              {isDragOverSibling && <span style={{ fontSize: '0.6rem', color: '#a78bfa' }}>sibling</span>}
             </div>
             <div style={{ flex: 1, background: isDragOverChild ? 'rgba(96,165,250,0.12)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {isDragOverChild && <span style={{ fontSize: '0.6rem', color: '#60a5fa' }}>дочерний</span>}
+              {isDragOverChild && <span style={{ fontSize: '0.6rem', color: '#60a5fa' }}>child</span>}
             </div>
           </div>
         )}
 
-        {/* ── Card body: flat vertical layout ───────────────── */}
-        <div
-          style={{ position: 'relative', zIndex: 2 }}
-          onContextMenu={(e) => openContextMenu(e, note.id)}
-        >
-          {/* TOP ROW: author + time + click-to-navigate */}
+        {/* ── Card body ── */}
+        <div style={{ position: 'relative', zIndex: 2 }} onContextMenu={(e) => openContextMenu(e, note.id)}>
+
+          {/* TOP ROW: author + time */}
           <div
-            style={{
-              display: 'flex', alignItems: 'baseline', gap: '10px',
-              marginBottom: '8px', cursor: 'pointer', userSelect: 'none',
-            }}
+            style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '8px', cursor: 'pointer', userSelect: 'none' }}
             onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
           >
-            <span style={{
-              fontSize: '0.78rem', fontWeight: 700,
-              color: 'var(--text-sub)', letterSpacing: '0.02em',
-            }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-sub)', letterSpacing: '0.02em' }}>
               {note.author_id}
             </span>
-            <span style={{
-              fontSize: '0.72rem', color: 'var(--text-faint)',
-              fontFamily: 'var(--font-mono)',
-            }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
               {new Date(note.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
@@ -171,6 +348,7 @@ export const NoteCard = ({
                 placeholder="Редактировать..." buttonText="Сохранить"
                 onCancel={() => onCancelEdit && onCancelEdit()}
                 onSubmit={(ast, propsJson) => { if (onSubmitEdit) onSubmitEdit(note.id, ast, propsJson); }}
+                onExpand={() => onExpandNote?.(note.id)}
                 autoFocus
               />
             </div>
@@ -183,29 +361,43 @@ export const NoteCard = ({
                 />
                 <BacklinksSection noteId={note.id} onNoteClick={onNoteClick} />
               </div>
-              {(type !== 'tweet' || (status && status !== 'none') || targetDate) && (
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' }}>
-                  {type !== 'tweet' && <span style={{ background: 'var(--bg-hover)', color: 'var(--text-sub)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.7rem', border: '1px solid var(--line)' }}>{type}</span>}
-                  {status !== 'none' && <span style={{ background: 'var(--bg-hover)', color: 'var(--text-sub)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.7rem', border: '1px solid var(--line)' }}>{status}</span>}
-                  {targetDate && <span style={{ background: 'var(--bg-hover)', color: 'var(--text-faint)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.7rem', border: '1px solid var(--line)', fontFamily: 'var(--font-mono)' }}>{targetDate}</span>}
+
+              {/* ── Inline editable props ── */}
+              {showProps && (
+                <div
+                  style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px', alignItems: 'center' }}
+                  onClick={e => e.stopPropagation()}
+                  onMouseDown={e => e.stopPropagation()}
+                  onDragStart={e => e.stopPropagation()}
+                >
+                  {type !== 'tweet' && (
+                    <PropChip value={type} options={TYPES} onChange={handleType} />
+                  )}
+                  {status !== 'none' && (
+                    <PropChip value={status} options={STATUSES} onChange={handleStatus} />
+                  )}
+                  {targetDate && (
+                    <DateChip value={targetDate} onChange={handleDate} />
+                  )}
                 </div>
               )}
             </>
           )}
         </div>
 
-        {/* Reply form — full width below */}
+        {/* Reply form */}
         {isReplying && (
           <div style={{ marginTop: '0.75rem' }}>
             <TweetEditor
               placeholder="Напиши ответ..." buttonText="Отправить"
               onCancel={() => onCancelReply && onCancelReply()}
               onSubmit={(ast, propsJson) => { if (onSubmitReply) onSubmitReply(note.id, ast, propsJson); }}
+              onExpand={() => onExpandNote?.(note.id)}
               autoFocus
             />
           </div>
         )}
-      </div>{/* end card panel */}
+      </div>
 
     </div>
   );
