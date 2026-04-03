@@ -3,7 +3,8 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotes } from '../db/hooks';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
-import { TweetEditor, TiptapRender } from './TiptapEditor';
+import { TweetEditor } from './TiptapEditor';
+import { TiptapRender } from '../editor/TiptapViewer';
 
 interface FeedProps {
   parentId?: string | null;
