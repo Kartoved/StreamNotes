@@ -68,7 +68,7 @@ export const NoteCard = ({
   let baseBg = 'transparent';
   if (status === 'done') baseBg = 'rgba(34, 197, 94, 0.06)';
   else if (status === 'todo') baseBg = 'rgba(239, 68, 68, 0.06)';
-  else if (status === 'doing') baseBg = 'rgba(232, 160, 69, 0.08)';
+  else if (status === 'doing') baseBg = 'rgba(96, 149, 237, 0.09)';
   else if (status === 'archived') baseBg = 'var(--bg-hover)';
 
   let finalBg = isReplying ? 'var(--accent-bg)' : baseBg;

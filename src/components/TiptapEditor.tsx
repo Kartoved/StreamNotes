@@ -425,6 +425,7 @@ export const TweetEditor = ({
       background: 'var(--bg)',
       color: 'var(--text)',
       fontFamily: 'var(--font-body)',
+      fontSize: '1rem',
       lineHeight: 1.85,
       letterSpacing: '0.01em',
     }}>
