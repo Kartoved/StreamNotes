@@ -11,6 +11,15 @@ import { ThreeStateTaskItem } from '../editor/extensions/ThreeStateTaskItem';
 import { AttachmentExtension } from '../editor/extensions/Attachment';
 import { createBacklinkPlugin, backlinkPluginKey } from '../editor/extensions/BacklinkPlugin';
 
+// ─── SVG Icon primitives ──────────────────────────────────────────────
+const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+    style={{ display: 'block', pointerEvents: 'none' }}>
+    <path d={d} />
+  </svg>
+);
+
 // ─── Toolbar Component ────────────────────────────────────────────────
 function Toolbar({ editor, onUpload }: { editor: any; onUpload: (files: FileList) => void }) {
   if (!editor) return null;
@@ -20,12 +29,40 @@ function Toolbar({ editor, onUpload }: { editor: any; onUpload: (files: FileList
   const [linkUrl, setLinkUrl] = React.useState('');
 
   const btn: React.CSSProperties = {
-    background: 'none', border: 'none', color: '#94a3b8',
-    borderRadius: '4px', padding: '3px 6px', cursor: 'pointer',
-    fontSize: '0.85rem', transition: 'color 0.15s, background 0.15s',
+    background: 'none', border: 'none',
+    color: 'var(--text-faint)',
+    borderRadius: 'var(--radius)',
+    padding: '4px 5px',
+    cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    transition: 'color 0.12s, background 0.12s',
+    lineHeight: 1,
   };
-  const active: React.CSSProperties = { ...btn, color: '#e2e8f0', background: 'rgba(255,255,255,0.15)' };
-  const sep = <div style={{ width: '1px', background: 'var(--border)', margin: '0 2px', alignSelf: 'stretch' }} />;
+  const btnHover = (e: React.MouseEvent<HTMLButtonElement>, enter: boolean) => {
+    (e.currentTarget as HTMLButtonElement).style.color = enter ? 'var(--text)' : 'var(--text-faint)';
+    (e.currentTarget as HTMLButtonElement).style.background = enter ? 'var(--bg-hover)' : 'transparent';
+  };
+  const activeStyle: React.CSSProperties = { ...btn, color: 'var(--text)', background: 'var(--bg-active)' };
+
+  // Text-label buttons (B I U S H2 </>) keep font styling
+  const textBtn = (extra?: React.CSSProperties): React.CSSProperties => ({
+    ...btn,
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.78rem',
+    fontWeight: 600,
+    letterSpacing: '0',
+    ...extra,
+  });
+  const textActive = (extra?: React.CSSProperties): React.CSSProperties => ({
+    ...activeStyle,
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.78rem',
+    fontWeight: 600,
+    letterSpacing: '0',
+    ...extra,
+  });
+
+  const gap = <div style={{ width: '1px', height: '14px', background: 'var(--line)', margin: '0 4px', alignSelf: 'center', flexShrink: 0 }} />;
 
   const applyLink = () => {
     if (linkUrl) {
@@ -39,47 +76,115 @@ function Toolbar({ editor, onUpload }: { editor: any; onUpload: (files: FileList
   };
 
   return (
-    <div style={{ marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
-      <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '2px' }}>
-        <button type="button" title="Жирный" style={editor.isActive('bold') ? active : { ...btn, fontWeight: 'bold' }} onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
-        <button type="button" title="Курсив" style={editor.isActive('italic') ? active : { ...btn, fontStyle: 'italic' }} onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
-        <button type="button" title="Подчёркнутый" style={editor.isActive('underline') ? active : { ...btn, textDecoration: 'underline' }} onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
-        <button type="button" title="Зачёркнутый" style={editor.isActive('strike') ? active : { ...btn, textDecoration: 'line-through' }} onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
-        {sep}
-        <button type="button" title="Заголовок H2" style={editor.isActive('heading', { level: 2 }) ? active : btn} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
-        <button type="button" title="Блок кода" style={editor.isActive('codeBlock') ? active : btn} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>&lt;/&gt;</button>
-        {sep}
-        <button type="button" title="Буллет список" style={editor.isActive('bulletList') ? active : btn} onClick={() => editor.chain().focus().toggleBulletList().run()}>•≡</button>
-        <button type="button" title="Нумерованный список" style={editor.isActive('orderedList') ? active : btn} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1≡</button>
-        <button type="button" title="Чеклист" style={editor.isActive('taskList') ? active : btn} onClick={() => editor.chain().focus().toggleTaskList().run()}>☑</button>
-        {sep}
-        <button type="button" title="Внешняя ссылка" style={editor.isActive('link') ? active : btn} onClick={() => { setLinkUrl(editor.getAttributes('link').href || ''); setLinkPopup(v => !v); }}>🌐</button>
-        <button type="button" title="Бэклинк на заметку" style={btn} onClick={() => editor.chain().focus().insertContent('[[').run()}>🔗</button>
-        {sep}
-        <button type="button" title="Прикрепить файл / изображение / видео" style={btn} onClick={() => fileInputRef.current?.click()}>📎</button>
-        <button type="button" title="Раскрыть заметку" style={{ ...btn, color: 'var(--text-sub)' }} onClick={() => (window as any).onExpandNote?.()}>⛶</button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept="*/*"
-          style={{ display: 'none' }}
-          onChange={(e) => { if (e.target.files?.length) { onUpload(e.target.files); e.target.value = ''; } }}
-        />
+    <div style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--line)' }}>
+      <div style={{ display: 'flex', gap: '1px', alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto' }}>
+
+        {/* ── Format ── */}
+        <button type="button" title="Жирный"
+          style={editor.isActive('bold') ? textActive({ fontWeight: 700 }) : textBtn({ fontWeight: 700 })}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
+
+        <button type="button" title="Курсив"
+          style={editor.isActive('italic') ? textActive({ fontStyle: 'italic' }) : textBtn({ fontStyle: 'italic' })}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
+
+        <button type="button" title="Подчёркнутый"
+          style={editor.isActive('underline') ? textActive({ textDecoration: 'underline' }) : textBtn({ textDecoration: 'underline' })}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
+
+        <button type="button" title="Зачёркнутый"
+          style={editor.isActive('strike') ? textActive({ textDecoration: 'line-through' }) : textBtn({ textDecoration: 'line-through' })}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => editor.chain().focus().toggleStrike().run()}>S</button>
+
+        {gap}
+
+        {/* ── Structure ── */}
+        <button type="button" title="Заголовок H2"
+          style={editor.isActive('heading', { level: 2 }) ? textActive() : textBtn()}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
+
+        <button type="button" title="Блок кода"
+          style={editor.isActive('codeBlock') ? textActive() : textBtn()}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => editor.chain().focus().toggleCodeBlock().run()}>&lt;/&gt;</button>
+
+        {gap}
+
+        {/* ── Lists — SVG icons ── */}
+        <button type="button" title="Маркированный список"
+          style={editor.isActive('bulletList') ? activeStyle : btn}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}>
+          <Ic d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />
+        </button>
+
+        <button type="button" title="Нумерованный список"
+          style={editor.isActive('orderedList') ? activeStyle : btn}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+          <Ic d="M10 6h11M10 12h11M10 18h11M4 6h.01M4 12h.01M4 18h.01" />
+        </button>
+
+        <button type="button" title="Чеклист"
+          style={editor.isActive('taskList') ? activeStyle : btn}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => editor.chain().focus().toggleTaskList().run()}>
+          <Ic d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+        </button>
+
+        {gap}
+
+        {/* ── Links ── */}
+        <button type="button" title="Внешняя ссылка"
+          style={editor.isActive('link') ? activeStyle : btn}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => { setLinkUrl(editor.getAttributes('link').href || ''); setLinkPopup(v => !v); }}>
+          <Ic d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+        </button>
+
+        <button type="button" title="Бэклинк на заметку"
+          style={btn}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => editor.chain().focus().insertContent('[[').run()}>
+          <Ic d="M15 7h3a5 5 0 010 10h-3m-6 0H6A5 5 0 016 7h3M8 12h8" />
+        </button>
+
+        {gap}
+
+        {/* ── Attach + Expand ── */}
+        <button type="button" title="Прикрепить файл / изображение / видео"
+          style={btn}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => fileInputRef.current?.click()}>
+          <Ic d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+        </button>
+
+        <button type="button" title="Раскрыть заметку"
+          style={btn}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => (window as any).onExpandNote?.()}>
+          <Ic d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+        </button>
+
+        <input ref={fileInputRef} type="file" multiple accept="*/*" style={{ display: 'none' }}
+          onChange={(e) => { if (e.target.files?.length) { onUpload(e.target.files); e.target.value = ''; } }} />
       </div>
+
       {linkPopup && (
-        <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+        <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
           <input
-            autoFocus
-            type="text"
-            placeholder="https://..."
-            value={linkUrl}
-            onChange={e => setLinkUrl(e.target.value)}
+            autoFocus type="text" placeholder="https://..."
+            value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') applyLink(); if (e.key === 'Escape') setLinkPopup(false); }}
-            style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', color: '#e2e8f0', fontSize: '0.8rem', padding: '3px 7px', outline: 'none' }}
+            style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', color: 'var(--text)', fontSize: '0.82rem', padding: '3px 8px', outline: 'none', fontFamily: 'var(--font-body)' }}
           />
-          <button type="button" onClick={applyLink} style={{ ...btn, color: '#60a5fa', padding: '3px 8px' }}>OK</button>
-          <button type="button" onClick={() => setLinkPopup(false)} style={{ ...btn, padding: '3px 8px' }}>✕</button>
+          <button type="button" onClick={applyLink} style={{ ...btn, color: 'var(--text)', border: '1px solid var(--line)', padding: '3px 10px', borderRadius: 'var(--radius)', fontFamily: 'var(--font-body)', fontSize: '0.82rem' }}>OK</button>
+          <button type="button" onClick={() => setLinkPopup(false)} style={{ ...btn, border: '1px solid var(--line)', padding: '3px 8px', borderRadius: 'var(--radius)', fontSize: '0.82rem' }}>✕</button>
         </div>
       )}
     </div>
