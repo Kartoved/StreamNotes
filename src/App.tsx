@@ -397,6 +397,7 @@ function App() {
                 initialPropsStr={fullscreenDraft.propsJson}
                 onSubmit={(ast, pj) => { fullscreenDraft.onSubmit(ast, pj); setFullscreenDraft(null); }}
                 autoFocus
+                zenMode={true}
               />
             </div>
           </div>

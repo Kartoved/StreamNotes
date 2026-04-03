@@ -34,7 +34,7 @@ export const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string; onNo
         onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
         style={{ background: 'none', border: 'none', color: '#93c5fd', fontSize: '0.72rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
       >
-        🔗 {isExpanded ? '▼' : '▶'} Упомянуто в {backlinks.length} {backlinks.length === 1 ? 'заметке' : 'заметках'}
+        {isExpanded ? '▼' : '▶'} Упомянуто в {backlinks.length} {backlinks.length === 1 ? 'заметке' : 'заметках'}
       </button>
       {isExpanded && (
         <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>

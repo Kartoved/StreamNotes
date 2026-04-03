@@ -106,85 +106,37 @@ export const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; on
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '40px 60px' }}>
           
           {/* Main Note */}
-          <div style={{ marginBottom: '32px' }}>
+          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
             {editingNoteId === noteId ? (
               <TweetEditor placeholder="Редактировать..." initialAst={decrypt(note.content)} initialPropsStr={decrypt(note.properties)} buttonText="Сохранить" onCancel={() => setEditingNoteId(null)} onSubmit={(ast, pr) => handleSubmitEdit(noteId, ast, pr)} autoFocus />
             ) : (
               <>
-                <div style={{ fontSize: '1.1rem', lineHeight: 1.6, color: 'var(--text)', marginBottom: '16px' }}>
+                <div style={{ fontSize: '1.2rem', lineHeight: 1.7, color: 'var(--text)', marginBottom: '24px' }}>
                   <TiptapRender astString={decrypt(note.content)} onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), noteId])} />
                 </div>
                 
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', paddingTop: '20px', borderTop: '1px solid var(--line)' }}>
                   <PropChip value={props.type || 'tweet'} options={TYPES} onChange={v => handleUpdateProps(noteId, { ...props, type: v })} />
                   <PropChip value={props.status || 'none'} options={STATUSES} onChange={v => handleUpdateProps(noteId, { ...props, status: v })} />
                   <DateChip value={props.date || ''} onChange={v => handleUpdateProps(noteId, { ...props, date: v })} />
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px' }}>
-                    <button onClick={() => setReplyingToId(noteId)} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>💬 Ответить</button>
-                    <button onClick={() => setEditingNoteId(noteId)} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>✏️ Изменить</button>
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: '16px' }}>
+                    <button onClick={() => setReplyingToId(noteId)} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>Ответить</button>
+                    <button onClick={() => setEditingNoteId(noteId)} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>Изменить</button>
                   </div>
                 </div>
               </>
             )}
 
             {replyingToId === noteId && (
-              <div style={{ marginTop: '20px' }}>
+              <div style={{ marginTop: '24px' }}>
                 <TweetEditor placeholder="Написать ответ..." buttonText="Отправить" onCancel={() => setReplyingToId(null)} onSubmit={(ast, pr) => handleSubmitReply(noteId, ast, pr)} autoFocus />
               </div>
             )}
           </div>
-
-          {/* Children / Replies */}
-          {children.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
-              {children.map(child => {
-                const cProps = JSON.parse(decrypt(child.properties) || '{}');
-                const indent = (child.depth || 0) * 24;
-                return (
-                  <div key={child.id} style={{ 
-                    paddingLeft: indent, 
-                    paddingTop: '16px', 
-                    paddingBottom: '16px', 
-                    borderTop: '1px solid var(--line)',
-                    position: 'relative'
-                  }}>
-                    {child.depth > 0 && <div style={{ position: 'absolute', left: indent - 12, top: 0, bottom: 0, width: '1px', background: 'var(--line)' }} />}
-                    
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-sub)' }}>{child.author_id}</span>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>{new Date(child.created_at).toLocaleTimeString().slice(0, 5)}</span>
-                    </div>
-
-                    {editingNoteId === child.id ? (
-                      <TweetEditor placeholder="Редактировать..." initialAst={decrypt(child.content)} initialPropsStr={decrypt(child.properties)} buttonText="Сохранить" onCancel={() => setEditingNoteId(null)} onSubmit={(ast, pr) => handleSubmitEdit(child.id, ast, pr)} autoFocus />
-                    ) : (
-                      <>
-                        <div style={{ fontSize: '0.95rem', lineHeight: 1.5, color: 'var(--text)', marginBottom: '10px' }}>
-                          <TiptapRender astString={decrypt(child.content)} onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), child.id])} />
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          {cProps.status && cProps.status !== 'none' && <PropChip value={cProps.status} options={STATUSES} onChange={v => handleUpdateProps(child.id, { ...cProps, status: v })} />}
-                          <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
-                            <button onClick={() => setReplyingToId(child.id)} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: '0.75rem', cursor: 'pointer' }}>💬</button>
-                            <button onClick={() => setEditingNoteId(child.id)} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: '0.75rem', cursor: 'pointer' }}>✏️</button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {replyingToId === child.id && (
-                      <div style={{ marginTop: '12px' }}>
-                        <TweetEditor placeholder="Ответить..." buttonText="Отправить" onCancel={() => setReplyingToId(null)} onSubmit={(ast, pr) => handleSubmitReply(child.id, ast, pr)} autoFocus />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {/* Note: Children are hidden in this view as requested */}
         </div>
       </div>
     </div>

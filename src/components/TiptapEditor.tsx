@@ -330,6 +330,7 @@ export const TweetEditor = ({
   initialPropsStr,
   autoFocus,
   onExpand,
+  zenMode,
 }: {
   onSubmit: (ast: string, propsJson: string) => void;
   onCancel?: () => void;
@@ -339,6 +340,7 @@ export const TweetEditor = ({
   initialPropsStr?: string;
   autoFocus?: boolean;
   onExpand?: (ast: string, propsJson: string) => void;
+  zenMode?: boolean;
 }) => {
   const [editorKey, setEditorKey] = useState(0);
   const initP = initialPropsStr ? JSON.parse(initialPropsStr) : {};
@@ -534,7 +536,15 @@ export const TweetEditor = ({
   const optStyle: React.CSSProperties = { backgroundColor: 'var(--bg)', color: 'var(--text)' };
 
   return (
-    <div style={{
+    <div style={zenMode ? {
+      position: 'fixed', inset: 0, zIndex: 2000,
+      background: 'var(--bg)',
+      color: 'var(--text)',
+      display: 'flex', flexDirection: 'column',
+      fontFamily: 'var(--font-body)',
+      fontSize: '1.1rem',
+      lineHeight: 1.8,
+    } : {
       position: 'relative',
       border: '1px solid var(--line)',
       borderRadius: 'var(--radius-lg)',
@@ -546,9 +556,11 @@ export const TweetEditor = ({
       lineHeight: 1.85,
       letterSpacing: '0.01em',
     }}>
-      <Toolbar editor={editor} onUpload={(files) => uploadFiles(files)} onExpand={onExpand} />
+      <div style={zenMode ? { padding: '12px 24px', borderBottom: '1px solid var(--line)' } : {}}>
+        <Toolbar editor={editor} onUpload={(files) => uploadFiles(files)} onExpand={onExpand} />
+      </div>
 
-      <div style={{ position: 'relative' }}>
+      <div style={zenMode ? { flex: 1, overflowY: 'auto', padding: '40px 60px', maxWidth: '900px', margin: '0 auto', width: '100%' } : { position: 'relative' }}>
         <EditorContent editor={editor} />
       </div>
 
@@ -561,7 +573,10 @@ export const TweetEditor = ({
         />
       )}
 
-      <div style={{
+      <div style={zenMode ? {
+        display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center',
+        padding: '16px 24px', borderTop: '1px solid var(--line)', background: 'var(--bg)',
+      } : {
         display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center',
         marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--line)',
       }}>
@@ -573,12 +588,12 @@ export const TweetEditor = ({
         </select>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...selStyle }} />
 
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {uploadProgress && <UploadRing done={uploadProgress.done} total={uploadProgress.total} />}
           {onCancel && (
-            <button type="button" onClick={onCancel} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', padding: '6px 16px', borderRadius: 'var(--radius)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.85rem' }}>Отмена</button>
+            <button type="button" onClick={onCancel} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', padding: '8px 24px', borderRadius: 'var(--radius)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>Отмена</button>
           )}
-          <button type="button" onClick={handleSubmit} disabled={!!uploadProgress} style={{ background: 'var(--accent)', border: 'none', color: '#fff', padding: '6px 20px', borderRadius: 'var(--radius)', cursor: uploadProgress ? 'not-allowed' : 'pointer', fontWeight: 600, fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: uploadProgress ? 0.6 : 1 }}>{buttonText}</button>
+          <button type="button" onClick={handleSubmit} disabled={!!uploadProgress} style={{ background: 'var(--accent)', border: 'none', color: '#fff', padding: '8px 32px', borderRadius: 'var(--radius)', cursor: uploadProgress ? 'not-allowed' : 'pointer', fontWeight: 600, fontFamily: 'var(--font-body)', fontSize: '0.9rem', opacity: uploadProgress ? 0.6 : 1 }}>{buttonText}</button>
         </div>
       </div>
     </div>
