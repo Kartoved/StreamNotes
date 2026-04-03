@@ -50,6 +50,27 @@ function App() {
     })();
   }, [db, encrypt]);
 
+  // ── Color migration: replace old default blue with neutral gray ────
+  const colorMigrationDone = useRef(false);
+  useEffect(() => {
+    if (colorMigrationDone.current) return;
+    if (localStorage.getItem('sn_color_migration_v1') === '1') { colorMigrationDone.current = true; return; }
+    colorMigrationDone.current = true;
+    (async () => {
+      // Replace old neon defaults with neutral tones
+      const oldBlues = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16'];
+      const neutral = ['#787774', '#606a7b', '#969591', '#37352f', '#868e96', '#b1b1ae', '#a3a6ad', '#c9cbd0'];
+      const feeds = await db.execO(`SELECT id, color FROM feeds`) as any[];
+      for (const f of feeds) {
+        const idx = oldBlues.indexOf(f.color);
+        if (idx !== -1) {
+          await db.exec(`UPDATE feeds SET color = ? WHERE id = ?`, [neutral[idx], f.id]);
+        }
+      }
+      localStorage.setItem('sn_color_migration_v1', '1');
+    })();
+  }, [db]);
+
   // ── Feeds ──────────────────────────────────────────────────────────
   const feeds = useFeeds();
   const [activeFeedId, setActiveFeedId] = useState<string | null>(null);
@@ -67,9 +88,10 @@ function App() {
       const existing = await db.execO(`SELECT id FROM feeds LIMIT 1`);
       if ((existing as any[]).length === 0) {
         const id = 'feed-' + uid();
+        const now = Date.now();
         await db.exec(
           `INSERT INTO feeds (id, name, color, created_at) VALUES (?,?,?,?)`,
-          [id, encrypt('Главная'), '#3b82f6', Date.now()]
+          [id, encrypt('Главная'), '#787774', now]
         );
       }
     })();
@@ -273,6 +295,10 @@ function App() {
         {/* Header */}
         <header className="app-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem', flexShrink: 0, width: '100%', maxWidth: '980px', borderBottom: '1px solid var(--line)', paddingBottom: '12px' }}>
           <h1 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)', flexShrink: 0, letterSpacing: '-0.01em' }}>
+            {activeFeed?.avatar
+              ? <img src={activeFeed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '1.2rem', height: '1.2rem', objectFit: 'cover', borderRadius: '50%', marginRight: '6px', verticalAlign: 'middle' }} />
+              : null
+            }
             {activeFeed?.name || 'StreamNotes'}
           </h1>
           <span style={{ color: 'var(--text-faint)', fontSize: '0.8rem', flexShrink: 0 }}>

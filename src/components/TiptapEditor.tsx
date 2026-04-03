@@ -57,6 +57,7 @@ function Toolbar({ editor, onUpload }: { editor: any; onUpload: (files: FileList
         <button type="button" title="Бэклинк на заметку" style={btn} onClick={() => editor.chain().focus().insertContent('[[').run()}>🔗</button>
         {sep}
         <button type="button" title="Прикрепить файл / изображение / видео" style={btn} onClick={() => fileInputRef.current?.click()}>📎</button>
+        <button type="button" title="Раскрыть заметку" style={{ ...btn, color: 'var(--text-sub)' }} onClick={() => (window as any).onExpandNote?.()}>⛶</button>
         <input
           ref={fileInputRef}
           type="file"

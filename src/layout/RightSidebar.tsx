@@ -25,10 +25,10 @@ export const RightSidebar = ({
   return (
     <div className="right-sidebar" style={{
       width: '220px', flexShrink: 0,
-      display: 'flex', flexDirection: 'column', gap: '16px',
-      overflowY: 'auto',
+      display: 'flex', flexDirection: 'column', gap: '8px',
+      overflowY: 'auto', paddingTop: '14px',
     }}>
-      <div>
+      <div style={{ marginBottom: '8px' }}>
         <input
           type="search"
           className="search-bar"
@@ -36,15 +36,10 @@ export const RightSidebar = ({
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           data-lpignore="true"
-          data-1p-ignore="true"
-          data-kpm-ignore="true"
-          data-bwignore="true"
-          data-dashlane-ignore="true"
-          data-form-type="other"
         />
       </div>
 
-      <div style={{ background: 'var(--bg-aside)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', padding: '12px', boxShadow: 'var(--shadow-sm)' }}>
+      <div style={{ padding: '0 4px', marginBottom: '8px' }}>
         <MiniCalendar
           activeDays={activeDays}
           selectedDate={selectedDate}
@@ -53,15 +48,15 @@ export const RightSidebar = ({
         {selectedDate && (
           <button
             onClick={() => setSelectedDate(null)}
-            style={{ marginTop: '8px', width: '100%', background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: 'var(--radius)', padding: '4px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
+            style={{ marginTop: '8px', width: '100%', background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: 'var(--radius)', padding: '4px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
           >✕ Сбросить дату</button>
         )}
       </div>
 
       {allTags.length > 0 && (
-        <div style={{ background: 'var(--bg-aside)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', padding: '12px', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Теги</div>
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+        <div style={{ padding: '0 4px', marginTop: '12px' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '4px' }}>Теги</div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {allTags.map(tag => (
               <span
                 key={tag}

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import type { Feed as FeedData } from '../db/hooks';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
-const FEED_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16'];
+const FEED_COLORS = ['#787774', '#c9cbd0', '#969591', '#b1b1ae', '#a3a6ad', '#37352f', '#606a7b', '#868e96'];
 const randomColor = () => FEED_COLORS[Math.floor(Math.random() * FEED_COLORS.length)];
 
 async function resizeAvatar(file: File): Promise<string> {
@@ -28,20 +28,21 @@ const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
   const initials = feed.name.slice(0, 2).toUpperCase();
   return (
     <div style={{
-      width: '36px', height: '36px',
-      borderRadius: active ? '10px' : '8px',
-      background: feed.avatar ? 'transparent' : feed.color,
-      border: active ? `2px solid ${feed.color}` : '2px solid transparent',
+      width: '40px', height: '40px',
+      borderRadius: active ? '12px' : '10px',
+      background: feed.avatar ? 'transparent' : (active ? feed.color : 'var(--bg-aside)'),
+      border: active ? `none` : '1px solid var(--line)',
       overflow: 'hidden',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       cursor: 'pointer', flexShrink: 0,
-      opacity: active ? 1 : 0.6,
+      opacity: 1,
       transition: 'all 0.15s ease',
-      boxShadow: active ? `0 2px 8px ${feed.color}40` : 'none',
+      boxShadow: active ? `0 2px 8px ${feed.color}25` : 'none',
+      color: active ? 'white' : 'var(--text-faint)',
     }}>
       {feed.avatar
         ? <img src={feed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : <span style={{ color: 'white', fontWeight: 700, fontSize: '0.8rem', userSelect: 'none' }}>{initials}</span>
+        : <span style={{ color: active ? 'white' : 'inherit', fontWeight: 700, fontSize: '0.85rem', userSelect: 'none' }}>{initials}</span>
       }
     </div>
   );
@@ -118,15 +119,15 @@ export const FeedsSidebar = ({
         overflowX: 'hidden',
       }}>
         {/* Logo */}
-        <div style={{ fontSize: '1.3rem', marginBottom: '8px', userSelect: 'none', lineHeight: 1 }}>✦</div>
-        <div className="feed-logo-sep" style={{ width: '24px', height: '1px', background: 'var(--line)', marginBottom: '8px' }} />
+        <div style={{ fontSize: '1.4rem', marginBottom: '12px', userSelect: 'none', lineHeight: 1, color: 'var(--text)' }}>✦</div>
+        <div className="feed-logo-sep" style={{ width: '28px', height: '1.5px', background: 'var(--line)', marginBottom: '16px' }} />
 
         {feeds.map(feed => (
           <div
             key={feed.id}
             className="feed-item"
             onClick={() => activeFeedId === feed.id ? openEdit(feed) : onSelect(feed.id)}
-            style={{ padding: '4px 0' }}
+            style={{ padding: '6px 0' }}
           >
             <FeedIcon feed={feed} active={feed.id === activeFeedId} />
             <div className="feed-tooltip">{feed.name}</div>
@@ -134,17 +135,17 @@ export const FeedsSidebar = ({
         ))}
 
         {/* Add feed */}
-        <div className="feed-item" style={{ marginTop: '8px', padding: '4px 0' }}>
+        <div className="feed-item" style={{ marginTop: '12px', padding: '6px 0' }}>
           <div
             onClick={openCreate}
             style={{
-              width: '36px', height: '36px', borderRadius: '8px',
-              border: '1.5px dashed var(--line-strong)', display: 'flex',
+              width: '40px', height: '40px', borderRadius: '12px',
+              border: '1px solid var(--line-strong)', display: 'flex',
               alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: 'var(--text-faint)', fontSize: '1.2rem',
+              cursor: 'pointer', color: 'var(--text-faint)', fontSize: '1.4rem',
               transition: 'all 0.15s',
             }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLElement).style.color = 'var(--accent)'; (e.currentTarget as HTMLElement).style.background = 'var(--accent-bg)'; }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line-strong)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >+</div>
           <div className="feed-tooltip">Новая лента</div>
@@ -202,10 +203,11 @@ export const FeedsSidebar = ({
                 placeholder="Название ленты"
                 autoFocus
                 style={{
-                  flex: 1, background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid var(--border)', borderRadius: '8px',
-                  color: 'var(--text-main)', fontSize: '0.95rem',
+                  flex: 1, background: 'var(--bg)',
+                  border: '1px solid var(--line)', borderRadius: 'var(--radius)',
+                  color: 'var(--text)', fontSize: '0.9rem',
                   padding: '8px 12px', outline: 'none',
+                  fontFamily: 'var(--font-body)',
                 }}
               />
             </div>
@@ -228,8 +230,8 @@ export const FeedsSidebar = ({
                   style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', marginRight: 'auto' }}
                 >Удалить</button>
               )}
-              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>Отмена</button>
-              <button onClick={handleSave} disabled={!modalName.trim()} style={{ background: 'var(--accent)', border: 'none', color: 'white', borderRadius: '6px', padding: '6px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', opacity: modalName.trim() ? 1 : 0.5 }}>
+              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: 'var(--radius)', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>Отмена</button>
+              <button onClick={handleSave} disabled={!modalName.trim()} style={{ background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', opacity: modalName.trim() ? 1 : 0.5, fontFamily: 'var(--font-body)' }}>
                 {modal === 'create' ? 'Создать' : 'Сохранить'}
               </button>
             </div>
