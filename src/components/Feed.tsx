@@ -106,15 +106,6 @@ export const Feed = ({
 
   const closeContextMenu = () => setContextMenu(null);
 
-  // ── Dynamic feed height ────────────────────────────────────────────
-  const [feedHeight, setFeedHeight] = useState(600);
-  useEffect(() => {
-    const update = () => setFeedHeight(Math.max(300, window.innerHeight - 180));
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-
   // ── Filter by search + tags + date ────────────────────────────────
   const filteredNotes = React.useMemo(() => {
     const q = searchQuery.toLocaleLowerCase().trim();
@@ -161,7 +152,7 @@ export const Feed = ({
 
   const virtualizer = useVirtualizer({
     count: visibleNotes.length,
-    getScrollElement: () => parentRef.current,
+    getScrollElement: () => document.querySelector('.main-content'),
     estimateSize: () => 92,
   });
 
@@ -272,10 +263,10 @@ export const Feed = ({
             }}
           >
             {[
-              { label: '↩ Ответить', action: () => { onStartReply?.(contextMenu.noteId); closeContextMenu(); } },
-              { label: '✏️ Редактировать', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); if (note) onStartEdit?.(note); closeContextMenu(); } },
-              { label: '⛶ Открыть', action: () => { setExpandedNoteId(contextMenu.noteId); closeContextMenu(); } },
-              { label: collapsedIds.has(contextMenu.noteId) ? '▼ Развернуть' : '▲ Свернуть', action: () => { setCollapsedIds(prev => { const next = new Set(prev); next.has(contextMenu.noteId) ? next.delete(contextMenu.noteId) : next.add(contextMenu.noteId); return next; }); closeContextMenu(); } },
+              { label: 'Ответить', action: () => { onStartReply?.(contextMenu.noteId); closeContextMenu(); } },
+              { label: 'Редактировать', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); if (note) onStartEdit?.(note); closeContextMenu(); } },
+              { label: 'Открыть', action: () => { setExpandedNoteId(contextMenu.noteId); closeContextMenu(); } },
+              { label: collapsedIds.has(contextMenu.noteId) ? 'Развернуть' : 'Свернуть', action: () => { setCollapsedIds(prev => { const next = new Set(prev); next.has(contextMenu.noteId) ? next.delete(contextMenu.noteId) : next.add(contextMenu.noteId); return next; }); closeContextMenu(); } },
               { label: '🔗 Перейти в ветку', action: () => { onNoteClick?.(contextMenu.noteId); closeContextMenu(); } },
               null, // separator
               { label: '🗑 Удалить', action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true },
@@ -324,7 +315,7 @@ export const Feed = ({
       {filteredNotes.length === 0 ? (
         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Ничего не найдено</div>
       ) : (
-        <div ref={parentRef} className="feed-scroll-container" style={{ height: `${feedHeight}px`, overflowY: 'auto', paddingRight: '2px' }}>
+        <div ref={parentRef} className="feed-container">
           <div style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
             {virtualizer.getVirtualItems().map((virtualItem) => {
               const note = visibleNotes[virtualItem.index];

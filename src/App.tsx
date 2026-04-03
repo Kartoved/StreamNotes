@@ -284,7 +284,7 @@ function App() {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)' }}>
       {/* ── Feeds sidebar ── */}
       <FeedsSidebar
         feeds={feeds}
@@ -296,7 +296,7 @@ function App() {
       />
 
       {/* ── Main content ── */}
-      <div className="main-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1.5rem', boxSizing: 'border-box', alignItems: 'center', background: 'var(--bg)' }}>
+      <div className="main-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1.5rem', boxSizing: 'border-box', alignItems: 'center', background: 'var(--bg)', overflowY: 'auto' }}>
         {/* Header */}
         <header className="app-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem', flexShrink: 0, width: '100%', maxWidth: '980px', borderBottom: '1px solid var(--line)', paddingBottom: '12px' }}>
           <h1 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)', flexShrink: 0, letterSpacing: '-0.01em' }}>
@@ -396,6 +396,7 @@ function App() {
                 initialAst={fullscreenDraft.ast}
                 initialPropsStr={fullscreenDraft.propsJson}
                 onSubmit={(ast, pj) => { fullscreenDraft.onSubmit(ast, pj); setFullscreenDraft(null); }}
+                onCancel={() => setFullscreenDraft(null)}
                 autoFocus
                 zenMode={true}
               />

@@ -21,7 +21,7 @@ const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
 );
 
 // ─── Toolbar Component ────────────────────────────────────────────────
-function Toolbar({ editor, onUpload, onExpand }: { editor: any; onUpload: (files: FileList) => void; onExpand?: (ast: string, propsJson: string) => void }) {
+function Toolbar({ editor, onUpload, onExpand, zenMode, onCancel }: { editor: any; onUpload: (files: FileList) => void; onExpand?: (ast: string, propsJson: string) => void; zenMode?: boolean; onCancel?: () => void }) {
   if (!editor) return null;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -164,15 +164,23 @@ function Toolbar({ editor, onUpload, onExpand }: { editor: any; onUpload: (files
           <Ic d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
         </button>
 
-        <button type="button" title="Раскрыть заметку"
+        <button type="button" title={zenMode ? "Свернуть заметку" : "Раскрыть заметку"}
           style={btn}
           onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
           onClick={() => {
-            const json = editor.getJSON();
-            const props = (window as any)._tmp_editor_props || { type: 'tweet', status: 'none', date: '' };
-            onExpand?.(JSON.stringify(json), JSON.stringify(props));
+            if (zenMode && onCancel) {
+              onCancel();
+            } else {
+              const json = editor.getJSON();
+              const props = (window as any)._tmp_editor_props || { type: 'tweet', status: 'none', date: '' };
+              onExpand?.(JSON.stringify(json), JSON.stringify(props));
+            }
           }}>
-          <Ic d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+          {zenMode ? (
+            <Ic d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7" />
+          ) : (
+            <Ic d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+          )}
         </button>
 
         <input ref={fileInputRef} type="file" multiple accept="*/*" style={{ display: 'none' }}
@@ -535,15 +543,24 @@ export const TweetEditor = ({
   };
   const optStyle: React.CSSProperties = { backgroundColor: 'var(--bg)', color: 'var(--text)' };
 
+  let zenBg = 'var(--bg)';
+  if (zenMode) {
+    if (status === 'done') zenBg = 'rgba(134, 239, 172, 0.08)';
+    else if (status === 'todo') zenBg = 'rgba(239, 68, 68, 0.08)';
+    else if (status === 'doing') zenBg = 'rgba(96, 165, 250, 0.08)';
+    else if (status === 'archived') zenBg = 'rgba(15, 23, 42, 0.08)';
+  }
+
   return (
     <div style={zenMode ? {
-      position: 'fixed', inset: 0, zIndex: 2000,
-      background: 'var(--bg)',
+      position: 'fixed', inset: 0, zIndex: 3000,
+      background: zenBg,
       color: 'var(--text)',
       display: 'flex', flexDirection: 'column',
       fontFamily: 'var(--font-body)',
       fontSize: '1.1rem',
       lineHeight: 1.8,
+      transition: 'background 0.3s ease',
     } : {
       position: 'relative',
       border: '1px solid var(--line)',
@@ -556,8 +573,8 @@ export const TweetEditor = ({
       lineHeight: 1.85,
       letterSpacing: '0.01em',
     }}>
-      <div style={zenMode ? { padding: '12px 24px', borderBottom: '1px solid var(--line)' } : {}}>
-        <Toolbar editor={editor} onUpload={(files) => uploadFiles(files)} onExpand={onExpand} />
+      <div style={zenMode ? { padding: '12px 24px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'center', background: 'transparent' } : {}}>
+        <Toolbar editor={editor} onUpload={(files) => uploadFiles(files)} onExpand={onExpand} zenMode={zenMode} onCancel={onCancel} />
       </div>
 
       <div style={zenMode ? { flex: 1, overflowY: 'auto', padding: '40px 60px', maxWidth: '900px', margin: '0 auto', width: '100%' } : { position: 'relative' }}>
@@ -575,7 +592,7 @@ export const TweetEditor = ({
 
       <div style={zenMode ? {
         display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center',
-        padding: '16px 24px', borderTop: '1px solid var(--line)', background: 'var(--bg)',
+        padding: '16px 24px', borderTop: '1px solid var(--line)', background: 'transparent',
       } : {
         display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center',
         marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--line)',

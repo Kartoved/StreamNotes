@@ -21,40 +21,42 @@ export default function UnlockScreen({ onUnlock, onRecover }: Props) {
   const containerStyle: React.CSSProperties = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     minHeight: '100vh', padding: '2rem',
-    background: 'var(--bg-color)', backgroundImage: 'var(--bg-gradient)', backgroundAttachment: 'fixed',
-    fontFamily: "'Source Code Pro', 'Courier New', monospace", color: 'var(--text-main)',
+    background: 'var(--bg)',
+    fontFamily: "var(--font-body)", color: 'var(--text)',
   };
 
   const cardStyle: React.CSSProperties = {
     background: 'var(--card-bg)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-    border: '1px solid var(--border)', borderRadius: '16px', padding: '2rem',
+    border: '1px solid var(--line)', borderRadius: '16px', padding: '2.5rem 2rem',
     maxWidth: '400px', width: '100%', boxShadow: '0 4px 30px rgba(0,0,0,0.1)',
+    textAlign: 'center',
   };
 
   const inputStyle: React.CSSProperties = {
-    background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px',
-    padding: '0.75rem', color: 'var(--text-main)', fontFamily: 'inherit',
-    fontSize: '14px', width: '100%',
+    background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '8px',
+    padding: '0.75rem', color: 'var(--text)', fontFamily: 'var(--font-mono)',
+    fontSize: '14px', width: '100%', outline: 'none', textAlign: 'center',
   };
 
   const btnStyle: React.CSSProperties = {
-    background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px',
+    background: 'var(--accent)', color: 'var(--bg)', border: 'none', borderRadius: '8px',
     padding: '0.75rem 1.5rem', fontSize: '14px', cursor: 'pointer',
-    fontFamily: 'inherit', width: '100%', marginTop: '1rem',
+    fontFamily: 'var(--font-body)', width: '100%', marginTop: '1.5rem', fontWeight: 600,
   };
 
   const btnSecondary: React.CSSProperties = {
-    ...btnStyle, background: 'transparent', border: '1px solid var(--border)',
-    color: 'var(--text-muted)',
+    background: 'transparent', border: 'none',
+    color: 'var(--text-faint)', fontSize: '12px', cursor: 'pointer',
+    fontFamily: 'var(--font-body)', marginTop: '1rem',
   };
 
   return (
     <div style={containerStyle}>
       <div style={cardStyle}>
-        <h2 style={{ margin: '0 0 0.5rem', fontSize: '20px', background: 'linear-gradient(45deg, #60a5fa, #c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)' }}>
           StreamNotes
         </h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '1.5rem' }}>
+        <p style={{ color: 'var(--text-sub)', fontSize: '13px', marginBottom: '2rem' }}>
           Введите пароль для разблокировки
         </p>
         <form onSubmit={handleSubmit}>
