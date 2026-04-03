@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
+import { createPortal } from 'react-dom';
 import type { NodeViewProps } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
@@ -19,12 +20,12 @@ const Lightbox = ({ url, name, onClose }: { url: string; name: string; onClose: 
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, zIndex: 9999,
-        background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(6px)',
+        position: 'fixed', inset: 0, zIndex: 99999,
+        background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'zoom-out',
       }}
@@ -34,21 +35,23 @@ const Lightbox = ({ url, name, onClose }: { url: string; name: string; onClose: 
         alt={name}
         onClick={e => e.stopPropagation()}
         style={{
-          maxWidth: '90vw', maxHeight: '90vh',
-          borderRadius: '8px', boxShadow: '0 8px 40px rgba(0,0,0,0.8)',
+          maxWidth: '95vw', maxHeight: '95vh',
+          borderRadius: '12px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
           cursor: 'default', objectFit: 'contain',
         }}
       />
       <button
         onClick={onClose}
         style={{
-          position: 'fixed', top: '16px', right: '20px',
-          background: 'rgba(255,255,255,0.15)', border: 'none',
-          color: 'white', fontSize: '1.4rem', width: '36px', height: '36px',
-          borderRadius: '50%', cursor: 'pointer', lineHeight: 1,
+          position: 'fixed', top: '24px', right: '24px',
+          background: 'rgba(255,255,255,0.2)', border: 'none',
+          color: 'white', fontSize: '24px', width: '44px', height: '44px',
+          borderRadius: '50%', cursor: 'pointer', lineHeight: '44px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >✕</button>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -201,6 +204,7 @@ const AttachmentNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
           src={url} alt={name}
           onClick={() => setLightbox(true)}
           style={{ width: '100%', height: '130px', objectFit: 'cover', borderRadius: '6px', display: 'block', cursor: 'zoom-in' }}
+          onError={() => setError(true)}
         />
         {deleteBtn}
         {lightbox && <Lightbox url={url} name={name} onClose={() => setLightbox(false)} />}
@@ -587,6 +591,12 @@ export const TweetEditor = ({
       attributes: {
         class: 'tiptap-editor',
         style: 'outline: none; min-height: 60px; padding: 4px; font-size: 15px; color: var(--text-main, #e2e8f0); line-height: 1.5;',
+        'data-gramm': 'false',
+        'data-gramm_editor': 'false',
+        'data-enable-grammarly': 'false',
+        'data-lpignore': 'true',
+        'data-1p-ignore': 'true',
+        spellcheck: 'false',
       },
       handleDrop: (_view, event) => {
         const files = (event as DragEvent).dataTransfer?.files;
@@ -756,23 +766,25 @@ const AttachmentDisplay = ({ src, name, fileType, size, inGrid }: { src: string;
   if (!url) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>⏳ {name}</div>;
 
   if (fileType === 'image') return (
-    <>
+    <div style={{ display: 'contents' }} onClick={e => e.stopPropagation()}>
       <img
         src={url} alt={name}
         onClick={() => setLightbox(true)}
+        onError={() => setError(true)}
         style={{
           width: '100%',
           height: inGrid ? '130px' : 'auto',
-          maxHeight: inGrid ? '130px' : '260px',
+          maxHeight: inGrid ? '130px' : '320px',
           objectFit: 'cover',
-          borderRadius: '6px',
+          borderRadius: '8px',
           display: 'block',
           cursor: 'zoom-in',
-          margin: inGrid ? 0 : '0.5em 0',
+          margin: inGrid ? 0 : '0.5rem 0',
+          background: 'rgba(255,255,255,0.03)',
         }}
       />
       {lightbox && <Lightbox url={url} name={name} onClose={() => setLightbox(false)} />}
-    </>
+    </div>
   );
 
   if (fileType === 'video') return <video src={url} controls style={{ maxWidth: '100%', maxHeight: '360px', borderRadius: '8px', margin: '0.5em 0', display: 'block' }} />;

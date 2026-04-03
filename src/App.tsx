@@ -47,7 +47,7 @@ const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
       transition: 'border-radius 0.2s, box-shadow 0.2s, border 0.2s',
     }}>
       {feed.avatar
-        ? <img src={feed.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ? <img src={feed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         : <span style={{ color: 'white', fontWeight: 700, fontSize: '1rem', userSelect: 'none' }}>{initials}</span>
       }
     </div>
