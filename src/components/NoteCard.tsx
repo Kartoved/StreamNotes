@@ -211,8 +211,8 @@ export const NoteCard = ({
       data-index={virtualItem.index}
       data-note-id={note.id}
       ref={virtualizer.measureElement}
-      draggable
-      onDragStart={(e) => onDragStart(e, note.id)}
+      draggable={editingNoteId !== note.id}
+      onDragStart={(e) => editingNoteId !== note.id && onDragStart(e, note.id)}
       onDragOver={(e) => onDragOver(e, note.id)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, note.id)}

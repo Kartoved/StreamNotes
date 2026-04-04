@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDB } from './db/DBContext';
 import { Feed, extractTags } from './components/Feed';
 import { TweetEditor } from './components/TiptapEditor';
-import { useNotes, useFeeds } from './db/hooks';
+import { useNotes, useFeeds, rescueOrphans } from './db/hooks';
 import type { Feed as FeedData } from './db/hooks';
 import { useCrypto } from './crypto/CryptoContext';
 import { isEncrypted } from './crypto/cipher';
@@ -22,7 +22,21 @@ function App() {
   const { encrypt, decrypt, nostrPubKey } = useCrypto();
   const [showSettings, setShowSettings] = useState(false);
 
-  useEffect(() => { (window as any).db = db; }, [db]);
+  // ── One-time graph integrity check ────────────────────────────────
+  const rescueDone = useRef(false);
+  useEffect(() => {
+    if (rescueDone.current) return;
+    rescueDone.current = true;
+    rescueOrphans(db);
+  }, [db]);
+
+  // ── Internal backlink navigation ───────────────────────────────────
+  useEffect(() => {
+    (window as any).scrollToNote = (id: string) => {
+      setFocusedTweetId(id);
+    };
+    return () => { delete (window as any).scrollToNote; };
+  }, []);
 
   // ── E2E Migration: encrypt existing unencrypted data ──────────────
   const migrationDone = useRef(false);
@@ -81,22 +95,7 @@ function App() {
     }
   }, [feeds, activeFeedId]);
 
-  useEffect(() => {
-    if (feeds.length === 0) return;
-    (async () => {
-      const existing = await db.execO(`SELECT id FROM feeds LIMIT 1`);
-      if ((existing as any[]).length === 0) {
-        const id = 'feed-' + uid();
-        const now = Date.now();
-        await db.exec(
-          `INSERT INTO feeds (id, name, color, created_at) VALUES (?,?,?,?)`,
-          [id, encrypt('Главная'), '#787774', now]
-        );
-      }
-    })();
-  }, [db, encrypt]);
-
-  // Auto-create default feed on very first load (feeds is empty)
+  // Auto-create default feed on very first load
   const defaultFeedCreated = useRef(false);
   useEffect(() => {
     if (defaultFeedCreated.current) return;
@@ -108,12 +107,12 @@ function App() {
         const now = Date.now();
         await db.exec(
           `INSERT INTO feeds (id, name, color, created_at) VALUES (?,?,?,?)`,
-          [id, encrypt('Главная'), '#3b82f6', now]
+          [id, encrypt('Главная'), '#787774', now]
         );
         setActiveFeedId(id);
       }
     })();
-  }, [db]);
+  }, [db, encrypt]);
 
   const handleCreateFeed = useCallback(async (name: string, color: string, avatar: string | null) => {
     const id = 'feed-' + uid();

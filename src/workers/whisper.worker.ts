@@ -13,7 +13,7 @@ type TranscribeMessage = {
 
 async function getTranscriber(progressCallback: (data: any) => void) {
   if (!transcriber) {
-    transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base', {
+    transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-small', {
       progress_callback: progressCallback,
     });
   }

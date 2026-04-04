@@ -70,9 +70,9 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
         <a
           href={isInternal ? '#' : href}
           onClick={(e) => { if (isInternal) { e.preventDefault(); e.stopPropagation(); (window as any).scrollToNote?.(id); } }}
-          style={{ color: isInternal ? '#93c5fd' : 'var(--accent)', textDecoration: 'underline', background: isInternal ? 'rgba(147,197,253,0.1)' : 'transparent', padding: isInternal ? '2px 4px' : '0', borderRadius: isInternal ? '4px' : '0', fontWeight: isInternal ? 'bold' : 'normal' }}
+          style={{ color: 'var(--text)', textDecoration: 'underline', textDecorationColor: isInternal ? 'var(--text-faint)' : 'var(--line-strong)', textDecorationStyle: isInternal ? 'dashed' : 'solid', cursor: 'pointer' }}
         >
-          {isInternal && '🔗 '}{node.text?.replace(/^\[\[/, '').replace(/\]\]$/, '')}
+          {node.text?.replace(/^\[+/, '').replace(/\]+$/, '') || node.text}
         </a>
       );
     }

@@ -59,8 +59,6 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
     let isMounted = true;
 
     const fetchNotes = async () => {
-      await rescueOrphans(db);
-
       let query: string;
       let params: any[];
 

@@ -1,16 +1,20 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
 import Placeholder from '@tiptap/extension-placeholder';
 import CodeBlock from '@tiptap/extension-code-block';
-import { saveToOpfs, resolveUrl, getFileType, formatSize } from '../utils/opfsFiles';
+import Underline from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
+import { saveToOpfs, getFileType } from '../utils/opfsFiles';
 import '../editorTheme.css';
 
 import { ThreeStateTaskItem } from '../editor/extensions/ThreeStateTaskItem';
 import { AttachmentExtension } from '../editor/extensions/Attachment';
-import { createBacklinkPlugin, backlinkPluginKey } from '../editor/extensions/BacklinkPlugin';
 import { useVoiceRecorder, audioBlobToFloat32Array } from '../hooks/useVoiceRecorder';
+import { useDB } from '../db/DBContext';
+import { useCrypto } from '../crypto/CryptoContext';
 
 // ─── SVG Icon primitives ──────────────────────────────────────────────
 const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
@@ -22,13 +26,13 @@ const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
 );
 
 // ─── Toolbar Component ────────────────────────────────────────────────
-function Toolbar({ 
-    editor, onUpload, onExpand, zenMode, onCancel, 
-    onStartVoice, isRecording, recordingTime 
-}: { 
-    editor: any; onUpload: (files: FileList | File[]) => void; onExpand?: (ast: string, propsJson: string) => void; 
-    zenMode?: boolean; onCancel?: () => void; 
-    onStartVoice: () => void; isRecording: boolean; recordingTime: number;
+function Toolbar({
+    editor, onUpload, onExpand, zenMode, onCancel,
+    onStartVoice, isRecording, recordingTime, isTranscribing
+}: {
+    editor: any; onUpload: (files: FileList | File[]) => void; onExpand?: (ast: string) => void;
+    zenMode?: boolean; onCancel?: () => void;
+    onStartVoice: () => void; isRecording: boolean; recordingTime: number; isTranscribing: boolean;
 }) {
   if (!editor) return null;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -172,11 +176,20 @@ function Toolbar({
           <Ic d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
         </button>
 
-        <button type="button" title="Записать аудио"
-          style={isRecording ? { ...btn, color: 'var(--accent)', background: 'var(--accent-bg)' } : btn}
-          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+        <button type="button"
+          title={isRecording ? 'Остановить запись' : isTranscribing ? 'Распознавание...' : 'Записать аудио'}
+          disabled={isTranscribing}
+          style={isRecording
+            ? { ...btn, color: '#ef4444', background: 'rgba(239,68,68,0.08)', cursor: 'pointer' }
+            : isTranscribing
+              ? { ...btn, opacity: 0.35, cursor: 'not-allowed' }
+              : btn}
+          onMouseEnter={e => !isTranscribing && btnHover(e, true)}
+          onMouseLeave={e => !isTranscribing && btnHover(e, false)}
           onClick={onStartVoice}>
-          <Ic d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z M19 10v2a7 7 0 01-14 0v-2 M12 19v4 M8 23h8" />
+          {isRecording
+            ? <Ic d="M8 8h8v8H8z" />
+            : <Ic d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z M19 10v2a7 7 0 01-14 0v-2 M12 19v4 M8 23h8" />}
         </button>
 
         <button type="button" title={zenMode ? "Свернуть заметку (Esc)" : "Раскрыть заметку"}
@@ -186,9 +199,7 @@ function Toolbar({
             if (zenMode && onCancel) {
               onCancel();
             } else {
-              const json = editor.getJSON();
-              const props = (window as any)._tmp_editor_props || { type: 'tweet', status: 'none', date: '' };
-              onExpand?.(JSON.stringify(json), JSON.stringify(props));
+              onExpand?.(JSON.stringify(editor.getJSON()));
             }
           }}>
           {zenMode ? (
@@ -223,19 +234,19 @@ function BacklinkDropdown({
   query,
   onSelect,
   onClose,
-  editorEl,
+  pos,
 }: {
   query: string;
   onSelect: (id: string, title: string) => void;
   onClose: () => void;
-  editorEl: HTMLElement | null;
+  pos: { top: number; left: number };
 }) {
   const [results, setResults] = useState<{ id: string; title: string }[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const db = (window as any).db;
+  const db = useDB();
+  const { decrypt } = useCrypto();
 
   useEffect(() => {
-    if (!db) return;
     db.execO(`SELECT id, content FROM notes LIMIT 50`, [])
       .then((res: any[]) => {
         const extractText = (node: any): string => {
@@ -244,13 +255,13 @@ function BacklinkDropdown({
         };
         const filtered = res.map((n: any) => {
           let text = '';
-          try { const doc = JSON.parse(n.content); text = extractText(doc).trim(); } catch { text = n.id; }
+          try { const doc = JSON.parse(decrypt(n.content)); text = extractText(doc).trim(); } catch { text = n.id; }
           return { id: n.id, title: text || n.id };
         }).filter(r => !query || r.title.toLowerCase().includes(query.toLowerCase())).slice(0, 15);
         setResults(filtered.map(r => ({ id: r.id, title: r.title.length > 50 ? r.title.slice(0, 50) + '...' : r.title })));
         setSelectedIndex(0);
       });
-  }, [query, db]);
+  }, [query, db, decrypt]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -265,21 +276,12 @@ function BacklinkDropdown({
 
   if (results.length === 0) return null;
 
-  // Position near the caret
-  const sel = window.getSelection();
-  let top = 0, left = 0;
-  if (sel && sel.rangeCount > 0) {
-    const rect = sel.getRangeAt(0).getBoundingClientRect();
-    top = rect.bottom + 4;
-    left = rect.left;
-  }
-
   return (
     <div style={{
-      position: 'fixed', top, left,
-      background: '#1e293b', border: '1px solid #475569', borderRadius: '8px',
-      zIndex: 10000, color: 'white', minWidth: '280px',
-      boxShadow: '0 10px 25px rgba(0,0,0,0.6)', overflow: 'hidden',
+      position: 'fixed', top: pos.top, left: pos.left,
+      background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-lg)',
+      zIndex: 10000, minWidth: '280px',
+      boxShadow: 'var(--shadow-lg)', overflow: 'hidden',
     }}>
       {results.map((r, i) => (
         <div
@@ -288,12 +290,12 @@ function BacklinkDropdown({
           onMouseEnter={() => setSelectedIndex(i)}
           style={{
             padding: '10px 14px', cursor: 'pointer',
-            background: i === selectedIndex ? '#3b82f6' : 'transparent',
-            borderBottom: '1px solid rgba(255,255,255,0.05)', transition: '0.1s background',
+            background: i === selectedIndex ? 'var(--bg-active)' : 'transparent',
+            borderBottom: '1px solid var(--line)', transition: '0.1s background',
           }}
         >
-          <div style={{ fontSize: '0.7rem', opacity: 0.5, marginBottom: '2px', fontFamily: 'monospace' }}>{r.id}</div>
-          <div style={{ fontSize: '0.85rem', fontWeight: 500, color: i === selectedIndex ? 'white' : '#e2e8f0' }}>{r.title}</div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', marginBottom: '2px', fontFamily: 'var(--font-mono)' }}>{r.id}</div>
+          <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text)' }}>{r.title}</div>
         </div>
       ))}
     </div>
@@ -302,6 +304,9 @@ function BacklinkDropdown({
 
 // ─── Properties Selectors ─────────────────────────────────────────────
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
+
+// ─── Helpers ─────────────────────────────────────────────────────────
+const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 // ─── hasTextContent helper ────────────────────────────────────────────
 const hasTextContent = (json: any): boolean => {
@@ -370,14 +375,10 @@ export const TweetEditor = ({
   const [status, setStatus] = useState(initP.status || 'none');
   const [date, setDate] = useState(initP.date || '');
 
-  // Keep props in a global-ish way for the Expand button to grab
-  useEffect(() => {
-    (window as any)._tmp_editor_props = { type, status, date };
-  }, [type, status, date]);
-
   // Backlink state
   const [blQuery, setBlQuery] = useState<string | null>(null);
   const [blActive, setBlActive] = useState(false);
+  const [blPos, setBlPos] = useState({ top: 0, left: 0 });
 
   // Upload ref — stable callback for editorProps (avoids stale closure)
   const uploadFilesRef = useRef<(files: FileList | File[]) => void>(() => {});
@@ -393,10 +394,7 @@ export const TweetEditor = ({
   const workerRef = useRef<Worker | null>(null);
 
   useEffect(() => {
-    // Lazy worker initialization
-    return () => {
-      if (workerRef.current) workerRef.current.terminate();
-    };
+    return () => { workerRef.current?.terminate(); };
   }, []);
 
   const handleVoiceNote = async () => {
@@ -461,11 +459,11 @@ export const TweetEditor = ({
         listItem: { HTMLAttributes: { class: 'editor-listitem' } },
         heading: { levels: [1, 2, 3] },
         blockquote: {},
-        underline: {},
-        link: {
-          openOnClick: false,
-          HTMLAttributes: { class: 'editor-link' },
-        },
+      }),
+      Underline,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: { class: 'editor-link' },
       }),
       CodeBlock.configure({
         HTMLAttributes: { class: 'editor-code-block' },
@@ -524,6 +522,8 @@ export const TweetEditor = ({
       if (match) {
         setBlQuery(match[1]);
         setBlActive(true);
+        const coords = ed.view.coordsAtPos(ed.state.selection.head);
+        setBlPos({ top: coords.bottom + 6, left: coords.left });
       } else {
         setBlActive(false);
         setBlQuery(null);
@@ -546,7 +546,7 @@ export const TweetEditor = ({
         .insertContent({
           type: 'text',
           marks: [{ type: 'link', attrs: { href: `note://${id}` } }],
-          text: `[[${title}]]`,
+          text: title,
         })
         .insertContent(' ')
         .run();
@@ -661,29 +661,65 @@ export const TweetEditor = ({
       letterSpacing: '0.01em',
     }}>
       <div style={zenMode ? { padding: '12px 24px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'center', background: 'transparent' } : {}}>
-        <Toolbar 
-            editor={editor} 
-            onUpload={(files) => uploadFiles(files)} 
-            onExpand={onExpand} 
-            zenMode={zenMode} 
-            onCancel={onCancel} 
+        <Toolbar
+            editor={editor}
+            onUpload={(files) => uploadFiles(files)}
+            onExpand={onExpand ? (ast) => onExpand(ast, JSON.stringify({ type, status, date })) : undefined}
+            zenMode={zenMode}
+            onCancel={onCancel}
             onStartVoice={handleVoiceNote}
             isRecording={isRecording}
             recordingTime={recordingTime}
+            isTranscribing={isTranscribing}
         />
       </div>
+
+      {(isRecording || isTranscribing) && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          padding: zenMode ? '8px 0 0' : '6px 4px 8px',
+          fontSize: '0.78rem', fontFamily: 'var(--font-mono)',
+          color: 'var(--text-sub)',
+        }}>
+          {isRecording ? (
+            <>
+              <span className="rec-pulse" style={{
+                width: '7px', height: '7px', borderRadius: '50%',
+                background: '#ef4444', display: 'inline-block', flexShrink: 0,
+              }} />
+              <span>{formatTime(recordingTime)}</span>
+              <span style={{ color: 'var(--text-faint)' }}>· нажми ещё раз чтобы остановить</span>
+            </>
+          ) : (
+            <>
+              <svg style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }}
+                width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M21 12a9 9 0 11-6.219-8.56" />
+              </svg>
+              <span>распознавание</span>
+              {transcriptionProgress > 0 && transcriptionProgress < 100 && (
+                <div style={{ width: '60px', height: '2px', background: 'var(--line)', borderRadius: '1px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${transcriptionProgress}%`, background: 'var(--text-sub)', transition: 'width 0.2s' }} />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       <div style={zenMode ? { flex: 1, overflowY: 'auto', padding: '60px 40px', maxWidth: '840px', margin: '0 auto', width: '100%', boxSizing: 'border-box' } : { position: 'relative' }}>
         <EditorContent editor={editor} />
       </div>
 
-      {blActive && blQuery !== null && (
+      {blActive && blQuery !== null && createPortal(
         <BacklinkDropdown
           query={blQuery}
           onSelect={handleBacklinkSelect}
           onClose={() => { setBlActive(false); setBlQuery(null); }}
-          editorEl={editor?.view?.dom || null}
-        />
+          pos={blPos}
+        />,
+        document.body
       )}
 
       <div style={zenMode ? {

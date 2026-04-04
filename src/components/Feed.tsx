@@ -228,7 +228,7 @@ export const Feed = ({
   return (
     <>
       {expandedNoteId && (
-        <NoteModal noteId={expandedNoteId} onClose={() => setExpandedNoteId(null)} onNoteClick={(id) => { setExpandedNoteId(null); onNoteClick?.(id); }} />
+        <NoteModal noteId={expandedNoteId} onClose={() => setExpandedNoteId(null)} />
       )}
 
       {deleteConfirmId && (
