@@ -165,7 +165,7 @@ export const Feed = ({
           const el = parentRef.current?.querySelector(`[data-note-id="${id}"]`) as HTMLElement;
           if (el) {
             el.style.transition = 'background 0.5s';
-            el.style.background = 'rgba(234, 179, 8, 0.4)';
+            el.style.background = 'var(--bg-active)';
             setTimeout(() => { el.style.background = ''; }, 1000);
           }
         }, 100);
@@ -342,7 +342,6 @@ export const Feed = ({
               else if (status === 'archived') baseBg = 'rgba(15, 23, 42, 0.04)';
 
               let finalBg = isReplying ? 'rgba(167, 139, 250, 0.08)' : baseBg;
-              if (isDragOverChild) finalBg = 'rgba(96, 165, 250, 0.12)';
 
               return (
                 <NoteCard

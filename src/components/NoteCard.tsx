@@ -200,7 +200,6 @@ export const NoteCard = ({
   else if (status === 'archived') baseBg = 'var(--bg-hover)';
 
   let finalBg = isReplying ? 'var(--accent-bg)' : baseBg;
-  if (isDragOverChild) finalBg = 'rgba(232, 160, 69, 0.1)';
 
   // Show prop row only if there's something meaningful
   // Show prop row only if there's something meaningful
@@ -253,12 +252,12 @@ export const NoteCard = ({
 
         {/* DnD overlays */}
         {draggedId && draggedId !== note.id && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', pointerEvents: 'none', borderRadius: 'inherit', overflow: 'hidden', zIndex: 1 }}>
-            <div style={{ flex: 1, background: isDragOverSibling ? 'rgba(167,139,250,0.12)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {isDragOverSibling && <span style={{ fontSize: '0.6rem', color: '#a78bfa' }}>sibling</span>}
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', pointerEvents: 'none', borderRadius: 'inherit', overflow: 'hidden', zIndex: 1, border: (isDragOverSibling || isDragOverChild) ? '1px solid var(--line-strong)' : 'none' }}>
+            <div style={{ flex: 1, background: isDragOverSibling ? 'var(--bg-hover)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {isDragOverSibling && <span style={{ fontSize: '0.6rem', color: 'var(--text-sub)', fontWeight: 600 }}>sibling</span>}
             </div>
-            <div style={{ flex: 1, background: isDragOverChild ? 'rgba(96,165,250,0.12)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {isDragOverChild && <span style={{ fontSize: '0.6rem', color: '#60a5fa' }}>child</span>}
+            <div style={{ flex: 1, background: isDragOverChild ? 'var(--bg-hover)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {isDragOverChild && <span style={{ fontSize: '0.6rem', color: 'var(--text-sub)', fontWeight: 600 }}>child</span>}
             </div>
           </div>
         )}
