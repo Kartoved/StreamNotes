@@ -21,49 +21,24 @@ export function PropChip({
 }: {
   value: string; options: string[]; onChange: (v: string) => void; mono?: boolean;
 }) {
-  const [open, setOpen] = React.useState(false);
-  const btnRef = React.useRef<HTMLButtonElement>(null);
-  const [coords, setCoords] = React.useState<{ top: number; left: number } | null>(null);
   const isStatus = options === STATUSES;
   const color = isStatus ? (STATUS_COLOR[value] || 'var(--text-sub)') : 'var(--text-sub)';
 
-  const toggle = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setCoords({ top: r.bottom + 4, left: r.left });
-    }
-    setOpen(v => !v);
-  };
-
-  const pick = (e: React.MouseEvent, opt: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onChange(opt);
-    setOpen(false);
-    setCoords(null);
-  };
-
-  const close = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setOpen(false);
-    setCoords(null);
-  };
-
   return (
     <div style={{ display: 'inline-block', position: 'relative' }}>
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={toggle}
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         onMouseDown={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
         style={{
+          appearance: 'none',
+          WebkitAppearance: 'none',
           background: 'var(--bg-hover)',
           color,
           border: '1px solid var(--line)',
           borderRadius: '4px',
-          padding: '1px 7px',
+          padding: '1px 8px',
           fontSize: '0.7rem',
           fontFamily: mono ? 'var(--font-mono)' : 'var(--font-body)',
           cursor: 'pointer',
@@ -71,62 +46,19 @@ export function PropChip({
           lineHeight: 1.6,
           transition: 'all 0.1s',
           outline: 'none',
+          fontWeight: 600,
+          textAlign: 'center',
+          minWidth: '60px'
         }}
         onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-active)'}
         onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
       >
-        {value}
-      </button>
-
-      {open && coords && ReactDOM.createPortal(
-        <>
-          <div
-            style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
-            onMouseDown={close}
-            onClick={close}
-          />
-          <div style={{
-            position: 'fixed',
-            top: coords.top,
-            left: coords.left,
-            zIndex: 9999,
-            background: 'var(--bg)',
-            border: '1px solid var(--line)',
-            borderRadius: 'var(--radius-lg)',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-            display: 'flex',
-            flexDirection: 'column',
-            minWidth: '110px',
-            overflow: 'hidden',
-          }}>
-            {options.map(opt => (
-              <button
-                key={opt}
-                type="button"
-                onMouseDown={e => pick(e, opt)}
-                style={{
-                  padding: '6px 14px',
-                  fontSize: '0.75rem',
-                  fontFamily: mono ? 'var(--font-mono)' : 'var(--font-body)',
-                  color: isStatus ? (STATUS_COLOR[opt] || 'var(--text)') : 'var(--text)',
-                  background: opt === value ? 'var(--bg-hover)' : 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  whiteSpace: 'nowrap',
-                  fontWeight: opt === value ? 600 : 400,
-                  transition: 'background 0.1s',
-                }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = opt === value ? 'var(--bg-hover)' : 'transparent'}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-        </>,
-        document.body
-      )}
+        {options.map(opt => (
+          <option key={opt} value={opt} style={{ background: 'var(--bg)', color: (isStatus && STATUS_COLOR[opt]) ? STATUS_COLOR[opt] : 'var(--text)' }}>
+            {opt}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -235,6 +167,17 @@ export const NoteCard = ({
   const [type, setType]         = useState<string>(props.type || 'tweet');
   const [targetDate, setDate]   = useState<string>(props.date || '');
 
+  // Synchronize state with props when data changes
+  React.useEffect(() => {
+    try {
+      const raw = decrypt(note.properties) || '{}';
+      const p = JSON.parse(raw);
+      setStatus(p.status || 'none');
+      setType(p.type || 'tweet');
+      setDate(p.date || '');
+    } catch { /* */ }
+  }, [note.properties, decrypt]);
+
   // Save a single prop change to DB immediately
   const saveProp = useCallback(async (key: string, val: string) => {
     const current = { ...props, status, type, date: targetDate, [key]: val };
@@ -259,6 +202,7 @@ export const NoteCard = ({
   let finalBg = isReplying ? 'var(--accent-bg)' : baseBg;
   if (isDragOverChild) finalBg = 'rgba(232, 160, 69, 0.1)';
 
+  // Show prop row only if there's something meaningful
   // Show prop row only if there's something meaningful
   const showProps = (status && status !== 'none') || !!targetDate;
 
