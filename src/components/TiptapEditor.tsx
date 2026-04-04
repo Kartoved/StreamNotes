@@ -10,6 +10,7 @@ import '../editorTheme.css';
 import { ThreeStateTaskItem } from '../editor/extensions/ThreeStateTaskItem';
 import { AttachmentExtension } from '../editor/extensions/Attachment';
 import { createBacklinkPlugin, backlinkPluginKey } from '../editor/extensions/BacklinkPlugin';
+import { useVoiceRecorder, audioBlobToFloat32Array } from '../hooks/useVoiceRecorder';
 
 // ─── SVG Icon primitives ──────────────────────────────────────────────
 const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
@@ -21,7 +22,14 @@ const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
 );
 
 // ─── Toolbar Component ────────────────────────────────────────────────
-function Toolbar({ editor, onUpload, onExpand, zenMode, onCancel }: { editor: any; onUpload: (files: FileList) => void; onExpand?: (ast: string, propsJson: string) => void; zenMode?: boolean; onCancel?: () => void }) {
+function Toolbar({ 
+    editor, onUpload, onExpand, zenMode, onCancel, 
+    onStartVoice, isRecording, recordingTime 
+}: { 
+    editor: any; onUpload: (files: FileList | File[]) => void; onExpand?: (ast: string, propsJson: string) => void; 
+    zenMode?: boolean; onCancel?: () => void; 
+    onStartVoice: () => void; isRecording: boolean; recordingTime: number;
+}) {
   if (!editor) return null;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -162,6 +170,13 @@ function Toolbar({ editor, onUpload, onExpand, zenMode, onCancel }: { editor: an
           onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
           onClick={() => fileInputRef.current?.click()}>
           <Ic d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+        </button>
+
+        <button type="button" title="Записать аудио"
+          style={isRecording ? { ...btn, color: 'var(--accent)', background: 'var(--accent-bg)' } : btn}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={onStartVoice}>
+          <Ic d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z M19 10v2a7 7 0 01-14 0v-2 M12 19v4 M8 23h8" />
         </button>
 
         <button type="button" title={zenMode ? "Свернуть заметку (Esc)" : "Раскрыть заметку"}
@@ -370,6 +385,67 @@ export const TweetEditor = ({
   const handleSubmitRef = useRef<() => void>(() => {});
   // Upload progress: { done, total } | null
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+
+  // Voice & Transcription state
+  const { isRecording, recordingTime, startRecording, stopRecording } = useVoiceRecorder();
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptionProgress, setTranscriptionProgress] = useState(0);
+  const workerRef = useRef<Worker | null>(null);
+
+  useEffect(() => {
+    // Lazy worker initialization
+    return () => {
+      if (workerRef.current) workerRef.current.terminate();
+    };
+  }, []);
+
+  const handleVoiceNote = async () => {
+    if (isRecording) {
+      const blob = await stopRecording();
+      if (!blob) return;
+
+      setIsTranscribing(true);
+      setTranscriptionProgress(0);
+
+      // Initialize worker if needed
+      if (!workerRef.current) {
+        workerRef.current = new Worker(new URL('../workers/whisper.worker.ts', import.meta.url), { type: 'module' });
+      }
+
+      const worker = workerRef.current;
+      
+      const onMessage = (e: MessageEvent) => {
+        const { type, data } = e.data;
+        if (type === 'progress') {
+            if (data.status === 'progress') {
+                setTranscriptionProgress(data.progress);
+            }
+        } else if (type === 'result') {
+            const text = data.text.trim();
+            if (text && editor) {
+                editor.chain().focus().insertContent(text + ' ').run();
+            }
+            setIsTranscribing(false);
+            worker.removeEventListener('message', onMessage);
+            // Also attach the original audio file
+            const file = new File([blob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
+            uploadFiles([file]);
+        } else if (type === 'error') {
+            alert('Ошибка транскрибации: ' + data);
+            setIsTranscribing(false);
+            worker.removeEventListener('message', onMessage);
+        }
+      };
+
+      worker.addEventListener('message', onMessage);
+
+      const float32 = await audioBlobToFloat32Array(blob);
+      worker.postMessage({ audio: float32, language: 'russian' });
+
+    } else {
+      startRecording();
+    }
+  };
 
   const initialContent = React.useMemo(() => {
     if (!initialAst) return undefined;
@@ -585,7 +661,16 @@ export const TweetEditor = ({
       letterSpacing: '0.01em',
     }}>
       <div style={zenMode ? { padding: '12px 24px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'center', background: 'transparent' } : {}}>
-        <Toolbar editor={editor} onUpload={(files) => uploadFiles(files)} onExpand={onExpand} zenMode={zenMode} onCancel={onCancel} />
+        <Toolbar 
+            editor={editor} 
+            onUpload={(files) => uploadFiles(files)} 
+            onExpand={onExpand} 
+            zenMode={zenMode} 
+            onCancel={onCancel} 
+            onStartVoice={handleVoiceNote}
+            isRecording={isRecording}
+            recordingTime={recordingTime}
+        />
       </div>
 
       <div style={zenMode ? { flex: 1, overflowY: 'auto', padding: '60px 40px', maxWidth: '840px', margin: '0 auto', width: '100%', boxSizing: 'border-box' } : { position: 'relative' }}>

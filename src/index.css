@@ -245,3 +245,19 @@ input[type="password"] ~ iframe { display: none !important; }
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* ── Animations ──────────────────────────────────────────────────── */
+@keyframes rec-pulse {
+  0% { opacity: 0.4; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0.4; transform: scale(0.9); }
+}
+
+.rec-pulse {
+  animation: rec-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
