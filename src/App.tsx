@@ -107,7 +107,7 @@ function App() {
         const now = Date.now();
         await db.exec(
           `INSERT INTO feeds (id, name, color, created_at) VALUES (?,?,?,?)`,
-          [id, encrypt('Главная'), '#787774', now]
+          [id, encrypt('Sheaflow'), '#787774', now]
         );
         setActiveFeedId(id);
       }
@@ -255,7 +255,7 @@ function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `streamnotes-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `sheafy-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -322,7 +322,7 @@ function App() {
               ? <img src={activeFeed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '1.2rem', height: '1.2rem', objectFit: 'cover', borderRadius: '50%', marginRight: '6px', verticalAlign: 'middle' }} />
               : null
             }
-            {activeFeed?.name || 'StreamNotes'}
+            {activeFeed?.name || 'Sheafy'}
           </h1>
           <span style={{ color: 'var(--text-faint)', fontSize: '0.8rem', flexShrink: 0 }}>
             {focusedTweetId ? '/ ветка' : ''}
@@ -346,7 +346,7 @@ function App() {
             </button>
             <button onClick={() => setShowSettings(true)} style={iconBtn}>⚙ Настройки</button>
             {focusedTweetId && (
-              <button onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }} style={{ ...iconBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}>← В ленту</button>
+              <button onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }} style={{ ...iconBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}>← В шифлоу</button>
             )}
           </div>
         </header>
@@ -368,7 +368,7 @@ function App() {
             <div style={{ flexShrink: 0 }}>
               <TweetEditor
                 placeholder={focusedTweetId ? 'Оставить ответ в ветке...' : 'Что происходит?'}
-                buttonText="Твитнуть"
+                buttonText="Шифнуть"
                 onSubmit={insertRootNote}
                 autoFocus
                 onExpand={(ast, pj) => {

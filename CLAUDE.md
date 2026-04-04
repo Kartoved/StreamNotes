@@ -13,7 +13,7 @@ npm run preview   # Preview production build
 
 ## Architecture
 
-**StreamNotes** — local-first приложение для заметок в формате ленты (как Twitter/Reddit threads), с богатым текстовым редактором, иерархической структурой и drag-and-drop. Все данные хранятся в браузере — никаких серверов, никакой регистрации.
+**Sheafy** — local-first приложение для заметок в формате ленты (как Twitter/Reddit threads), с богатым текстовым редактором, иерархической структурой и drag-and-drop. Все данные хранятся в браузере — никаких серверов, никакой регистрации.
 
 ### Стек и данные
 
@@ -24,7 +24,7 @@ npm run preview   # Preview production build
 
 Таблицы в `src/db/schema.ts`:
 - `notes` — зашифрованный `content` (TipTap JSON) и `properties` (JSON), `parent_id` для дерева, `sort_key` для порядка (Fractional Indexing), `feed_id`.
-- `feeds` — потоки/разделы. Названия шифруются.
+- `feeds` — шифлоу (Sheaflow), разделы/потоки. Названия шифруются.
 - `links` — backlink-связи между заметками.
 
 ### Поток данных

@@ -87,7 +87,7 @@ export default function SeedSetup({ onComplete, onRecover }: Props) {
         <div style={{ ...cardStyle, textAlign: 'center' }}>
           <div style={{ marginBottom: '1.5rem' }}>
             <h1 style={{ fontSize: '2.2rem', fontWeight: 800, letterSpacing: '-0.04em', margin: 0, color: 'var(--text)' }}>
-              StreamNotes
+              Sheafy
             </h1>
             <div style={{ height: '2px', width: '40px', background: 'var(--accent)', margin: '12px auto' }} />
           </div>

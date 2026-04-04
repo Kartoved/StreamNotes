@@ -29,7 +29,7 @@ interface FeedProps {
 export { extractTags, extractPlainText };
 
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
-const TYPES = ['tweet', 'task', 'document'];
+const TYPES = ['sheaf', 'task', 'document'];
 
 // Extract plain text from TipTap JSON for search
 function extractPlainText(content: string): string {
@@ -327,7 +327,7 @@ export const Feed = ({
               } catch { /* */ }
 
               const status = props.status || 'none';
-              const type = props.type || 'tweet';
+              const type = props.type || 'sheaf';
               const targetDate = props.date || '';
 
               const indent = Math.min(note.depth * 24, 240);

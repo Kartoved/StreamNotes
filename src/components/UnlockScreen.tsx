@@ -54,7 +54,7 @@ export default function UnlockScreen({ onUnlock, onRecover }: Props) {
     <div style={containerStyle}>
       <div style={cardStyle}>
         <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)' }}>
-          StreamNotes
+          Sheafy
         </h2>
         <p style={{ color: 'var(--text-sub)', fontSize: '13px', marginBottom: '2rem' }}>
           Введите пароль для разблокировки

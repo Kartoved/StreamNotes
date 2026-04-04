@@ -148,7 +148,7 @@ export const FeedsSidebar = ({
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line-strong)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >+</div>
-          <div className="feed-tooltip">Новая лента</div>
+          <div className="feed-tooltip">Новый шифлоу</div>
         </div>
       </div>
 
@@ -168,7 +168,7 @@ export const FeedsSidebar = ({
             }}
           >
             <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em' }}>
-              {modal === 'create' ? 'Новая лента' : 'Редактировать ленту'}
+              {modal === 'create' ? 'Новый шифлоу' : 'Редактировать шифлоу'}
             </div>
 
             {/* Preview */}
@@ -200,7 +200,7 @@ export const FeedsSidebar = ({
                 value={modalName}
                 onChange={e => setModalName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
-                placeholder="Название ленты"
+                placeholder="Название шифлоу"
                 autoFocus
                 style={{
                   flex: 1, background: 'var(--bg)',

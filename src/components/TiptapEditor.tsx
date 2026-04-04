@@ -352,7 +352,7 @@ export const TweetEditor = ({
   onSubmit,
   onCancel,
   placeholder,
-  buttonText = 'Твитнуть',
+  buttonText = 'Шифнуть',
   initialAst,
   initialPropsStr,
   autoFocus,
@@ -371,7 +371,7 @@ export const TweetEditor = ({
 }) => {
   const [editorKey, setEditorKey] = useState(0);
   const initP = initialPropsStr ? JSON.parse(initialPropsStr) : {};
-  const [type, setType] = useState(initP.type || 'tweet');
+  const [type, setType] = useState(initP.type || 'sheaf');
   const [status, setStatus] = useState(initP.status || 'none');
   const [date, setDate] = useState(initP.date || '');
 
@@ -599,7 +599,7 @@ export const TweetEditor = ({
     if (!initialAst) {
       // Reset editor
       setEditorKey(k => k + 1);
-      setType('tweet');
+      setType('sheaf');
       setStatus('none');
       setDate('');
     }

@@ -164,7 +164,7 @@ export const NoteCard = ({
   } catch { /* */ }
 
   const [status, setStatus]     = useState<string>(props.status || 'none');
-  const [type, setType]         = useState<string>(props.type || 'tweet');
+  const [type, setType]         = useState<string>(props.type || 'sheaf');
   const [targetDate, setDate]   = useState<string>(props.date || '');
 
   // Synchronize state with props when data changes
@@ -173,7 +173,7 @@ export const NoteCard = ({
       const raw = decrypt(note.properties) || '{}';
       const p = JSON.parse(raw);
       setStatus(p.status || 'none');
-      setType(p.type || 'tweet');
+      setType(p.type || 'sheaf');
       setDate(p.date || '');
     } catch { /* */ }
   }, [note.properties, decrypt]);
