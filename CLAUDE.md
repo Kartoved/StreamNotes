@@ -15,14 +15,16 @@ npm run preview   # Preview production build
 
 **StreamNotes** — local-first приложение для заметок в формате ленты (как Twitter/Reddit threads), с богатым текстовым редактором, иерархической структурой и drag-and-drop. Все данные хранятся в браузере — никаких серверов, никакой регистрации.
 
-### Стек данных
+### Стек и Данные
 
-Вся база данных живёт в браузере через **CR-SQLite WASM** в Origin Private File System (OPFS). Данные реактивны: `db.onUpdate()` триггерит перезапрос при изменениях. В БД данные хранятся в **зашифрованном виде** (E2EE) с использованием ключей, генерируемых на основе Nostr-совместимых сид-фраз.
+Вся база данных живёт в браузере через **CR-SQLite WASM** в OPFS. 
+- **E2EE (End-to-End Encryption)**: Все пользовательские данные шифруются **AES-GCM**. Ключи извлекаются из BIP-39 сид-фразы (Nostr-совместимо). Данные передаются в SQLite уже в зашифрованном виде.
+- **CryptoContext.tsx**: Управляет мастер-ключом в памяти и шифрует контент (TipTap AST) и свойства (properties) перед записью.
 
-Две таблицы в `src/db/schema.ts`:
-- `notes` — контент в виде **TipTap JSON**, `parent_id` для дерева, `sort_key` для порядка (Fractional Indexing), `properties` (JSON) для статуса/типа/даты.
+Таблицы в `src/db/schema.ts`:
+- `notes` — зашифрованный `content` (TipTap JSON) и `properties` (JSON), `feed_id`.
+- `feeds` — для разделения заметок по потокам. Названия также шифруются.
 - `links` — для backlink-связей.
-- `feeds` — для разделения заметок по разным потокам/категориям.
 
 Все таблицы настроены как CRDT через `crsql_as_crr()`.
 
@@ -35,16 +37,20 @@ npm run preview   # Preview production build
 ### Ключевые компоненты
 
 **`src/components/TiptapEditor.tsx`** содержит:
-- `TweetEditor` — основной редактор на базе TipTap с тулбаром, markdown shortcuts, backlink typeahead (`[[` → `note://ID` ссылка).
-- `AttachmentExtension` — поддержка вложений (картинки, видео, файлы) с сохранением в OPFS.
-- `ThreeStateTaskItem` — кастомное расширение для задач с 3 состояниями (unchecked → done → cancelled).
-- `renderTiptapNode` — легковесный read-only рендер JSON в React-элементы для отображения в ленте.
+- `TweetEditor` — основной редактор на базе TipTap. Поддерживает `zenMode` (полный экран) и сохранение в зашифрованном виде.
+- `renderTiptapNode` (в `src/editor/TiptapViewer.tsx`) — легковесный high-performance рендер JSON в React-элементы.
 
-**`src/components/Feed.tsx`** — виртуализированная лента с:
-- Визуальными коннекторами вложенности.
-- Drag-and-drop: зоны перемещения определяют sibling/child вложение.
-- Поиском, фильтрацией по тегам и дате.
-- Секцией backlinks: ищет заметки, ссылающиеся на текущую через `note://noteId`.
+**`src/components/NoteCard.tsx`** — карточка заметки:
+- Отображает контент и вложения.
+- Инлайновые редактируемые пропсы (статус, дата) с автоматическим сохранением.
+- Drag-and-drop зоны для иерархического перемещения.
+
+**`src/components/NoteModal.tsx`** — Zen Mode контейнер. Перехватывает фокус для редактирования.
+
+**`src/crypto/`** — Логика безопасности:
+- `CryptoContext.tsx` — провайдер ключей.
+- `cipher.ts` — функции `encrypt/decrypt` (AES-GCM).
+- `bip39.ts`, `keys.ts` — генерация Nostr-ключей из фразы.
 
 ### CORS-заголовки
 
