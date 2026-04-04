@@ -28,11 +28,12 @@ const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
 // ─── Toolbar Component ────────────────────────────────────────────────
 function Toolbar({
     editor, onUpload, onExpand, zenMode, onCancel,
-    onStartVoice, isRecording, recordingTime, isTranscribing
+    onStartVoice, isRecording, recordingTime, isTranscribing, onBacklinkTrigger
 }: {
     editor: any; onUpload: (files: FileList | File[]) => void; onExpand?: (ast: string) => void;
     zenMode?: boolean; onCancel?: () => void;
     onStartVoice: () => void; isRecording: boolean; recordingTime: number; isTranscribing: boolean;
+    onBacklinkTrigger?: () => void;
 }) {
   if (!editor) return null;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -162,7 +163,7 @@ function Toolbar({
         <button type="button" title="Бэклинк на заметку"
           style={btn}
           onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
-          onClick={() => editor.chain().focus().insertContent('[[').run()}>
+          onClick={() => onBacklinkTrigger ? onBacklinkTrigger() : editor.chain().focus().insertContent('[[').run()}>
           <Ic d="M15 7h3a5 5 0 010 10h-3m-6 0H6A5 5 0 016 7h3M8 12h8" />
         </button>
 
@@ -242,26 +243,33 @@ function BacklinkDropdown({
   pos: { top: number; left: number };
 }) {
   const [results, setResults] = useState<{ id: string; title: string }[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const db = useDB();
   const { decrypt } = useCrypto();
+  const decryptRef = useRef(decrypt);
+  useEffect(() => { decryptRef.current = decrypt; }, [decrypt]);
 
   useEffect(() => {
-    db.execO(`SELECT id, content FROM notes LIMIT 50`, [])
+    setLoading(true);
+    db.execO(`SELECT id, content FROM notes WHERE is_deleted = 0 LIMIT 100`, [])
       .then((res: any[]) => {
         const extractText = (node: any): string => {
           if (node.type === 'text') return node.text || '';
           return (node.content || []).map((c: any) => extractText(c)).join(' ');
         };
+        const dec = decryptRef.current;
         const filtered = res.map((n: any) => {
           let text = '';
-          try { const doc = JSON.parse(decrypt(n.content)); text = extractText(doc).trim(); } catch { text = n.id; }
+          try { const doc = JSON.parse(dec(n.content)); text = extractText(doc).trim(); } catch { text = n.id; }
           return { id: n.id, title: text || n.id };
         }).filter(r => !query || r.title.toLowerCase().includes(query.toLowerCase())).slice(0, 15);
         setResults(filtered.map(r => ({ id: r.id, title: r.title.length > 50 ? r.title.slice(0, 50) + '...' : r.title })));
         setSelectedIndex(0);
-      });
-  }, [query, db, decrypt]);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [query, db]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -274,8 +282,6 @@ function BacklinkDropdown({
     return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [results, selectedIndex, onSelect, onClose]);
 
-  if (results.length === 0) return null;
-
   return (
     <div style={{
       position: 'fixed', top: pos.top, left: pos.left,
@@ -283,7 +289,15 @@ function BacklinkDropdown({
       zIndex: 10000, minWidth: '280px',
       boxShadow: 'var(--shadow-lg)', overflow: 'hidden',
     }}>
-      {results.map((r, i) => (
+      {loading ? (
+        <div style={{ padding: '10px 14px', fontSize: '0.82rem', color: 'var(--text-faint)', fontFamily: 'var(--font-body)' }}>
+          Загрузка...
+        </div>
+      ) : results.length === 0 ? (
+        <div style={{ padding: '10px 14px', fontSize: '0.82rem', color: 'var(--text-faint)', fontFamily: 'var(--font-body)' }}>
+          Заметок не найдено
+        </div>
+      ) : results.map((r, i) => (
         <div
           key={r.id}
           onClick={() => onSelect(r.id, r.title)}
@@ -531,6 +545,16 @@ export const TweetEditor = ({
     },
   }, [editorKey, initialAst]);
 
+  const handleBacklinkInsert = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().insertContent('[[').run();
+    // Directly set state — guarantees dropdown opens regardless of onUpdate timing
+    const coords = editor.view.coordsAtPos(editor.state.selection.head);
+    setBlPos({ top: coords.bottom + 6, left: coords.left });
+    setBlQuery('');
+    setBlActive(true);
+  }, [editor]);
+
   const handleBacklinkSelect = useCallback((id: string, title: string) => {
     if (!editor) return;
     // Find the [[ in current text and replace it with a link
@@ -671,6 +695,7 @@ export const TweetEditor = ({
             isRecording={isRecording}
             recordingTime={recordingTime}
             isTranscribing={isTranscribing}
+            onBacklinkTrigger={handleBacklinkInsert}
         />
       </div>
 
