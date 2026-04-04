@@ -141,14 +141,34 @@ function App() {
     if (localStorage.getItem('design_version') !== DESIGN_VERSION) {
       localStorage.setItem('design_version', DESIGN_VERSION);
       localStorage.setItem('theme', 'light');
+      localStorage.setItem('sn_font', 'Courier Prime'); // Reset default font
       return 'light';
     }
     return (localStorage.getItem('theme') as 'dark' | 'light') || 'light';
   });
+
+  const [font, setFont] = useState<string>(() => {
+    return localStorage.getItem('sn_font') || 'Courier Prime';
+  });
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : '');
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  const FONT_FAMILIES: Record<string, string> = {
+    'Courier Prime': "'Courier Prime', 'Courier New', monospace",
+    'Source Code Pro': "'Source Code Pro', 'Courier New', monospace",
+    'Inter (Base)': "'Inter', system-ui, -apple-system, sans-serif",
+    'Bitter (Serif)': "'Bitter', Georgia, serif",
+    'System Stack': "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  };
+
+  useEffect(() => {
+    const family = FONT_FAMILIES[font] || FONT_FAMILIES['Courier Prime'];
+    document.documentElement.style.setProperty('--font-body', family);
+    localStorage.setItem('sn_font', font);
+  }, [font]);
 
   // ── Note state ─────────────────────────────────────────────────────
   const [focusedTweetId, setFocusedTweetId] = useState<string | null>(null);
@@ -336,6 +356,9 @@ function App() {
             onClose={() => setShowSettings(false)} 
             onExport={handleExport}
             onImport={handleImport}
+            font={font}
+            setFont={setFont}
+            fontOptions={Object.keys(FONT_FAMILIES)}
           />
         )}
 
