@@ -90,27 +90,16 @@ export const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; on
   return (
     <div onClick={onClose} style={overlayStyle}>
       <div onClick={e => e.stopPropagation()} style={modalStyle}>
-        
-        {/* Header toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid var(--line)', background: 'var(--bg)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-sub)' }}>{note.author_id}</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>{new Date(note.created_at).toLocaleString()}</span>
-          </div>
-        </div>
-
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0' }}>
-          <TweetEditor 
-            placeholder="Редактировать..." 
-            initialAst={decrypt(note.content)} 
-            initialPropsStr={decrypt(note.properties)} 
-            buttonText="Сохранить" 
-            onCancel={onClose} 
-            onSubmit={(ast, pr) => { handleSubmitEdit(noteId, ast, pr); onClose(); }} 
-            autoFocus 
-            zenMode={true}
-          />
-        </div>
+        <TweetEditor 
+          placeholder="Редактировать..." 
+          initialAst={decrypt(note.content)} 
+          initialPropsStr={decrypt(note.properties)} 
+          buttonText="Сохранить" 
+          onCancel={onClose} 
+          onSubmit={(ast, pr) => { handleSubmitEdit(noteId, ast, pr); onClose(); }} 
+          autoFocus 
+          zenMode={true}
+        />
       </div>
     </div>
   );

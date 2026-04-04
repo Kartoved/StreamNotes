@@ -164,7 +164,7 @@ function Toolbar({ editor, onUpload, onExpand, zenMode, onCancel }: { editor: an
           <Ic d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
         </button>
 
-        <button type="button" title={zenMode ? "Свернуть заметку" : "Раскрыть заметку"}
+        <button type="button" title={zenMode ? "Свернуть заметку (Esc)" : "Раскрыть заметку"}
           style={btn}
           onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
           onClick={() => {
@@ -529,6 +529,18 @@ export const TweetEditor = ({
     }
   }, [editor, type, status, date, onSubmit, initialAst]);
   useEffect(() => { handleSubmitRef.current = handleSubmit; }, [handleSubmit]);
+  
+  // ── Zen mode Escape support ──
+  useEffect(() => {
+    if (!zenMode || !onCancel) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !blActive) {
+        onCancel();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [zenMode, onCancel, blActive]);
 
   const selStyle: React.CSSProperties = {
     background: 'var(--bg-hover)',
@@ -576,7 +588,7 @@ export const TweetEditor = ({
         <Toolbar editor={editor} onUpload={(files) => uploadFiles(files)} onExpand={onExpand} zenMode={zenMode} onCancel={onCancel} />
       </div>
 
-      <div style={zenMode ? { flex: 1, overflowY: 'auto', padding: '40px 60px', maxWidth: '900px', margin: '0 auto', width: '100%' } : { position: 'relative' }}>
+      <div style={zenMode ? { flex: 1, overflowY: 'auto', padding: '60px 40px', maxWidth: '840px', margin: '0 auto', width: '100%', boxSizing: 'border-box' } : { position: 'relative' }}>
         <EditorContent editor={editor} />
       </div>
 

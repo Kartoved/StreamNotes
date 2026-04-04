@@ -409,24 +409,15 @@ function App() {
       </div>
 
       {fullscreenDraft && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'var(--bg)', padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ maxWidth: '800px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-              <button onClick={() => setFullscreenDraft(null)} style={{ background: 'none', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: '6px', padding: '5px 15px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Назад</button>
-            </div>
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              <TweetEditor
-                placeholder="Что происходит?"
-                initialAst={fullscreenDraft.ast}
-                initialPropsStr={fullscreenDraft.propsJson}
-                onSubmit={(ast, pj) => { fullscreenDraft.onSubmit(ast, pj); setFullscreenDraft(null); }}
-                onCancel={() => setFullscreenDraft(null)}
-                autoFocus
-                zenMode={true}
-              />
-            </div>
-          </div>
-        </div>
+        <TweetEditor
+          placeholder="Что происходит?"
+          initialAst={fullscreenDraft.ast}
+          initialPropsStr={fullscreenDraft.propsJson}
+          onSubmit={(ast, pj) => { fullscreenDraft.onSubmit(ast, pj); setFullscreenDraft(null); }}
+          onCancel={() => setFullscreenDraft(null)}
+          autoFocus
+          zenMode={true}
+        />
       )}
     </div>
   );
