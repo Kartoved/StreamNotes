@@ -5,7 +5,6 @@ import { TiptapRender } from '../editor/TiptapViewer';
 import { BacklinksSection } from './BacklinksSection';
 
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
-const TYPES    = ['tweet', 'note', 'task', 'idea', 'link'];
 
 // ── Status cycle colors ─────────────────────────────────────────────
 const STATUS_COLOR: Record<string, string> = {
@@ -246,7 +245,6 @@ export const NoteCard = ({
   }, [db, encrypt, note.id, props, status, type, targetDate]);
 
   const handleStatus = (v: string) => { setStatus(v); saveProp('status', v); };
-  const handleType   = (v: string) => { setType(v);   saveProp('type', v); };
   const handleDate   = (v: string) => { setDate(v);   saveProp('date', v); };
 
   const isDragOverChild   = dragOverInfo?.id === note.id && dragOverInfo?.zone === 'child';
@@ -262,7 +260,7 @@ export const NoteCard = ({
   if (isDragOverChild) finalBg = 'rgba(232, 160, 69, 0.1)';
 
   // Show prop row only if there's something meaningful
-  const showProps = type !== 'tweet' || (status && status !== 'none') || !!targetDate;
+  const showProps = (status && status !== 'none') || !!targetDate;
 
   return (
     <div
@@ -370,9 +368,6 @@ export const NoteCard = ({
                   onMouseDown={e => e.stopPropagation()}
                   onDragStart={e => e.stopPropagation()}
                 >
-                  {type !== 'tweet' && (
-                    <PropChip value={type} options={TYPES} onChange={handleType} />
-                  )}
                   {status !== 'none' && (
                     <PropChip value={status} options={STATUSES} onChange={handleStatus} />
                   )}

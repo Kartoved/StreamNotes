@@ -97,10 +97,6 @@ export const NoteModal = ({ noteId, onClose, onNoteClick }: { noteId: string; on
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-sub)' }}>{note.author_id}</span>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>{new Date(note.created_at).toLocaleString()}</span>
           </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <button onClick={() => { onNoteClick?.(noteId); onClose(); }} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Открыть в ленте</button>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: '1.2rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>✕</button>
-          </div>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '0' }}>

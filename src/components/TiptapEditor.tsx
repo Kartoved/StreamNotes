@@ -287,7 +287,6 @@ function BacklinkDropdown({
 
 // ─── Properties Selectors ─────────────────────────────────────────────
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
-const TYPES = ['tweet', 'task', 'document'];
 
 // ─── hasTextContent helper ────────────────────────────────────────────
 const hasTextContent = (json: any): boolean => {
@@ -597,9 +596,6 @@ export const TweetEditor = ({
         display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center',
         marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--line)',
       }}>
-        <select value={type} onChange={(e) => setType(e.target.value)} style={selStyle}>
-          {TYPES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
-        </select>
         <select value={status} onChange={(e) => setStatus(e.target.value)} style={selStyle}>
           {STATUSES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
         </select>
@@ -607,9 +603,6 @@ export const TweetEditor = ({
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {uploadProgress && <UploadRing done={uploadProgress.done} total={uploadProgress.total} />}
-          {onCancel && (
-            <button type="button" onClick={onCancel} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', padding: '8px 24px', borderRadius: 'var(--radius)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>Отмена</button>
-          )}
           <button type="button" onClick={handleSubmit} disabled={!!uploadProgress} style={{ background: 'var(--accent)', border: 'none', color: '#fff', padding: '8px 32px', borderRadius: 'var(--radius)', cursor: uploadProgress ? 'not-allowed' : 'pointer', fontWeight: 600, fontFamily: 'var(--font-body)', fontSize: '0.9rem', opacity: uploadProgress ? 0.6 : 1 }}>{buttonText}</button>
         </div>
       </div>
