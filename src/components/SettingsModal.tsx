@@ -5,9 +5,11 @@ import { validateMnemonic } from '../crypto';
 
 interface Props {
   onClose: () => void;
+  onExport: () => void;
+  onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export default function SettingsModal({ onClose }: Props) {
+export default function SettingsModal({ onClose, onExport, onImport }: Props) {
   const { nostrPubKey } = useCrypto();
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -180,6 +182,21 @@ export default function SettingsModal({ onClose }: Props) {
               </button>
             </div>
           )}
+        </div>
+
+        {/* Data management */}
+        <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border)' }}>
+          <span style={labelStyle}>Данные</span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={onExport} style={btn}>↑ Экспорт</button>
+            <label style={{ ...btn, display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+              ↓ Импорт
+              <input type="file" accept=".json" style={{ display: 'none' }} onChange={onImport} />
+            </label>
+          </div>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '8px 0 0' }}>
+            Создавайте резервные копии всех лент и заметок.
+          </p>
         </div>
       </div>
     </div>

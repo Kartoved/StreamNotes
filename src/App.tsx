@@ -21,7 +21,6 @@ function App() {
   const db = useDB();
   const { encrypt, decrypt, nostrPubKey } = useCrypto();
   const [showSettings, setShowSettings] = useState(false);
-  const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { (window as any).db = db; }, [db]);
 
@@ -326,17 +325,19 @@ function App() {
               )}
               {theme === 'dark' ? 'Светлая' : 'Тёмная'}
             </button>
-            <button onClick={handleExport} style={iconBtn}>↑ Экспорт</button>
-            <label style={{ ...iconBtn, display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
-              ↓ Импорт<input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
-            </label>
             <button onClick={() => setShowSettings(true)} style={iconBtn}>⚙ Настройки</button>
             {focusedTweetId && (
               <button onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }} style={{ ...iconBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}>← В ленту</button>
             )}
           </div>
         </header>
-        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+        {showSettings && (
+          <SettingsModal 
+            onClose={() => setShowSettings(false)} 
+            onExport={handleExport}
+            onImport={handleImport}
+          />
+        )}
 
         {/* Main layout: feed + right sidebar */}
         <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0, width: '100%', maxWidth: '980px' }}>
