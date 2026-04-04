@@ -50,45 +50,45 @@ export default function SeedRecover({ onComplete, onBack }: Props) {
   const containerStyle: React.CSSProperties = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     minHeight: '100vh', padding: '2rem',
-    background: 'var(--bg-color)', backgroundImage: 'var(--bg-gradient)', backgroundAttachment: 'fixed',
-    fontFamily: "'Source Code Pro', 'Courier New', monospace", color: 'var(--text-main)',
+    background: 'var(--bg)',
+    fontFamily: "var(--font-body)", color: 'var(--text)',
   };
 
   const cardStyle: React.CSSProperties = {
     background: 'var(--card-bg)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-    border: '1px solid var(--border)', borderRadius: '16px', padding: '2rem',
-    maxWidth: '480px', width: '100%', boxShadow: '0 4px 30px rgba(0,0,0,0.1)',
+    border: '1px solid var(--line)', borderRadius: '16px', padding: '2.5rem 2rem',
+    maxWidth: '480px', width: '100%', boxShadow: 'var(--shadow-lg)',
   };
 
   const inputStyle: React.CSSProperties = {
-    background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px',
-    padding: '0.5rem 0.75rem', color: 'var(--text-main)', fontFamily: 'inherit',
-    fontSize: '13px', width: '100%',
+    background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '8px',
+    padding: '0.7rem 0.85rem', color: 'var(--text)', fontFamily: 'var(--font-mono)',
+    fontSize: '13px', width: '100%', outline: 'none',
   };
 
   const btnStyle: React.CSSProperties = {
-    background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px',
-    padding: '0.75rem 1.5rem', fontSize: '14px', cursor: 'pointer',
-    fontFamily: 'inherit', width: '100%', marginTop: '1rem',
+    background: 'var(--accent)', color: 'var(--bg)', border: 'none', borderRadius: '8px',
+    padding: '0.9rem 1.5rem', fontSize: '14px', cursor: 'pointer',
+    fontFamily: 'inherit', width: '100%', marginTop: '1rem', fontWeight: 600,
   };
 
   const btnSecondary: React.CSSProperties = {
-    ...btnStyle, background: 'transparent', border: '1px solid var(--border)',
-    color: 'var(--text-muted)',
+    ...btnStyle, background: 'transparent', border: '1px solid var(--line)',
+    color: 'var(--text-sub)', marginTop: '0.75rem',
   };
 
   if (step === 'input') {
     return (
       <div style={containerStyle}>
         <div style={cardStyle}>
-          <h2 style={{ margin: '0 0 0.5rem', fontSize: '20px' }}>Восстановление</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '1.5rem' }}>
+          <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700 }}>Восстановление</h2>
+          <p style={{ color: 'var(--text-sub)', fontSize: '14px', marginBottom: '1.5rem' }}>
             Введите вашу seed-фразу из 12 слов:
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem', marginBottom: '1.5rem' }}>
             {words.map((word, i) => (
               <div key={i}>
-                <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{i + 1}.</label>
+                <label style={{ fontSize: '10px', color: 'var(--text-faint)', fontWeight: 600, display: 'block', marginBottom: '4px' }}>{i + 1}</label>
                 <input
                   style={inputStyle}
                   value={word}
@@ -103,7 +103,7 @@ export default function SeedRecover({ onComplete, onBack }: Props) {
               </div>
             ))}
           </div>
-          {error && <p style={{ color: '#ef4444', fontSize: '13px' }}>{error}</p>}
+          {error && <p style={{ color: '#f87171', fontSize: '13px', marginTop: '0.5rem' }}>{error}</p>}
           <button style={btnStyle} onClick={handleValidate}>Восстановить</button>
           <button style={btnSecondary} onClick={onBack}>Назад</button>
         </div>
@@ -115,15 +115,15 @@ export default function SeedRecover({ onComplete, onBack }: Props) {
   return (
     <div style={containerStyle}>
       <div style={cardStyle}>
-        <h2 style={{ margin: '0 0 0.5rem', fontSize: '20px' }}>Пароль (опционально)</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '1.5rem' }}>
-          Установите пароль для быстрого входа.
+        <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700 }}>Установка пароля</h2>
+        <p style={{ color: 'var(--text-sub)', fontSize: '14px', marginBottom: '1.5rem' }}>
+          Установите пароль для быстрого входа на этом устройстве.
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
           <input
             style={inputStyle}
             type="password"
-            placeholder="Пароль"
+            placeholder="Новый пароль"
             value={password}
             onChange={e => setPassword(e.target.value)}
           />
@@ -137,9 +137,9 @@ export default function SeedRecover({ onComplete, onBack }: Props) {
             />
           )}
         </div>
-        {passwordError && <p style={{ color: '#ef4444', fontSize: '13px' }}>{passwordError}</p>}
+        {passwordError && <p style={{ color: '#f87171', fontSize: '13px' }}>{passwordError}</p>}
         <button style={btnStyle} onClick={handleFinish}>
-          {password ? 'Установить пароль и войти' : 'Войти без пароля'}
+          {password ? 'Завершить настройку' : 'Войти без пароля'}
         </button>
       </div>
     </div>
