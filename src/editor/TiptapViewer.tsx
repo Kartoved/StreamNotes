@@ -64,12 +64,27 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
     if (marks.includes('code')) el = <code style={{ background: 'var(--bg-hover)', padding: '1px 5px', borderRadius: '3px', fontSize: '0.88em', fontFamily: 'var(--font-mono)', border: '1px solid var(--line)' }}>{el}</code>;
     if (linkMark) {
       const href: string = linkMark.attrs?.href || '';
+      const isInternal = href.startsWith('note://');
+      const noteId = isInternal ? href.replace('note://', '') : null;
       el = (
         <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: 'var(--text)', textDecoration: 'underline', textDecorationColor: 'var(--line-strong)', cursor: 'pointer' }}
+          href={isInternal ? '#' : href}
+          target={isInternal ? undefined : '_blank'}
+          rel={isInternal ? undefined : 'noopener noreferrer'}
+          onClick={(e) => {
+            if (isInternal) {
+              e.preventDefault();
+              e.stopPropagation();
+              (window as any).navigateToNote?.(noteId) ?? (window as any).scrollToNote?.(noteId);
+            }
+          }}
+          style={{
+            color: 'var(--text)',
+            textDecoration: 'underline',
+            textDecorationColor: isInternal ? 'var(--text-faint)' : 'var(--line-strong)',
+            textDecorationStyle: isInternal ? 'dashed' : 'solid',
+            cursor: 'pointer',
+          }}
         >
           {node.text}
         </a>

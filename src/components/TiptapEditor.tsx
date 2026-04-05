@@ -12,6 +12,8 @@ import '../editorTheme.css';
 
 import { ThreeStateTaskItem } from '../editor/extensions/ThreeStateTaskItem';
 import { AttachmentExtension } from '../editor/extensions/Attachment';
+// BacklinkPlugin kept for keyboard-interception if needed in future
+import { BacklinkDropdown, type NoteOption } from './BacklinkDropdown';
 import { useVoiceRecorder, audioBlobToFloat32Array } from '../hooks/useVoiceRecorder';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
@@ -28,11 +30,13 @@ const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
 // ─── Toolbar Component ────────────────────────────────────────────────
 function Toolbar({
     editor, onUpload, onExpand, zenMode, onCancel,
-    onStartVoice, isRecording, recordingTime, isTranscribing
+    onStartVoice, isRecording, recordingTime, isTranscribing,
+    onInsertBacklink,
 }: {
     editor: any; onUpload: (files: FileList | File[]) => void; onExpand?: (ast: string) => void;
     zenMode?: boolean; onCancel?: () => void;
     onStartVoice: () => void; isRecording: boolean; recordingTime: number; isTranscribing: boolean;
+    onInsertBacklink?: () => void;
 }) {
   if (!editor) return null;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -167,6 +171,15 @@ function Toolbar({
           <Ic d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
         </button>
 
+        <button type="button" title="Ссылка на шиф [["
+          style={btn}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => onInsertBacklink?.()}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', pointerEvents: 'none' }}>
+            <text x="3" y="17" fontSize="14" fontWeight="700" fill="currentColor" stroke="none" fontFamily="var(--font-mono)">[[</text>
+          </svg>
+        </button>
+
         {gap}
 
         {/* ── Attach + Expand ── */}
@@ -297,11 +310,19 @@ export const TweetEditor = ({
   zenMode?: boolean;
   autoFocus?: boolean;
 }) => {
+  const db = useDB();
+  const { encrypt } = useCrypto();
+
   const [editorKey, setEditorKey] = useState(0);
   const initP = initialPropsStr ? JSON.parse(initialPropsStr) : {};
   const [type, setType] = useState(initP.type || 'sheaf');
   const [status, setStatus] = useState(initP.status || 'none');
   const [date, setDate] = useState(initP.date || '');
+
+  // ── Backlink dropdown state ──
+  const [blActive, setBlActive] = useState(false);
+  const [blQuery, setBlQuery] = useState<string | null>(null);
+  const [blPos, setBlPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
 
 
@@ -406,6 +427,20 @@ export const TweetEditor = ({
     ],
     content: initialContent,
     autofocus: autoFocus ? 'end' : false,
+    onUpdate: ({ editor: ed }) => {
+      const { $head } = ed.state.selection;
+      const textBefore = $head.parent.textContent.slice(0, $head.parentOffset);
+      const match = /\[\[([^\]]*)$/.exec(textBefore);
+      if (match) {
+        setBlQuery(match[1]);
+        setBlActive(true);
+        const coords = ed.view.coordsAtPos(ed.state.selection.head);
+        setBlPos({ top: coords.bottom + 6, left: coords.left });
+      } else {
+        setBlActive(false);
+        setBlQuery(null);
+      }
+    },
     editorProps: {
       attributes: {
         class: 'tiptap-editor',
@@ -441,7 +476,56 @@ export const TweetEditor = ({
     },
     }, [editorKey, initialAst]);
 
+  const blUid = () => Math.random().toString(36).substring(2, 9);
 
+  // ── Backlink: insert link replacing [[query ──
+  const handleBacklinkSelect = useCallback((id: string, title: string) => {
+    if (!editor) return;
+    const { $head } = editor.state.selection;
+    const textBefore = $head.parent.textContent.slice(0, $head.parentOffset);
+    const match = /\[\[([^\]]*)$/.exec(textBefore);
+    if (match) {
+      const from = $head.pos - match[0].length;
+      const to = $head.pos;
+      editor.chain()
+        .focus()
+        .deleteRange({ from, to })
+        .insertContent({
+          type: 'text',
+          marks: [{ type: 'link', attrs: { href: `note://${id}` } }],
+          text: title,
+        })
+        .insertContent(' ')
+        .run();
+    }
+    setBlActive(false);
+    setBlQuery(null);
+  }, [editor]);
+
+  // ── Backlink: create new note and insert link ──
+  const handleBacklinkCreate = useCallback(async (title: string) => {
+    if (!editor) return;
+    const noteId = 'note-' + blUid();
+    const now = Date.now();
+    const content = JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: title }] }] });
+    const feedRows = await db.execO(`SELECT id FROM feeds LIMIT 1`) as any[];
+    const feedId = feedRows[0]?.id || null;
+    await db.exec(
+      `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+      [noteId, null, 'local-user', encrypt(content), now.toString(), encrypt('{"type":"sheaf","status":"none","date":""}'), feedId, now, now]
+    );
+    handleBacklinkSelect(noteId, title);
+  }, [editor, db, encrypt, handleBacklinkSelect]);
+
+  // ── Backlink: toolbar button handler ──
+  const handleInsertBacklink = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().insertContent('[[').run();
+    const coords = editor.view.coordsAtPos(editor.state.selection.head);
+    setBlPos({ top: coords.bottom + 6, left: coords.left });
+    setBlQuery('');
+    setBlActive(true);
+  }, [editor]);
 
   const uploadFiles = useCallback(async (files: FileList | File[]) => {
     if (!editor) return;
@@ -559,6 +643,7 @@ export const TweetEditor = ({
             isRecording={isRecording}
             recordingTime={recordingTime}
             isTranscribing={isTranscribing}
+            onInsertBacklink={handleInsertBacklink}
         />
       </div>
 
@@ -599,6 +684,16 @@ export const TweetEditor = ({
       <div style={zenMode ? { flex: 1, overflowY: 'auto', padding: '60px 40px', maxWidth: '840px', margin: '0 auto', width: '100%', boxSizing: 'border-box' } : { position: 'relative' }}>
         <EditorContent editor={editor} />
       </div>
+
+      {blActive && (
+        <BacklinkDropdown
+          query={blQuery ?? ''}
+          position={blPos}
+          onSelect={(note) => handleBacklinkSelect(note.id, note.title)}
+          onCreateNew={handleBacklinkCreate}
+          onClose={() => { setBlActive(false); setBlQuery(null); }}
+        />
+      )}
 
 
 

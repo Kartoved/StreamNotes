@@ -30,7 +30,7 @@ function App() {
     rescueOrphans(db);
   }, [db]);
 
-  // ── Internal backlink navigation ───────────────────────────────────
+  // ── Internal backlink navigation (scrollToNote — basic) ────────────
   useEffect(() => {
     (window as any).scrollToNote = (id: string) => {
       setFocusedTweetId(id);
@@ -94,6 +94,29 @@ function App() {
       setActiveFeedId(feeds[0].id);
     }
   }, [feeds, activeFeedId]);
+
+  // ── navigateToNote: find or create note, switch feed, focus ────────
+  useEffect(() => {
+    (window as any).navigateToNote = async (noteId: string) => {
+      const existing = await db.execO(`SELECT id, feed_id FROM notes WHERE id = ? AND is_deleted = 0`, [noteId]) as any[];
+      if (existing.length > 0) {
+        if (existing[0].feed_id && existing[0].feed_id !== activeFeedId) {
+          setActiveFeedId(existing[0].feed_id);
+        }
+        setFocusedTweetId(noteId);
+      } else {
+        // Note doesn't exist — create it in the active feed
+        const now = Date.now();
+        const content = JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Новая заме��ка' }] }] });
+        await db.exec(
+          `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+          [noteId, null, 'local-user', encrypt(content), now.toString(), encrypt('{"type":"sheaf","status":"none","date":""}'), activeFeedId, now, now]
+        );
+        setFocusedTweetId(noteId);
+      }
+    };
+    return () => { delete (window as any).navigateToNote; };
+  }, [db, encrypt, activeFeedId]);
 
   // Auto-create default feed on very first load
   const defaultFeedCreated = useRef(false);

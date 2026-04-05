@@ -1,0 +1,152 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useDB } from '../db/DBContext';
+import { useCrypto } from '../crypto/CryptoContext';
+
+export interface NoteOption {
+  id: string;
+  title: string;
+}
+
+interface Props {
+  query: string;
+  position: { top: number; left: number };
+  onSelect: (note: NoteOption) => void;
+  onCreateNew: (title: string) => void;
+  onClose: () => void;
+}
+
+function extractText(node: any): string {
+  if (node.type === 'text') return node.text || '';
+  return (node.content || []).map((c: any) => extractText(c)).join(' ');
+}
+
+export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, onCreateNew, onClose }) => {
+  const db = useDB();
+  const { decrypt } = useCrypto();
+  const decryptRef = useRef(decrypt);
+  useEffect(() => { decryptRef.current = decrypt; }, [decrypt]);
+
+  const [results, setResults] = useState<NoteOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
+  // Reload on every query change — mirrors original working implementation
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    db.execO(`SELECT id, content FROM notes WHERE is_deleted = 0 LIMIT 200`, [])
+      .then((rows: any[]) => {
+        if (cancelled) return;
+        const dec = decryptRef.current;
+        const mapped = (rows as any[]).map(r => {
+          let title = '';
+          try {
+            const doc = JSON.parse(dec(r.content));
+            title = extractText(doc).trim();
+          } catch {
+            title = r.id;
+          }
+          return { id: r.id, title: title.slice(0, 80) || r.id };
+        });
+        const filtered = mapped.filter(r =>
+          !query || r.title.toLowerCase().includes(query.toLowerCase())
+        );
+        setResults(filtered.slice(0, 15));
+        setSelectedIdx(0);
+        setLoading(false);
+      })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [query, db]);
+
+  const showCreate = query.length > 0 && !results.some(r => r.title.toLowerCase() === query.toLowerCase());
+  const totalItems = results.length + (showCreate ? 1 : 0);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIdx(i => Math.min(i + 1, totalItems - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIdx(i => Math.max(i - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (showCreate && selectedIdx === results.length) {
+          onCreateNew(query);
+        } else if (results[selectedIdx]) {
+          onSelect(results[selectedIdx]);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [results, selectedIdx, showCreate, query, onSelect, onCreateNew, onClose, totalItems]);
+
+  const itemStyle = (active: boolean): React.CSSProperties => ({
+    padding: '10px 14px',
+    cursor: 'pointer',
+    background: active ? 'var(--bg-active)' : 'transparent',
+    borderBottom: '1px solid var(--line)',
+    transition: '0.1s background',
+  });
+
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        top: position.top,
+        left: position.left,
+        background: 'var(--bg)',
+        border: '1px solid var(--line-strong)',
+        borderRadius: 'var(--radius-lg)',
+        zIndex: 10000,
+        minWidth: '280px',
+        boxShadow: 'var(--shadow-lg, 0 4px 20px rgba(0,0,0,0.15))',
+        overflow: 'hidden',
+        maxHeight: '280px',
+        overflowY: 'auto',
+      }}
+      onMouseDown={e => e.preventDefault()}
+    >
+      {loading ? (
+        <div style={{ padding: '10px 14px', fontSize: '0.82rem', color: 'var(--text-faint)', fontFamily: 'var(--font-body)' }}>
+          Загрузка...
+        </div>
+      ) : results.length === 0 && !showCreate ? (
+        <div style={{ padding: '10px 14px', fontSize: '0.82rem', color: 'var(--text-faint)', fontFamily: 'var(--font-body)' }}>
+          Заметок не найдено
+        </div>
+      ) : (
+        <>
+          {results.map((r, i) => (
+            <div
+              key={r.id}
+              onClick={() => onSelect(r)}
+              onMouseEnter={() => setSelectedIdx(i)}
+              style={itemStyle(i === selectedIdx)}
+            >
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', marginBottom: '2px', fontFamily: 'var(--font-mono)' }}>{r.id}</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text)', fontFamily: 'var(--font-body)' }}>{r.title}</div>
+            </div>
+          ))}
+          {showCreate && (
+            <div
+              onClick={() => onCreateNew(query)}
+              onMouseEnter={() => setSelectedIdx(results.length)}
+              style={{ ...itemStyle(selectedIdx === results.length), color: 'var(--accent, #3b82f6)', fontStyle: 'italic', fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}
+            >
+              + Создать «{query}»
+            </div>
+          )}
+        </>
+      )}
+    </div>,
+    document.body
+  );
+};

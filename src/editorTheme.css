@@ -60,6 +60,22 @@
 }
 .tiptap-editor a:hover { text-decoration-color: var(--text); }
 
+/* Internal note links — dotted underline */
+.tiptap-editor a[href^="note://"],
+.tiptap-content a.note-link,
+a.note-link {
+  text-decoration: none;
+  border-bottom: 1.5px dotted var(--text-sub);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.tiptap-editor a[href^="note://"]:hover,
+.tiptap-content a.note-link:hover,
+a.note-link:hover {
+  border-bottom-color: var(--text);
+}
+
 /* ─── Placeholder ──────────────────────────────────────────────────── */
 .tiptap-editor p.is-editor-empty:first-child::before {
   color: var(--text-faint);
