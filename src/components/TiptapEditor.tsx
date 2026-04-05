@@ -80,7 +80,15 @@ function Toolbar({
   const applyLink = () => {
     if (linkUrl) {
       const href = linkUrl.startsWith('http') ? linkUrl : `https://${linkUrl}`;
-      editor.chain().focus().setLink({ href }).run();
+      if (editor.state.selection.empty) {
+        editor.chain().focus().insertContent({
+          type: 'text',
+          text: linkUrl,
+          marks: [{ type: 'link', attrs: { href } }]
+        }).run();
+      } else {
+        editor.chain().focus().setLink({ href }).run();
+      }
     } else {
       editor.chain().focus().unsetLink().run();
     }
