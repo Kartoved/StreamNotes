@@ -15,27 +15,80 @@ const AttachmentNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
     resolveUrl(src).then(setUrl).catch(() => setError(true));
   }, [src]);
 
+  const FileIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+  );
+
+  const DownloadIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+
+  const CloseIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+
   const containerStyle: React.CSSProperties = {
-    position: 'relative', display: 'block', margin: '0.5em 0',
-    outline: selected ? '2px solid #3b82f6' : 'none', borderRadius: '8px',
+    position: 'relative',
+    display: 'block',
+    margin: '0.8em 0',
+    outline: selected ? '2px solid var(--accent-warm)' : 'none',
+    borderRadius: 'var(--radius-lg)',
+    transition: 'all 0.15s ease',
   };
 
   const deleteBtn = (
     <button
       type="button"
       onMouseDown={(e) => { e.preventDefault(); deleteNode(); }}
+      title="Delete"
       style={{
-        position: 'absolute', top: '6px', right: '6px', zIndex: 10,
-        background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white',
-        borderRadius: '4px', padding: '2px 6px', cursor: 'pointer', fontSize: '0.75rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--bg-hover)', border: 'none', color: 'var(--text-sub)',
+        width: '28px', height: '28px',
+        borderRadius: 'var(--radius)', cursor: 'pointer',
+        transition: 'all 0.1s',
       }}
-    >✕</button>
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.color = '#ef4444'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-sub)'; }}
+    >
+      <CloseIcon />
+    </button>
+  );
+
+  const downloadBtn = (
+    <a
+      href={url || '#'}
+      download={name}
+      title="Download"
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--bg-hover)', color: 'var(--text-sub)',
+        width: '28px', height: '28px',
+        borderRadius: 'var(--radius)', textDecoration: 'none',
+        transition: 'all 0.1s',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-active)'; e.currentTarget.style.color = 'var(--text)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-sub)'; }}
+    >
+      <DownloadIcon />
+    </a>
   );
 
   if (error) return (
     <NodeViewWrapper>
-      <div style={{ ...containerStyle, padding: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', fontSize: '0.8rem', color: '#f87171' }}>
-        ⚠ Файл не найден: {name}
+      <div style={{ ...containerStyle, padding: '10px 14px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ color: '#ef4444' }}><CloseIcon /></div>
+        <div style={{ flex: 1, fontSize: '0.85rem', color: '#ef4444', opacity: 0.8 }}>File not found: {name}</div>
         {deleteBtn}
       </div>
     </NodeViewWrapper>
@@ -43,20 +96,27 @@ const AttachmentNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
 
   if (!url) return (
     <NodeViewWrapper>
-      <div style={{ ...containerStyle, padding: '8px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>⏳ {name}</div>
+      <div style={{ ...containerStyle, padding: '10px 14px', border: '1px solid var(--line)', background: 'var(--bg-aside)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="rec-pulse" style={{ color: 'var(--text-faint)' }}><FileIcon /></div>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-sub)' }}>{name}...</div>
+      </div>
     </NodeViewWrapper>
   );
 
   if (fileType === 'image') return (
     <NodeViewWrapper className="attachment-node-img">
-      <div style={containerStyle}>
+      <div style={containerStyle} className="attachment-card">
         <img
           src={url} alt={name}
           onClick={() => setLightbox(true)}
-          style={{ width: '100%', height: '130px', objectFit: 'cover', borderRadius: '6px', display: 'block', cursor: 'zoom-in' }}
+          style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: 'var(--radius)', display: 'block', cursor: 'zoom-in', background: 'var(--bg-aside)', border: '1px solid var(--line)' }}
           onError={() => setError(true)}
         />
-        {deleteBtn}
+        <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '6px', opacity: 0, transition: 'opacity 0.2s' }} className="attachment-actions">
+          {downloadBtn}
+          {deleteBtn}
+        </div>
+        <style>{`.attachment-node-img:hover .attachment-actions { opacity: 1 !important; }`}</style>
         {lightbox && <Lightbox url={url} name={name} onClose={() => setLightbox(false)} />}
       </div>
     </NodeViewWrapper>
@@ -64,23 +124,39 @@ const AttachmentNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
 
   if (fileType === 'video') return (
     <NodeViewWrapper>
-      <div style={containerStyle}>
-        <video src={url} controls style={{ maxWidth: '100%', borderRadius: '8px', display: 'block' }} />
-        {deleteBtn}
+      <div style={containerStyle} className="attachment-card">
+        <video src={url} controls style={{ width: '100%', borderRadius: 'var(--radius)', display: 'block', background: '#000' }} />
+        <div style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0, transition: 'opacity 0.2s' }} className="attachment-actions">
+          {deleteBtn}
+        </div>
+        <style>{`.attachment-card:hover .attachment-actions { opacity: 1 !important; }`}</style>
       </div>
     </NodeViewWrapper>
   );
 
   return (
     <NodeViewWrapper>
-      <div style={{ ...containerStyle, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-        <span style={{ fontSize: '1.4rem' }}>📎</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '0.85rem', color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatSize(size)}</div>
+      <div style={{ 
+        ...containerStyle, 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '12px', 
+        padding: '10px 12px', 
+        background: 'var(--card-bg)', 
+        border: '1px solid var(--line)',
+        boxShadow: 'var(--shadow-sm)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: 'var(--radius)', background: 'var(--bg-hover)', color: 'var(--text-sub)' }}>
+          <FileIcon />
         </div>
-        <a href={url} download={name} style={{ background: 'var(--accent)', color: 'white', borderRadius: '4px', padding: '3px 10px', fontSize: '0.75rem', textDecoration: 'none' }}>↓</a>
-        {deleteBtn}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-sub)' }}>{formatSize(size)}</div>
+        </div>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {downloadBtn}
+          {deleteBtn}
+        </div>
       </div>
     </NodeViewWrapper>
   );
