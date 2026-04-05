@@ -28,12 +28,11 @@ const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
 // ─── Toolbar Component ────────────────────────────────────────────────
 function Toolbar({
     editor, onUpload, onExpand, zenMode, onCancel,
-    onStartVoice, isRecording, recordingTime, isTranscribing, onBacklinkTrigger
+    onStartVoice, isRecording, recordingTime, isTranscribing
 }: {
     editor: any; onUpload: (files: FileList | File[]) => void; onExpand?: (ast: string) => void;
     zenMode?: boolean; onCancel?: () => void;
     onStartVoice: () => void; isRecording: boolean; recordingTime: number; isTranscribing: boolean;
-    onBacklinkTrigger?: () => void;
 }) {
   if (!editor) return null;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -168,13 +167,6 @@ function Toolbar({
           <Ic d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
         </button>
 
-        <button type="button" title="Бэклинк на заметку"
-          style={btn}
-          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
-          onClick={() => onBacklinkTrigger ? onBacklinkTrigger() : editor.chain().focus().insertContent('[[').run()}>
-          <Ic d="M15 7h3a5 5 0 010 10h-3m-6 0H6A5 5 0 016 7h3M8 12h8" />
-        </button>
-
         {gap}
 
         {/* ── Attach + Expand ── */}
@@ -238,92 +230,6 @@ function Toolbar({
   );
 }
 
-// ─── Backlink Dropdown ────────────────────────────────────────────────
-function BacklinkDropdown({
-  query,
-  onSelect,
-  onClose,
-  pos,
-}: {
-  query: string;
-  onSelect: (id: string, title: string) => void;
-  onClose: () => void;
-  pos: { top: number; left: number };
-}) {
-  const [results, setResults] = useState<{ id: string; title: string }[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const db = useDB();
-  const { decrypt } = useCrypto();
-  const decryptRef = useRef(decrypt);
-  useEffect(() => { decryptRef.current = decrypt; }, [decrypt]);
-
-  useEffect(() => {
-    setLoading(true);
-    db.execO(`SELECT id, content FROM notes WHERE is_deleted = 0 LIMIT 100`, [])
-      .then((res: any[]) => {
-        const extractText = (node: any): string => {
-          if (node.type === 'text') return node.text || '';
-          return (node.content || []).map((c: any) => extractText(c)).join(' ');
-        };
-        const dec = decryptRef.current;
-        const filtered = res.map((n: any) => {
-          let text = '';
-          try { const doc = JSON.parse(dec(n.content)); text = extractText(doc).trim(); } catch { text = n.id; }
-          return { id: n.id, title: text || n.id };
-        }).filter(r => !query || r.title.toLowerCase().includes(query.toLowerCase())).slice(0, 15);
-        setResults(filtered.map(r => ({ id: r.id, title: r.title.length > 50 ? r.title.slice(0, 50) + '...' : r.title })));
-        setSelectedIndex(0);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [query, db]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, results.length - 1)); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, 0)); }
-      else if (e.key === 'Enter' && results[selectedIndex]) { e.preventDefault(); onSelect(results[selectedIndex].id, results[selectedIndex].title); }
-      else if (e.key === 'Escape') { e.preventDefault(); onClose(); }
-    };
-    document.addEventListener('keydown', handleKeyDown, { capture: true });
-    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [results, selectedIndex, onSelect, onClose]);
-
-  return (
-    <div style={{
-      position: 'fixed', top: pos.top, left: pos.left,
-      background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-lg)',
-      zIndex: 10000, minWidth: '280px',
-      boxShadow: 'var(--shadow-lg)', overflow: 'hidden',
-    }}>
-      {loading ? (
-        <div style={{ padding: '10px 14px', fontSize: '0.82rem', color: 'var(--text-faint)', fontFamily: 'var(--font-body)' }}>
-          Загрузка...
-        </div>
-      ) : results.length === 0 ? (
-        <div style={{ padding: '10px 14px', fontSize: '0.82rem', color: 'var(--text-faint)', fontFamily: 'var(--font-body)' }}>
-          Заметок не найдено
-        </div>
-      ) : results.map((r, i) => (
-        <div
-          key={r.id}
-          onClick={() => onSelect(r.id, r.title)}
-          onMouseEnter={() => setSelectedIndex(i)}
-          style={{
-            padding: '10px 14px', cursor: 'pointer',
-            background: i === selectedIndex ? 'var(--bg-active)' : 'transparent',
-            borderBottom: '1px solid var(--line)', transition: '0.1s background',
-          }}
-        >
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', marginBottom: '2px', fontFamily: 'var(--font-mono)' }}>{r.id}</div>
-          <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text)' }}>{r.title}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ─── Properties Selectors ─────────────────────────────────────────────
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 
@@ -377,9 +283,9 @@ export const TweetEditor = ({
   buttonText = 'Шифнуть',
   initialAst,
   initialPropsStr,
-  autoFocus,
   onExpand,
   zenMode,
+  autoFocus,
 }: {
   onSubmit: (ast: string, propsJson: string) => void;
   onCancel?: () => void;
@@ -387,9 +293,9 @@ export const TweetEditor = ({
   buttonText?: string;
   initialAst?: string;
   initialPropsStr?: string;
-  autoFocus?: boolean;
   onExpand?: (ast: string, propsJson: string) => void;
   zenMode?: boolean;
+  autoFocus?: boolean;
 }) => {
   const [editorKey, setEditorKey] = useState(0);
   const initP = initialPropsStr ? JSON.parse(initialPropsStr) : {};
@@ -397,10 +303,7 @@ export const TweetEditor = ({
   const [status, setStatus] = useState(initP.status || 'none');
   const [date, setDate] = useState(initP.date || '');
 
-  // Backlink state
-  const [blQuery, setBlQuery] = useState<string | null>(null);
-  const [blActive, setBlActive] = useState(false);
-  const [blPos, setBlPos] = useState({ top: 0, left: 0 });
+
 
   // Upload ref — stable callback for editorProps (avoids stale closure)
   const uploadFilesRef = useRef<(files: FileList | File[]) => void>(() => {});
@@ -536,56 +439,9 @@ export const TweetEditor = ({
         return false;
       },
     },
-    onUpdate: ({ editor: ed }) => {
-      // Check for [[ trigger
-      const { $head } = ed.state.selection;
-      const textBefore = $head.parent.textContent.slice(0, $head.parentOffset);
-      const match = /\[\[([^\]]*)$/.exec(textBefore);
-      if (match) {
-        setBlQuery(match[1]);
-        setBlActive(true);
-        const coords = ed.view.coordsAtPos(ed.state.selection.head);
-        setBlPos({ top: coords.bottom + 6, left: coords.left });
-      } else {
-        setBlActive(false);
-        setBlQuery(null);
-      }
-    },
-  }, [editorKey, initialAst]);
+    }, [editorKey, initialAst]);
 
-  const handleBacklinkInsert = useCallback(() => {
-    if (!editor) return;
-    editor.chain().focus().insertContent('[[').run();
-    // Directly set state — guarantees dropdown opens regardless of onUpdate timing
-    const coords = editor.view.coordsAtPos(editor.state.selection.head);
-    setBlPos({ top: coords.bottom + 6, left: coords.left });
-    setBlQuery('');
-    setBlActive(true);
-  }, [editor]);
 
-  const handleBacklinkSelect = useCallback((id: string, title: string) => {
-    if (!editor) return;
-    // Find the [[ in current text and replace it with a link
-    const { $head } = editor.state.selection;
-    const textBefore = $head.parent.textContent.slice(0, $head.parentOffset);
-    const match = /\[\[([^\]]*)$/.exec(textBefore);
-    if (match) {
-      const from = $head.pos - match[0].length;
-      const to = $head.pos;
-      editor.chain()
-        .focus()
-        .deleteRange({ from, to })
-        .insertContent({
-          type: 'text',
-          marks: [{ type: 'link', attrs: { href: `note://${id}` } }],
-          text: title,
-        })
-        .insertContent(' ')
-        .run();
-    }
-    setBlActive(false);
-    setBlQuery(null);
-  }, [editor]);
 
   const uploadFiles = useCallback(async (files: FileList | File[]) => {
     if (!editor) return;
@@ -642,13 +498,13 @@ export const TweetEditor = ({
   useEffect(() => {
     if (!zenMode || !onCancel) return;
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !blActive) {
+      if (e.key === 'Escape') {
         onCancel();
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [zenMode, onCancel, blActive]);
+  }, [zenMode, onCancel]);
 
   const selStyle: React.CSSProperties = {
     background: 'var(--bg-hover)',
@@ -703,7 +559,6 @@ export const TweetEditor = ({
             isRecording={isRecording}
             recordingTime={recordingTime}
             isTranscribing={isTranscribing}
-            onBacklinkTrigger={handleBacklinkInsert}
         />
       </div>
 
@@ -745,15 +600,7 @@ export const TweetEditor = ({
         <EditorContent editor={editor} />
       </div>
 
-      {blActive && blQuery !== null && createPortal(
-        <BacklinkDropdown
-          query={blQuery}
-          onSelect={handleBacklinkSelect}
-          onClose={() => { setBlActive(false); setBlQuery(null); }}
-          pos={blPos}
-        />,
-        document.body
-      )}
+
 
       <div style={zenMode ? {
         display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center',

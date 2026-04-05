@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
-import { BacklinksSection } from './BacklinksSection';
 
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 
@@ -300,7 +299,6 @@ export const NoteCard = ({
                   astString={note.content}
                   onUpdateAST={(newAst) => db.exec(`UPDATE notes SET content = ? WHERE id = ?`, [encrypt(newAst), note.id])}
                 />
-                <BacklinksSection noteId={note.id} onNoteClick={onNoteClick} />
               </div>
 
               {/* ── Inline editable props ── */}

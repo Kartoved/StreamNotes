@@ -64,15 +64,14 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
     if (marks.includes('code')) el = <code style={{ background: 'var(--bg-hover)', padding: '1px 5px', borderRadius: '3px', fontSize: '0.88em', fontFamily: 'var(--font-mono)', border: '1px solid var(--line)' }}>{el}</code>;
     if (linkMark) {
       const href: string = linkMark.attrs?.href || '';
-      const isInternal = href.startsWith('note://');
-      const id = isInternal ? href.replace('note://', '') : null;
       el = (
         <a
-          href={isInternal ? '#' : href}
-          onClick={(e) => { if (isInternal) { e.preventDefault(); e.stopPropagation(); (window as any).scrollToNote?.(id); } }}
-          style={{ color: 'var(--text)', textDecoration: 'underline', textDecorationColor: isInternal ? 'var(--text-faint)' : 'var(--line-strong)', textDecorationStyle: isInternal ? 'dashed' : 'solid', cursor: 'pointer' }}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'var(--text)', textDecoration: 'underline', textDecorationColor: 'var(--line-strong)', cursor: 'pointer' }}
         >
-          {node.text?.replace(/^\[+/, '').replace(/\]+$/, '') || node.text}
+          {node.text}
         </a>
       );
     }
