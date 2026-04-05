@@ -2,6 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { resolveUrl, getFileType, formatSize } from '../utils/opfsFiles';
 import { Lightbox } from './components/Lightbox';
 
+// ─── SVG Icons ────────────────────────────────────────────────────────
+const FileIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+    <polyline points="14 2 14 8 20 8" />
+  </svg>
+);
+
+const DownloadIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
 // ─── Attachment display for read-only render ──────────────────────────
 export const AttachmentDisplay = ({ src, name, fileType, size, inGrid }: { src: string; name: string; fileType: string; size: number; inGrid?: boolean }) => {
   const [url, setUrl] = useState<string | null>(null);
@@ -12,37 +28,90 @@ export const AttachmentDisplay = ({ src, name, fileType, size, inGrid }: { src: 
     resolveUrl(src).then(setUrl).catch(() => setError(true)); 
   }, [src]);
 
-  if (error) return <div style={{ color: '#f87171', fontSize: '0.8rem', margin: '0.25em 0' }}>⚠ {name}</div>;
-  if (!url) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>⏳ {name}</div>;
+  const containerStyle: React.CSSProperties = {
+    position: 'relative',
+    display: 'block',
+    margin: inGrid ? 0 : '0.8em 0',
+    borderRadius: 'var(--radius-lg)',
+    transition: 'all 0.15s ease',
+  };
+
+  const downloadBtn = (
+    <a
+      href={url || '#'}
+      download={name}
+      title="Download"
+      onClick={e => e.stopPropagation()}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--bg-hover)', color: 'var(--text-sub)',
+        width: '28px', height: '28px',
+        borderRadius: 'var(--radius)', textDecoration: 'none',
+        transition: 'all 0.1s',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-active)'; e.currentTarget.style.color = 'var(--text)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-sub)'; }}
+    >
+      <DownloadIcon />
+    </a>
+  );
+
+  if (error) return <div style={{ ...containerStyle, padding: '10px 14px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '0.85rem', color: '#ef4444' }}>⚠ {name}</div>;
+  if (!url) return <div style={{ ...containerStyle, padding: '10px 14px', border: '1px solid var(--line)', background: 'var(--bg-aside)', fontSize: '0.85rem', color: 'var(--text-sub)' }}>⏳ {name}...</div>;
 
   if (fileType === 'image') return (
-    <div style={{ display: 'contents' }} onClick={e => e.stopPropagation()}>
+    <div style={containerStyle} className="attachment-card" onClick={e => e.stopPropagation()}>
       <img
         src={url} alt={name}
         onClick={() => setLightbox(true)}
         onError={() => setError(true)}
         style={{
           width: '100%',
-          height: inGrid ? '130px' : 'auto',
-          maxHeight: inGrid ? '130px' : '320px',
-          objectFit: 'cover',
-          borderRadius: '8px',
+          maxHeight: inGrid ? '140px' : '400px',
+          objectFit: inGrid ? 'cover' : 'contain',
+          borderRadius: 'var(--radius)',
           display: 'block',
           cursor: 'zoom-in',
-          margin: inGrid ? 0 : '0.5rem 0',
-          background: 'rgba(255,255,255,0.03)',
+          background: 'var(--bg-aside)',
+          border: '1px solid var(--line)',
         }}
       />
+      <div style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0, transition: 'opacity 0.2s' }} className="attachment-actions">
+        {downloadBtn}
+      </div>
+      <style>{`.attachment-card:hover .attachment-actions { opacity: 1 !important; }`}</style>
       {lightbox && <Lightbox url={url} name={name} onClose={() => setLightbox(false)} />}
     </div>
   );
 
-  if (fileType === 'video') return <video src={url} controls style={{ maxWidth: '100%', maxHeight: '360px', borderRadius: '8px', margin: '0.5em 0', display: 'block' }} />;
+  if (fileType === 'video') return (
+    <div style={containerStyle} className="attachment-card" onClick={e => e.stopPropagation()}>
+      <video src={url} controls style={{ width: '100%', borderRadius: 'var(--radius)', display: 'block', background: '#000' }} />
+    </div>
+  );
 
   return (
-    <a href={url} download={name} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#e2e8f0', textDecoration: 'none', fontSize: '0.85rem', margin: '0.5em 0' }}>
-      📎 {name} <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>({formatSize(size)})</span>
-    </a>
+    <div style={{ 
+      ...containerStyle, 
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: '12px', 
+      padding: '10px 12px', 
+      background: 'var(--card-bg)', 
+      border: '1px solid var(--line)',
+      boxShadow: 'var(--shadow-sm)'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: 'var(--radius)', background: 'var(--bg-hover)', color: 'var(--text-sub)' }}>
+        <FileIcon />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-sub)' }}>{formatSize(size)}</div>
+      </div>
+      <div style={{ display: 'flex', gap: '6px' }}>
+        {downloadBtn}
+      </div>
+    </div>
   );
 };
 
