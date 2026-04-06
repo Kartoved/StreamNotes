@@ -39,7 +39,9 @@
       "Bash(grep -r StarterKit c:/Users/karto/Desktop/StreamNotes/StreamNotes --include=*.json --include=*.md)",
       "Bash(del \"c:\\\\Users\\\\karto\\\\Desktop\\\\StreamNotes\\\\StreamNotes\\\\src\\\\editor\\\\extensions\\\\BacklinkPlugin.ts\")",
       "Bash(node -e \"const db = require\\('./node_modules/@vlcn.io/crsqlite-wasm/dist/crsqlite.js'\\); console.log\\(Object.keys\\(db\\)\\)\")",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5177/)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5177/)",
+      "Bash(npx vitest:*)",
+      "Bash(npm test:*)"
     ]
   }
 }
