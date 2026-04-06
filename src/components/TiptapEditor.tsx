@@ -1,5 +1,4 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
@@ -13,7 +12,7 @@ import '../editorTheme.css';
 import { ThreeStateTaskItem } from '../editor/extensions/ThreeStateTaskItem';
 import { AttachmentExtension } from '../editor/extensions/Attachment';
 // BacklinkPlugin kept for keyboard-interception if needed in future
-import { BacklinkDropdown, type NoteOption } from './BacklinkDropdown';
+import { BacklinkDropdown } from './BacklinkDropdown';
 import { useVoiceRecorder, audioBlobToFloat32Array } from '../hooks/useVoiceRecorder';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
