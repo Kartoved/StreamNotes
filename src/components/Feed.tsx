@@ -11,6 +11,8 @@ import { NoteCard } from './NoteCard';
 interface FeedProps {
   parentId?: string | null;
   feedId?: string | null;
+  isSharedFeed?: boolean;
+  localNpub?: string;
   onNoteClick?: (id: string) => void;
   replyingToId?: string | null;
   editingNote?: any | null;
@@ -58,6 +60,8 @@ function extractTags(content: string): string[] {
 export const Feed = ({
   parentId = null,
   feedId = null,
+  isSharedFeed = false,
+  localNpub = '',
   onNoteClick,
   replyingToId,
   editingNote,
@@ -72,7 +76,11 @@ export const Feed = ({
   selectedDate = null,
 }: FeedProps) => {
   const db = useDB();
-  const { encrypt, decrypt } = useCrypto();
+  const { encrypt, decrypt, encryptForFeed, decryptForFeed } = useCrypto();
+
+  // Feed-aware encrypt/decrypt helpers
+  const feedEncrypt = (text: string) => feedId ? encryptForFeed(text, feedId) : encrypt(text);
+  const feedDecrypt = (text: string) => feedId ? decryptForFeed(text, feedId) : decrypt(text);
   const notes = useNotes(parentId, feedId);
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -179,7 +187,7 @@ export const Feed = ({
     try {
       const props = JSON.parse(currentPropsRaw || '{}');
       props[key] = value;
-      await db.exec(`UPDATE notes SET properties = ? WHERE id = ?`, [encrypt(JSON.stringify(props)), id]);
+      await db.exec(`UPDATE notes SET properties = ? WHERE id = ?`, [feedEncrypt(JSON.stringify(props)), id]);
     } catch (e) { console.error(e); }
   };
 
@@ -321,9 +329,9 @@ export const Feed = ({
               const note = visibleNotes[virtualItem.index];
 
               let props: any = {};
-              try { 
-                const raw = decrypt(note.properties) || '{}';
-                props = JSON.parse(raw); 
+              try {
+                const raw = feedDecrypt(note.properties) || '{}';
+                props = JSON.parse(raw);
               } catch { /* */ }
 
               const status = props.status || 'none';
@@ -372,9 +380,11 @@ export const Feed = ({
                   onSubmitReply={onSubmitReply}
                   onExpandNote={(id) => setExpandedNoteId(id)}
                   setDragOverInfo={setDragOverInfo}
-                  encrypt={encrypt}
-                  decrypt={decrypt}
+                  encrypt={feedEncrypt}
+                  decrypt={feedDecrypt}
                   db={db}
+                  isSharedFeed={isSharedFeed}
+                  localNpub={localNpub}
                 />
               );
             })}

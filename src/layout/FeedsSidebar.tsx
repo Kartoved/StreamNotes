@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import type { Feed as FeedData } from '../db/hooks';
+import { useCrypto } from '../crypto/CryptoContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 const FEED_COLORS = ['#787774', '#c9cbd0', '#969591', '#b1b1ae', '#a3a6ad', '#37352f', '#606a7b', '#868e96'];
@@ -56,6 +57,7 @@ export const FeedsSidebar = ({
   onCreateFeed,
   onUpdateFeed,
   onDeleteFeed,
+  onImportSharedFeed,
 }: {
   feeds: FeedData[];
   activeFeedId: string | null;
@@ -63,11 +65,16 @@ export const FeedsSidebar = ({
   onCreateFeed: (name: string, color: string, avatar: string | null) => void;
   onUpdateFeed: (id: string, name: string, color: string, avatar: string | null) => void;
   onDeleteFeed: (id: string) => void;
+  onImportSharedFeed?: (payload: { flow_id: string; fek: string; name: string; relay?: string }) => void;
 }) => {
-  const [modal, setModal] = useState<'create' | FeedData | null>(null);
+  const { decryptFeedKey, nostrPubKey } = useCrypto();
+  const [modal, setModal] = useState<'create' | 'share' | 'import' | FeedData | null>(null);
   const [modalName, setModalName] = useState('');
   const [modalColor, setModalColor] = useState('#3b82f6');
   const [modalAvatar, setModalAvatar] = useState<string | null>(null);
+  const [sharePayload, setSharePayload] = useState<string>('');
+  const [importText, setImportText] = useState('');
+  const [importError, setImportError] = useState('');
   const avatarRef = useRef<HTMLInputElement>(null);
 
   const openCreate = () => {
@@ -93,6 +100,39 @@ export const FeedsSidebar = ({
     const dataUrl = await resizeAvatar(file);
     setModalAvatar(dataUrl);
     e.target.value = '';
+  };
+
+  const openShare = (feed: FeedData) => {
+    if (!feed.encryption_key) return;
+    try {
+      const fekHex = decryptFeedKey(feed.encryption_key);
+      const payload = JSON.stringify({
+        flow_id: feed.id,
+        fek: fekHex,
+        name: feed.name,
+        author_npub: nostrPubKey,
+      }, null, 2);
+      setSharePayload(payload);
+      setModal('share');
+    } catch (e) {
+      console.error('Failed to generate share payload', e);
+    }
+  };
+
+  const handleImportSubmit = () => {
+    setImportError('');
+    try {
+      const data = JSON.parse(importText);
+      if (!data.flow_id || !data.fek) {
+        setImportError('Invalid payload: missing flow_id or fek');
+        return;
+      }
+      onImportSharedFeed?.(data);
+      setModal(null);
+      setImportText('');
+    } catch {
+      setImportError('Invalid JSON');
+    }
   };
 
   const swatch = (color: string) => (
@@ -150,10 +190,114 @@ export const FeedsSidebar = ({
           >+</div>
           <div className="feed-tooltip">Новый шифлоу</div>
         </div>
+
+        {/* Import shared flow */}
+        <div className="feed-item" style={{ padding: '6px 0' }}>
+          <div
+            onClick={() => { setImportText(''); setImportError(''); setModal('import'); }}
+            style={{
+              width: '40px', height: '40px', borderRadius: '12px',
+              border: '1px solid var(--line-strong)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: 'var(--text-faint)', fontSize: '0.9rem',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line-strong)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            title="Import shared flow"
+          >&#x21E9;</div>
+          <div className="feed-tooltip">Import Flow</div>
+        </div>
       </div>
 
-      {/* Modal */}
-      {modal && (
+      {/* Share modal */}
+      {modal === 'share' && (
+        <div
+          onClick={() => setModal(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--bg)', border: '1px solid var(--line)',
+              borderRadius: 'var(--radius-lg)', padding: '24px', width: '400px',
+              display: 'flex', flexDirection: 'column', gap: '14px',
+              boxShadow: 'var(--shadow-md)',
+            }}
+          >
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)' }}>Share Flow</div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-sub)', margin: 0, lineHeight: 1.5 }}>
+              Send this invite payload to another Sheafy user. They can paste it into "Import Flow" to join this flow.
+            </p>
+            <textarea
+              readOnly
+              value={sharePayload}
+              onClick={e => (e.target as HTMLTextAreaElement).select()}
+              style={{
+                width: '100%', minHeight: '140px', resize: 'vertical',
+                background: 'var(--bg-hover)', border: '1px solid var(--line)',
+                borderRadius: 'var(--radius)', color: 'var(--text)',
+                fontSize: '0.75rem', fontFamily: 'var(--font-mono)',
+                padding: '10px', outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { navigator.clipboard.writeText(sharePayload); }}
+                style={{ background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}
+              >Copy</button>
+              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: 'var(--radius)', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import modal */}
+      {modal === 'import' && (
+        <div
+          onClick={() => setModal(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--bg)', border: '1px solid var(--line)',
+              borderRadius: 'var(--radius-lg)', padding: '24px', width: '400px',
+              display: 'flex', flexDirection: 'column', gap: '14px',
+              boxShadow: 'var(--shadow-md)',
+            }}
+          >
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)' }}>Import Shared Flow</div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-sub)', margin: 0, lineHeight: 1.5 }}>
+              Paste the invite payload you received from another user.
+            </p>
+            <textarea
+              value={importText}
+              onChange={e => setImportText(e.target.value)}
+              placeholder='{"flow_id": "...", "fek": "...", "name": "..."}'
+              style={{
+                width: '100%', minHeight: '120px', resize: 'vertical',
+                background: 'var(--bg-hover)', border: '1px solid var(--line)',
+                borderRadius: 'var(--radius)', color: 'var(--text)',
+                fontSize: '0.75rem', fontFamily: 'var(--font-mono)',
+                padding: '10px', outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+            {importError && <div style={{ fontSize: '0.78rem', color: '#f87171' }}>{importError}</div>}
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: 'var(--radius)', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>Cancel</button>
+              <button
+                onClick={handleImportSubmit}
+                disabled={!importText.trim()}
+                style={{ background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'var(--font-body)', opacity: importText.trim() ? 1 : 0.5 }}
+              >Import</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create/Edit modal */}
+      {modal && modal !== 'share' && modal !== 'import' && (
         <div
           onClick={() => setModal(null)}
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -225,10 +369,18 @@ export const FeedsSidebar = ({
             {/* Actions */}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
               {modal !== 'create' && typeof modal === 'object' && (
-                <button
-                  onClick={() => { onDeleteFeed(modal.id); setModal(null); }}
-                  style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', marginRight: 'auto' }}
-                >Удалить</button>
+                <>
+                  <button
+                    onClick={() => { onDeleteFeed(modal.id); setModal(null); }}
+                    style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', marginRight: 'auto' }}
+                  >Удалить</button>
+                  {modal.encryption_key && (
+                    <button
+                      onClick={() => openShare(modal)}
+                      style={{ background: 'rgba(96,165,237,0.12)', border: '1px solid rgba(96,165,237,0.3)', color: '#6095ed', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
+                    >Share</button>
+                  )}
+                </>
               )}
               <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: 'var(--radius)', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>Отмена</button>
               <button onClick={handleSave} disabled={!modalName.trim()} style={{ background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', opacity: modalName.trim() ? 1 : 0.5, fontFamily: 'var(--font-body)' }}>

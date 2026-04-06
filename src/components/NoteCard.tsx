@@ -5,6 +5,34 @@ import { TiptapRender } from '../editor/TiptapViewer';
 
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 
+// ── Deterministic color from npub ──────────────────────────────────
+function npubColor(npub: string): string {
+  let hash = 0;
+  for (let i = 0; i < npub.length; i++) hash = ((hash << 5) - hash + npub.charCodeAt(i)) | 0;
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 55%, 55%)`;
+}
+
+function AuthorBadge({ authorId, isLocal }: { authorId: string; isLocal: boolean }) {
+  const color = npubColor(authorId);
+  const label = isLocal ? 'you' : `${authorId.slice(0, 6)}…${authorId.slice(-4)}`;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+      <span style={{
+        width: '16px', height: '16px', borderRadius: '50%',
+        background: color, display: 'inline-block', flexShrink: 0,
+      }} />
+      <span style={{
+        fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.02em',
+        color: isLocal ? 'var(--text-sub)' : color,
+        fontFamily: isLocal ? 'var(--font-body)' : 'var(--font-mono)',
+      }}>
+        {label}
+      </span>
+    </span>
+  );
+}
+
 // ── Status cycle colors ─────────────────────────────────────────────
 const STATUS_COLOR: Record<string, string> = {
   none:     'var(--text-faint)',
@@ -109,7 +137,7 @@ interface NoteCardProps {
   editingNoteId: string | null;
   draggedId: string | null;
   dragOverInfo: { id: string; zone: 'sibling' | 'child' } | null;
-  
+
   onNoteClick?: (id: string) => void;
   openContextMenu: (e: React.MouseEvent, id: string) => void;
   onDragStart: (e: React.DragEvent, id: string) => void;
@@ -117,17 +145,19 @@ interface NoteCardProps {
   onDragLeave: () => void;
   onDrop: (e: React.DragEvent, id: string) => void;
   onDragEnd: () => void;
-  
+
   onCancelEdit?: () => void;
   onSubmitEdit?: (id: string, ast: string, propsJson: string) => void;
   onCancelReply?: () => void;
   onSubmitReply?: (id: string, ast: string, propsJson: string) => void;
   onExpandNote?: (id: string) => void;
-  
+
   setDragOverInfo: (info: { id: string; zone: 'sibling' | 'child' } | null) => void;
   encrypt: (s: string) => string;
   decrypt: (s: string) => string;
   db: any;
+  isSharedFeed?: boolean;
+  localNpub?: string;
 }
 
 export const NoteCard = ({
@@ -155,6 +185,8 @@ export const NoteCard = ({
   encrypt,
   decrypt,
   db,
+  isSharedFeed = false,
+  localNpub = '',
 }: NoteCardProps) => {
   let props: any = {};
   try { 
@@ -269,9 +301,13 @@ export const NoteCard = ({
             style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '8px', cursor: 'pointer', userSelect: 'none' }}
             onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
           >
-            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-sub)', letterSpacing: '0.02em' }}>
-              {note.author_id}
-            </span>
+            {isSharedFeed ? (
+              <AuthorBadge authorId={note.author_id} isLocal={note.author_id === localNpub} />
+            ) : (
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-sub)', letterSpacing: '0.02em' }}>
+                {note.author_id === localNpub || note.author_id === 'local-user' ? 'you' : note.author_id.slice(0, 8)}
+              </span>
+            )}
             <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
               {new Date(note.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>

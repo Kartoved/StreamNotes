@@ -22,6 +22,9 @@ export interface Feed {
   name: string;
   avatar: string | null;
   color: string;
+  encryption_key: string | null;
+  key_index: number | null;
+  is_shared: number;
   created_at: number;
 }
 
@@ -52,7 +55,7 @@ export async function rescueOrphans(db: any) {
 
 export function useNotes(parentId: string | null = null, feedId: string | null = null) {
   const db = useDB();
-  const { decrypt } = useCrypto();
+  const { decryptForFeed, decrypt } = useCrypto();
   const [notes, setNotes] = useState<Note[]>([]);
 
   useEffect(() => {
@@ -110,11 +113,15 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
       }
 
       const res = await db.execO(query, params);
-      const decrypted = (res as Note[]).map(row => ({
-        ...row,
-        content: decrypt(row.content),
-        properties: decrypt(row.properties),
-      }));
+      const decrypted = (res as Note[]).map(row => {
+        const fid = row.feed_id || feedId;
+        const dec = fid ? (s: string) => decryptForFeed(s, fid) : decrypt;
+        return {
+          ...row,
+          content: dec(row.content),
+          properties: dec(row.properties),
+        };
+      });
       if (isMounted) setNotes(decrypted);
     };
 
@@ -135,26 +142,35 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
 
 export function useFeeds() {
   const db = useDB();
-  const { decrypt } = useCrypto();
+  const { decrypt, decryptFeedKey, registerFeedKey } = useCrypto();
   const [feeds, setFeeds] = useState<Feed[]>([]);
 
   useEffect(() => {
     let isMounted = true;
 
-    const fetch = async () => {
+    const fetchFeeds = async () => {
       const res = await db.execO(`SELECT * FROM feeds ORDER BY created_at ASC`);
-      const decrypted = (res as Feed[]).map(row => ({
-        ...row,
-        name: decrypt(row.name),
-        avatar: row.avatar ? decrypt(row.avatar) : null,
-      }));
+      const decrypted = (res as Feed[]).map(row => {
+        // Decrypt the FEK and register it in the in-memory cache
+        if (row.encryption_key) {
+          try {
+            const fekHex = decryptFeedKey(row.encryption_key);
+            registerFeedKey(row.id, fekHex);
+          } catch { /* corrupt key — will fallback to master */ }
+        }
+        return {
+          ...row,
+          name: decrypt(row.name),
+          avatar: row.avatar ? decrypt(row.avatar) : null,
+        };
+      });
       if (isMounted) setFeeds(decrypted);
     };
 
-    fetch();
+    fetchFeeds();
 
     const cleanup = db.onUpdate((_: any, __: any, tblName: string) => {
-      if (tblName === 'feeds') fetch();
+      if (tblName === 'feeds') fetchFeeds();
     });
 
     return () => {

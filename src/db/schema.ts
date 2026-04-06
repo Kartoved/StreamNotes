@@ -4,6 +4,9 @@ export const schema = [
     name TEXT DEFAULT '',
     avatar TEXT DEFAULT NULL,
     color TEXT DEFAULT '#3b82f6',
+    encryption_key TEXT DEFAULT NULL,
+    key_index INTEGER DEFAULT NULL,
+    is_shared BOOLEAN DEFAULT 0,
     created_at INTEGER DEFAULT 0
   );`,
   `SELECT crsql_as_crr('feeds');`,
@@ -31,4 +34,12 @@ export const schema = [
     PRIMARY KEY (source_id, target_id)
   );`,
   `SELECT crsql_as_crr('links');`
+];
+
+// Migrations for existing databases — run after schema creation
+export const migrations = [
+  // v2: Per-feed encryption keys and sharing
+  `ALTER TABLE feeds ADD COLUMN encryption_key TEXT DEFAULT NULL;`,
+  `ALTER TABLE feeds ADD COLUMN key_index INTEGER DEFAULT NULL;`,
+  `ALTER TABLE feeds ADD COLUMN is_shared BOOLEAN DEFAULT 0;`,
 ];

@@ -19,7 +19,10 @@ const uid = () => Math.random().toString(36).substring(2, 9);
 // ─── App ──────────────────────────────────────────────────────────────
 function App() {
   const db = useDB();
-  const { encrypt, decrypt, nostrPubKey } = useCrypto();
+  const crypto = useCrypto();
+  const { encrypt, decrypt, encryptForFeed, decryptForFeed, nostrPubKey, deriveNewFeedKey, encryptFeedKey } = crypto;
+  const useCryptoRef = useRef(crypto);
+  useCryptoRef.current = crypto;
   const [showSettings, setShowSettings] = useState(false);
 
   // ── One-time graph integrity check ────────────────────────────────
@@ -107,10 +110,11 @@ function App() {
       } else {
         // Note doesn't exist — create it in the active feed
         const now = Date.now();
-        const content = JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Новая заме��ка' }] }] });
+        const content = JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Новая заметка' }] }] });
+        const enc = activeFeedId ? (s: string) => encryptForFeed(s, activeFeedId) : encrypt;
         await db.exec(
           `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-          [noteId, null, 'local-user', encrypt(content), now.toString(), encrypt('{"type":"sheaf","status":"none","date":""}'), activeFeedId, now, now]
+          [noteId, null, nostrPubKey, enc(content), now.toString(), enc('{"type":"sheaf","status":"none","date":""}'), activeFeedId, now, now]
         );
         setFocusedTweetId(noteId);
       }
@@ -128,9 +132,11 @@ function App() {
       if ((existing as any[]).length === 0) {
         const id = 'feed-' + uid();
         const now = Date.now();
+        const fekHex = deriveNewFeedKey(0);
+        const encryptedFek = encryptFeedKey(fekHex);
         await db.exec(
-          `INSERT INTO feeds (id, name, color, created_at) VALUES (?,?,?,?)`,
-          [id, encrypt('Sheaflow'), '#787774', now]
+          `INSERT INTO feeds (id, name, color, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?)`,
+          [id, encrypt('Sheaflow'), '#787774', encryptedFek, 0, 0, now]
         );
         setActiveFeedId(id);
       }
@@ -139,16 +145,40 @@ function App() {
 
   const handleCreateFeed = useCallback(async (name: string, color: string, avatar: string | null) => {
     const id = 'feed-' + uid();
+    // Get next key_index by counting existing feeds
+    const countRes = await db.execA(`SELECT COALESCE(MAX(key_index), -1) + 1 FROM feeds`);
+    const keyIndex = (countRes[0]?.[0] as number) ?? 0;
+    const fekHex = deriveNewFeedKey(keyIndex);
+    const encryptedFek = encryptFeedKey(fekHex);
     await db.exec(
-      `INSERT INTO feeds (id, name, color, avatar, created_at) VALUES (?,?,?,?,?)`,
-      [id, encrypt(name), color, avatar ? encrypt(avatar) : null, Date.now()]
+      `INSERT INTO feeds (id, name, color, avatar, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?,?)`,
+      [id, encrypt(name), color, avatar ? encrypt(avatar) : null, encryptedFek, keyIndex, 0, Date.now()]
     );
     setActiveFeedId(id);
-  }, [db, encrypt]);
+  }, [db, encrypt, deriveNewFeedKey, encryptFeedKey]);
 
   const handleUpdateFeed = useCallback(async (id: string, name: string, color: string, avatar: string | null) => {
+    // Feed name/avatar are always encrypted with master key (they're metadata)
     await db.exec(`UPDATE feeds SET name = ?, color = ?, avatar = ? WHERE id = ?`, [encrypt(name), color, avatar ? encrypt(avatar) : null, id]);
   }, [db, encrypt]);
+
+  const handleImportSharedFeed = useCallback(async (payload: { flow_id: string; fek: string; name: string; relay?: string }) => {
+    const { flow_id, fek, name } = payload;
+    // Check if feed already exists
+    const existing = await db.execO(`SELECT id FROM feeds WHERE id = ?`, [flow_id]) as any[];
+    if (existing.length > 0) {
+      alert('This flow already exists in your library.');
+      return;
+    }
+    const encryptedFek = encryptFeedKey(fek);
+    // Register the FEK immediately so encrypt/decrypt work
+    useCryptoRef.current.registerFeedKey(flow_id, fek);
+    await db.exec(
+      `INSERT INTO feeds (id, name, color, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?)`,
+      [flow_id, encrypt(name || 'Shared Flow'), '#6095ed', encryptedFek, null, 1, Date.now()]
+    );
+    setActiveFeedId(flow_id);
+  }, [db, encrypt, encryptFeedKey]);
 
   const handleDeleteFeed = useCallback(async (id: string) => {
     await db.exec(`DELETE FROM feeds WHERE id = ?`, [id]);
@@ -230,13 +260,19 @@ function App() {
   };
 
   // ── CRUD ───────────────────────────────────────────────────────────
+  // Feed-aware encrypt helper — uses FEK when available
+  const feedEncrypt = useCallback((text: string) => {
+    if (activeFeedId) return encryptForFeed(text, activeFeedId);
+    return encrypt(text);
+  }, [activeFeedId, encryptForFeed, encrypt]);
+
   const insertRootNote = async (astText: string, propsJson: string) => {
     if (!activeFeedId) return;
     const id = 'note-' + uid();
     const now = Date.now();
     await db.exec(
       `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-      [id, focusedTweetId, 'local-user', encrypt(astText), now.toString(), encrypt(propsJson), activeFeedId, now, now]
+      [id, focusedTweetId, nostrPubKey, feedEncrypt(astText), now.toString(), feedEncrypt(propsJson), activeFeedId, now, now]
     );
   };
 
@@ -246,15 +282,19 @@ function App() {
     const now = Date.now();
     await db.exec(
       `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-      [id, parentId, 'local-user', encrypt(astText), now.toString(), encrypt(propsJson), activeFeedId, now, now]
+      [id, parentId, nostrPubKey, feedEncrypt(astText), now.toString(), feedEncrypt(propsJson), activeFeedId, now, now]
     );
     setReplyingToTweetId(null);
   };
 
   const handleEditSubmit = async (noteId: string, astText: string, propsJson: string) => {
+    // Lookup the feed_id of this note to encrypt with the correct FEK
+    const rows = await db.execO(`SELECT feed_id FROM notes WHERE id = ?`, [noteId]) as any[];
+    const noteFeedId = rows[0]?.feed_id || activeFeedId;
+    const enc = noteFeedId ? (s: string) => encryptForFeed(s, noteFeedId) : encrypt;
     await db.exec(
       `UPDATE notes SET content = ?, properties = ?, updated_at = ? WHERE id = ?`,
-      [encrypt(astText), encrypt(propsJson), Date.now(), noteId]
+      [enc(astText), enc(propsJson), Date.now(), noteId]
     );
     setEditingTweet(null);
   };
@@ -262,16 +302,20 @@ function App() {
   // ── Export / Import ────────────────────────────────────────────────
   const handleExport = async () => {
     const rows = await db.execO(`SELECT * FROM notes WHERE is_deleted = 0`) as any[];
-    const decryptedRows = rows.map(r => ({
-      ...r,
-      content: decrypt(r.content),
-      properties: decrypt(r.properties),
-    }));
+    const decryptedRows = rows.map(r => {
+      const dec = r.feed_id ? (s: string) => decryptForFeed(s, r.feed_id) : decrypt;
+      return {
+        ...r,
+        content: dec(r.content),
+        properties: dec(r.properties),
+      };
+    });
     const feedRows = await db.execO(`SELECT * FROM feeds`) as any[];
     const decryptedFeeds = feedRows.map(f => ({
       ...f,
       name: decrypt(f.name),
       avatar: f.avatar ? decrypt(f.avatar) : null,
+      encryption_key: null, // Don't export raw encrypted FEKs
     }));
     const payload = JSON.stringify({ version: 1, notes: decryptedRows, feeds: decryptedFeeds }, null, 2);
     const blob = new Blob([payload], { type: 'application/json' });
@@ -292,15 +336,22 @@ function App() {
       const notes: any[] = Array.isArray(data) ? data : (data.notes || []);
       const importFeeds: any[] = Array.isArray(data) ? [] : (data.feeds || []);
       for (const f of importFeeds) {
+        // Generate a new FEK for each imported feed
+        const countRes = await db.execA(`SELECT COALESCE(MAX(key_index), -1) + 1 FROM feeds`);
+        const keyIndex = (countRes[0]?.[0] as number) ?? 0;
+        const fekHex = deriveNewFeedKey(keyIndex);
+        const encryptedFek = encryptFeedKey(fekHex);
         await db.exec(
-          `INSERT OR IGNORE INTO feeds (id, name, color, avatar, created_at) VALUES (?,?,?,?,?)`,
-          [f.id, encrypt(f.name), f.color, f.avatar ? encrypt(f.avatar) : null, f.created_at]
+          `INSERT OR IGNORE INTO feeds (id, name, color, avatar, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?,?)`,
+          [f.id, encrypt(f.name), f.color, f.avatar ? encrypt(f.avatar) : null, encryptedFek, keyIndex, f.is_shared || 0, f.created_at]
         );
       }
       for (const n of notes) {
+        const noteFeedId = n.feed_id || activeFeedId;
+        const enc = noteFeedId ? (s: string) => encryptForFeed(s, noteFeedId) : encrypt;
         await db.exec(
           `INSERT OR IGNORE INTO notes (id, parent_id, author_id, content, sort_key, properties, view_mode, feed_id, created_at, updated_at, is_deleted) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-          [n.id, n.parent_id, n.author_id, encrypt(n.content), n.sort_key, encrypt(n.properties || '{}'), n.view_mode || 'list', n.feed_id || activeFeedId, n.created_at, n.updated_at, n.is_deleted || 0]
+          [n.id, n.parent_id, n.author_id || nostrPubKey, enc(n.content), n.sort_key, enc(n.properties || '{}'), n.view_mode || 'list', noteFeedId, n.created_at, n.updated_at, n.is_deleted || 0]
         );
       }
       alert(`Импортировано ${notes.length} заметок`);
@@ -334,6 +385,7 @@ function App() {
         onCreateFeed={handleCreateFeed}
         onUpdateFeed={handleUpdateFeed}
         onDeleteFeed={handleDeleteFeed}
+        onImportSharedFeed={handleImportSharedFeed}
       />
 
       {/* ── Main content ── */}
@@ -402,6 +454,8 @@ function App() {
             <Feed
               parentId={focusedTweetId}
               feedId={activeFeedId}
+              isSharedFeed={!!activeFeed?.is_shared}
+              localNpub={nostrPubKey}
               onNoteClick={(id) => { setFocusedTweetId(id); setReplyingToTweetId(null); }}
               replyingToId={replyingToTweetId}
               editingNote={editingTweet}

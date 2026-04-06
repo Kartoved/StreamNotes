@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import initWasm, { DB } from '@vlcn.io/crsqlite-wasm';
 // Важно: мы пробрасываем URL до бинарника, чтобы сборщик правильно его отдал браузеру
 import wasmUrl from '@vlcn.io/crsqlite-wasm/crsqlite.wasm?url';
-import { schema } from './schema';
+import { schema, migrations } from './schema';
 
 export const DBContext = createContext<DB | null>(null);
 
@@ -31,6 +31,11 @@ export const AppDBProvider: React.FC<{children: React.ReactNode}> = ({ children 
                 // Накатываем структуру таблиц (для MVP прямо при загрузке)
                 for (const query of schema) {
                    await database.exec(query);
+                }
+
+                // Run migrations (ALTERs are safe to re-run — they fail silently if column exists)
+                for (const mig of migrations) {
+                  try { await database.exec(mig); } catch { /* column already exists */ }
                 }
                 
                 if (isMounted) {

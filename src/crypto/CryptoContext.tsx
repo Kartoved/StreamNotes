@@ -1,17 +1,34 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import { generateMnemonic, validateMnemonic, mnemonicToSeed, deriveKeys, encrypt as rawEncrypt, decrypt as rawDecrypt } from './index';
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
+import { generateMnemonic, validateMnemonic, mnemonicToSeed, deriveKeys, deriveFeedKey, generateRandomFeedKey, encrypt as rawEncrypt, decrypt as rawDecrypt } from './index';
 import { pbkdf2 } from '@noble/hashes/pbkdf2';
 import { sha256 } from '@noble/hashes/sha256';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
 import { randomBytes } from '@noble/ciphers/webcrypto';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import type { DerivedKeys } from './keys';
 import SeedSetup from '../components/SeedSetup';
 import UnlockScreen from '../components/UnlockScreen';
 import SeedRecover from '../components/SeedRecover';
 
 interface CryptoContextValue {
+  /** Encrypt with the master content key (for personal/legacy data) */
   encrypt: (plaintext: string) => string;
+  /** Decrypt with the master content key */
   decrypt: (ciphertext: string) => string;
+  /** Encrypt with a specific feed's FEK */
+  encryptForFeed: (plaintext: string, feedId: string) => string;
+  /** Decrypt with a specific feed's FEK (falls back to master key) */
+  decryptForFeed: (ciphertext: string, feedId: string) => string;
+  /** Register a feed's encryption key (called when feeds are loaded) */
+  registerFeedKey: (feedId: string, fekHex: string) => void;
+  /** Derive a new FEK for a given key index and return it as hex */
+  deriveNewFeedKey: (keyIndex: number) => string;
+  /** Generate a random FEK (for imported shared feeds) and return as hex */
+  generateFeedKey: () => string;
+  /** Encrypt a FEK with the master key for safe DB storage */
+  encryptFeedKey: (fekHex: string) => string;
+  /** Decrypt a stored FEK from the DB */
+  decryptFeedKey: (encryptedFek: string) => string;
   nostrPubKey: string;
   nostrPrivKey: Uint8Array;
 }
@@ -64,6 +81,9 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
     return 'setup';
   });
   const [keys, setKeys] = useState<DerivedKeys | null>(null);
+
+  // In-memory cache: feedId -> FEK (Uint8Array)
+  const feedKeysRef = useRef<Map<string, Uint8Array>>(new Map());
 
   const initializeKeys = useCallback((mnemonic: string) => {
     const seed = mnemonicToSeed(mnemonic);
@@ -149,6 +169,46 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
     const value: CryptoContextValue = {
       encrypt: (plaintext: string) => rawEncrypt(plaintext, keys.contentKey),
       decrypt: (ciphertext: string) => rawDecrypt(ciphertext, keys.contentKey),
+
+      encryptForFeed: (plaintext: string, feedId: string) => {
+        const fek = feedKeysRef.current.get(feedId);
+        if (!fek) return rawEncrypt(plaintext, keys.contentKey); // fallback to master
+        return rawEncrypt(plaintext, fek);
+      },
+
+      decryptForFeed: (ciphertext: string, feedId: string) => {
+        const fek = feedKeysRef.current.get(feedId);
+        if (!fek) return rawDecrypt(ciphertext, keys.contentKey); // fallback to master
+        try {
+          return rawDecrypt(ciphertext, fek);
+        } catch {
+          // Fallback: try master key (for legacy notes encrypted before per-feed keys)
+          return rawDecrypt(ciphertext, keys.contentKey);
+        }
+      },
+
+      registerFeedKey: (feedId: string, fekHex: string) => {
+        feedKeysRef.current.set(feedId, hexToBytes(fekHex));
+      },
+
+      deriveNewFeedKey: (keyIndex: number) => {
+        const fek = deriveFeedKey(keys.masterHD, keyIndex);
+        return bytesToHex(fek);
+      },
+
+      generateFeedKey: () => {
+        const fek = generateRandomFeedKey();
+        return bytesToHex(fek);
+      },
+
+      encryptFeedKey: (fekHex: string) => {
+        return rawEncrypt(fekHex, keys.contentKey);
+      },
+
+      decryptFeedKey: (encryptedFek: string) => {
+        return rawDecrypt(encryptedFek, keys.contentKey);
+      },
+
       nostrPubKey: keys.nostrPubKey,
       nostrPrivKey: keys.nostrPrivKey,
     };
