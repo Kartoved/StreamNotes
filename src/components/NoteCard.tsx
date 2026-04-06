@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from 'react';
-import ReactDOM from 'react-dom';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
 
