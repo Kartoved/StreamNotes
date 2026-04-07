@@ -306,8 +306,8 @@ export const FeedsSidebar = ({
             onClick={e => e.stopPropagation()}
             style={{
               background: 'var(--bg)', border: '1px solid var(--line)',
-              borderRadius: 'var(--radius-lg)', padding: '24px', width: '300px',
-              display: 'flex', flexDirection: 'column', gap: '16px',
+              borderRadius: 'var(--radius-lg)', padding: '24px', width: '380px',
+              display: 'flex', flexDirection: 'column', gap: '20px',
               boxShadow: 'var(--shadow-md)',
             }}
           >
@@ -367,25 +367,27 @@ export const FeedsSidebar = ({
             </div>
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px' }}>
               {modal !== 'create' && typeof modal === 'object' && (
                 <>
                   <button
                     onClick={() => { onDeleteFeed(modal.id); setModal(null); }}
-                    style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', marginRight: 'auto' }}
+                    style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.82rem' }}
                   >Удалить</button>
                   {modal.encryption_key && (
                     <button
                       onClick={() => openShare(modal)}
-                      style={{ background: 'rgba(96,165,237,0.12)', border: '1px solid rgba(96,165,237,0.3)', color: '#6095ed', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
+                      style={{ background: 'rgba(96,165,237,0.12)', border: '1px solid rgba(96,165,237,0.3)', color: '#6095ed', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
                     >Share</button>
                   )}
                 </>
               )}
-              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: 'var(--radius)', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>Отмена</button>
-              <button onClick={handleSave} disabled={!modalName.trim()} style={{ background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', opacity: modalName.trim() ? 1 : 0.5, fontFamily: 'var(--font-body)' }}>
-                {modal === 'create' ? 'Создать' : 'Сохранить'}
-              </button>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+                <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: 'var(--radius)', padding: '6px 12px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>Отмена</button>
+                <button onClick={handleSave} disabled={!modalName.trim()} style={{ background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', opacity: modalName.trim() ? 1 : 0.5, fontFamily: 'var(--font-body)' }}>
+                  {modal === 'create' ? 'Создать' : 'Сохранить'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

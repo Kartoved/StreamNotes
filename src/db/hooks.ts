@@ -117,10 +117,27 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
       const decrypted = (res as Note[]).map(row => {
         const fid = row.feed_id || feedId;
         const dec = fid ? (s: string) => decryptForFeed(s, fid) : decrypt;
+        
+        let content = '[Ошибка расшифровки]';
+        let properties = '{}';
+        
+        try {
+          content = dec(row.content);
+        } catch (e) {
+          // Decryption failed (old test data or mismatched keys). 
+          // Muted console error to avoid scaring users.
+        }
+        
+        try {
+          properties = dec(row.properties);
+        } catch (e) {
+          // Same as above
+        }
+
         return {
           ...row,
-          content: dec(row.content),
-          properties: dec(row.properties),
+          content,
+          properties,
         };
       });
       if (isMounted) setNotes(decrypted);

@@ -160,12 +160,14 @@ function App() {
     };
   }, [db]);
 
-  // Auto-create default feed on very first load
+  // Auto-create default feed on very first load (wait for sync to try first)
   const defaultFeedCreated = useRef(false);
   useEffect(() => {
     if (defaultFeedCreated.current) return;
     defaultFeedCreated.current = true;
     (async () => {
+      // Give sync engine 4 seconds to populate DB if this is a first run on new device
+      await new Promise(r => setTimeout(r, 4000));
       const existing = await db.execO(`SELECT id FROM feeds LIMIT 1`);
       if ((existing as any[]).length === 0) {
         const id = 'feed-default';
