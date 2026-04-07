@@ -170,7 +170,7 @@ export class SyncEngine {
     const sharedIds = Array.from(this.sharedFeedIds);
     if (sharedIds.length) {
       const feedUnsub = this.relay.subscribe(
-        { kinds: [SYNC_EVENT_KIND], '#f': sharedIds },
+        { kinds: [SYNC_EVENT_KIND], '#t': sharedIds },
         (event) => { void this.handleIncoming(event); },
       );
       this.cleanupSubs.push(feedUnsub);

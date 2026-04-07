@@ -29,6 +29,7 @@ export function encodeEvent({ changeset, channel, feedId, encrypt, secretKey }: 
   if (channel === 'feed') {
     if (!feedId) throw new Error('feed channel requires feedId');
     tags.push(['f', feedId]);
+    tags.push(['t', feedId]); // #t is globally indexed by relays
   }
 
   const plaintext = JSON.stringify(changeset);
