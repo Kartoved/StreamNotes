@@ -20,14 +20,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ── Mocks ──────────────────────────────────────────────────────────────
 
 // useNotes — controls the notes data the Feed receives
-const mockUseNotes = vi.fn<[], any[]>();
+const mockUseNotes = vi.fn();
 
 vi.mock('../../db/hooks', () => ({
   useNotes: (...args: any[]) => mockUseNotes(...args),
 }));
 
 // useDB — provides the database instance
-const mockDb = {
+const mockDb: any = {
   exec: vi.fn().mockResolvedValue(undefined),
   execA: vi.fn().mockResolvedValue([]),
   execO: vi.fn().mockResolvedValue([]),

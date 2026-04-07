@@ -17,7 +17,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // resolveUrl is async and depends on navigator.storage (OPFS) — swap it for
 // a simple Promise so we control the resolved/rejected outcome per test.
 
-const mockResolveUrl = vi.fn<[string], Promise<string>>();
+const mockResolveUrl = vi.fn();
 
 vi.mock('../../utils/opfsFiles', () => ({
   resolveUrl: (src: string) => mockResolveUrl(src),

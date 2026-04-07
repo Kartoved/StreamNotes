@@ -31,6 +31,16 @@ vi.mock('../../components/TiptapEditor', () => ({
   ),
 }));
 
+vi.mock('../../crypto/CryptoContext', () => ({
+  useCrypto: () => ({
+    nickname: 'you',
+    encrypt: (s: string) => s,
+    decrypt: (s: string) => s,
+    encryptForFeed: (s: string) => s,
+    decryptForFeed: (s: string) => s,
+  }),
+}));
+
 afterEach(() => cleanup());
 
 // ── Component under test ───────────────────────────────────────────────
