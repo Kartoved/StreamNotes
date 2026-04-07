@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDB } from './DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
+import { SyncEvents } from '../sync/syncEngine';
 
 export interface Note {
   id: string;
@@ -128,12 +129,19 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
     fetchNotes();
 
     const cleanup = db.onUpdate((_: any, __: any, tblName: string) => {
-      if (tblName === 'notes') fetchNotes();
+      // sync_relays is updated after remote changes are applied via crsql_changes
+      // (which doesn't trigger onUpdate for the actual tables written by the virtual table).
+      if (tblName === 'notes' || tblName === 'sync_relays' || tblName === 'crsql_changes') fetchNotes();
     });
+    
+    // Listen to our custom event for infallible sync refreshing
+    const syncListener = () => fetchNotes();
+    SyncEvents.addEventListener('sync', syncListener);
 
     return () => {
       isMounted = false;
       cleanup();
+      SyncEvents.removeEventListener('sync', syncListener);
     };
   }, [db, parentId, feedId]);
 
@@ -170,12 +178,16 @@ export function useFeeds() {
     fetchFeeds();
 
     const cleanup = db.onUpdate((_: any, __: any, tblName: string) => {
-      if (tblName === 'feeds') fetchFeeds();
+      if (tblName === 'feeds' || tblName === 'sync_relays' || tblName === 'crsql_changes') fetchFeeds();
     });
+
+    const syncListener = () => fetchFeeds();
+    SyncEvents.addEventListener('sync', syncListener);
 
     return () => {
       isMounted = false;
       cleanup();
+      SyncEvents.removeEventListener('sync', syncListener);
     };
   }, [db]);
 

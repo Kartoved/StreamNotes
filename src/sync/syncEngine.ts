@@ -1,4 +1,5 @@
 // Top-level sync orchestrator.
+export const SyncEvents = new EventTarget();
 //
 // Lifecycle:
 //   const engine = new SyncEngine({ db, crypto, relayClient });
@@ -151,8 +152,8 @@ export class SyncEngine {
     )) as Array<[number | bigint | null]>;
     const min = rows[0]?.[0];
     if (min === null || min === undefined) {
-      // No active relays — start from head, nothing to push yet.
-      return await getDbVersion(this.db);
+      // If we have no relays, we should probably start from 0 for the future when we DO have one
+      return 0;
     }
     return typeof min === 'bigint' ? Number(min) : Number(min);
   }
@@ -248,10 +249,16 @@ export class SyncEngine {
     console.log('[sync] applying', decoded.changeset.rows.length, 'rows from event', event.id.slice(0, 12));
     try {
       await applyChanges(this.db, decoded.changeset);
+      // Always update sync_relays to guarantee UI refresh, even if timestamp doesn't advance
       await this.db.exec(
-        `UPDATE sync_relays SET last_event_at = ? WHERE is_active = 1 AND last_event_at < ?`,
-        [event.created_at, event.created_at],
+        `UPDATE sync_relays SET last_event_at = MAX(last_event_at, ?) WHERE is_active = 1`,
+        [event.created_at],
       );
+      // Hack to guarantee onUpdate triggers if MAX didn't change the value:
+      await this.db.exec(`UPDATE sync_relays SET added_at = added_at WHERE is_active = 1`);
+      
+      // Foolproof UI refresh by emitting standard JS event
+      SyncEvents.dispatchEvent(new Event('sync'));
     } catch (err) {
       console.error('[sync] applyChanges failed', err);
     }

@@ -168,12 +168,12 @@ function App() {
     (async () => {
       const existing = await db.execO(`SELECT id FROM feeds LIMIT 1`);
       if ((existing as any[]).length === 0) {
-        const id = 'feed-' + uid();
+        const id = 'feed-default';
         const now = Date.now();
         const fekHex = deriveNewFeedKey(0);
         const encryptedFek = encryptFeedKey(fekHex);
         await db.exec(
-          `INSERT INTO feeds (id, name, color, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?)`,
+          `INSERT OR IGNORE INTO feeds (id, name, color, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?)`,
           [id, encrypt('Sheaflow'), '#787774', encryptedFek, 0, 0, now]
         );
         setActiveFeedId(id);
