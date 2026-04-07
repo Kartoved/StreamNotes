@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useCrypto } from '../crypto/CryptoContext';
 import { decryptSeedWithPassword } from '../crypto/CryptoContext';
 import { validateMnemonic } from '../crypto';
+import SyncRelaysPanel from './SyncRelaysPanel';
 
 interface Props {
   onClose: () => void;
@@ -206,6 +207,11 @@ export default function SettingsModal({ onClose, onExport, onImport, font, setFo
               </button>
             </div>
           )}
+        </div>
+
+        {/* Sync */}
+        <div style={sectionDivider}>
+          <SyncRelaysPanel />
         </div>
 
         {/* Data management */}

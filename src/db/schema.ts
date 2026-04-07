@@ -33,7 +33,16 @@ export const schema = [
     target_id TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (source_id, target_id)
   );`,
-  `SELECT crsql_as_crr('links');`
+  `SELECT crsql_as_crr('links');`,
+
+  // Sync configuration — device-local, NOT a CRDT replica
+  `CREATE TABLE IF NOT EXISTS sync_relays (
+    url TEXT PRIMARY KEY NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    last_db_version INTEGER NOT NULL DEFAULT 0,
+    last_event_at INTEGER NOT NULL DEFAULT 0,
+    added_at INTEGER NOT NULL DEFAULT 0
+  );`
 ];
 
 // Migrations for existing databases — run after schema creation

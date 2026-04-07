@@ -6,6 +6,8 @@ import { useNotes, useFeeds, rescueOrphans } from './db/hooks';
 import type { Feed as FeedData } from './db/hooks';
 import { useCrypto } from './crypto/CryptoContext';
 import { isEncrypted } from './crypto/cipher';
+import { SyncEngine, seedDefaultRelays } from './sync/syncEngine';
+import { RelayClient } from './sync/relayClient';
 import SettingsModal from './components/SettingsModal';
 import { FeedsSidebar } from './layout/FeedsSidebar';
 import { RightSidebar } from './layout/RightSidebar';
@@ -121,6 +123,42 @@ function App() {
     };
     return () => { delete (window as any).navigateToNote; };
   }, [db, encrypt, activeFeedId]);
+
+  // ── Nostr-relay sync ───────────────────────────────────────────────
+  const syncStarted = useRef(false);
+  useEffect(() => {
+    if (syncStarted.current) return;
+    syncStarted.current = true;
+    let engine: SyncEngine | null = null;
+    let relay: RelayClient | null = null;
+    (async () => {
+      try {
+        await seedDefaultRelays(db);
+        relay = new RelayClient();
+        engine = new SyncEngine({
+          db,
+          crypto: {
+            encrypt: useCryptoRef.current.encrypt,
+            decrypt: useCryptoRef.current.decrypt,
+            encryptForFeed: useCryptoRef.current.encryptForFeed,
+            decryptForFeed: useCryptoRef.current.decryptForFeed,
+            nostrPubKey: useCryptoRef.current.nostrPubKey,
+            nostrPrivKey: useCryptoRef.current.nostrPrivKey,
+          },
+          relayClient: relay,
+        });
+        await engine.start();
+        (window as any).__syncEngine = engine;
+      } catch (err) {
+        console.error('[sync] failed to start', err);
+      }
+    })();
+    return () => {
+      try { engine?.stop(); } catch { /* ignore */ }
+      try { relay?.destroy(); } catch { /* ignore */ }
+      delete (window as any).__syncEngine;
+    };
+  }, [db]);
 
   // Auto-create default feed on very first load
   const defaultFeedCreated = useRef(false);
