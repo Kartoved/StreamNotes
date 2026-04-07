@@ -96,13 +96,19 @@ export async function captureChanges(
   db: DB,
   sinceVersion: number,
 ): Promise<{ changeset: Changeset; newVersion: number }> {
-  const rows = await db.execA<unknown[]>(
-    `SELECT ${COLUMNS.join(', ')}
-     FROM crsql_changes
-     WHERE db_version > ? AND site_id = crsql_site_id()
-     ORDER BY db_version, seq`,
-    [sinceVersion],
-  );
+  let rows: unknown[][];
+  try {
+    rows = await db.execA<unknown[]>(
+      `SELECT ${COLUMNS.join(', ')}
+       FROM crsql_changes
+       WHERE db_version > ? AND site_id = crsql_site_id()
+       ORDER BY db_version, seq`,
+      [sinceVersion],
+    );
+  } catch (err) {
+    console.error('[sync] crsql_changes query failed:', err);
+    return { changeset: { v: 1, rows: [] }, newVersion: sinceVersion };
+  }
 
   let newVersion = sinceVersion;
   const out: ChangeRow[] = [];

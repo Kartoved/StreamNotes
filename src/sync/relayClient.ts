@@ -60,18 +60,23 @@ export class RelayClient {
 
   /** Publish an event to all currently active relays. Returns when all settled. */
   async publish(event: Event): Promise<void> {
-    if (!this.relays.length) return;
+    if (!this.relays.length) {
+      console.warn('[relay] publish called but no relays configured');
+      return;
+    }
     const promises = this.pool.publish(this.relays, event);
     const results = await Promise.allSettled(promises);
     results.forEach((res, i) => {
       const url = this.relays[i];
       if (!url) return;
       if (res.status === 'fulfilled') {
+        console.log('[relay] published to', url);
         if (this.status.get(url) !== 'connected') {
           this.status.set(url, 'connected');
           this.opts.onStatusChange?.(url, 'connected');
         }
       } else {
+        console.error('[relay] publish failed to', url, res.reason);
         this.status.set(url, 'error');
         this.opts.onStatusChange?.(url, 'error');
       }

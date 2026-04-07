@@ -88,6 +88,7 @@ export class SyncEngine {
     await this.loadRelays();
     await this.loadFeeds();
     this.lastPushedVersion = await this.computeStartingVersion();
+    console.log('[sync] start — relays:', this.relay.getRelays(), '| starting from db_version:', this.lastPushedVersion);
 
     this.subscribeAll();
 
@@ -143,15 +144,17 @@ export class SyncEngine {
   }
 
   private async computeStartingVersion(): Promise<number> {
+    // Use the stored cursor so existing notes get published on first sync (cursor = 0).
+    // On subsequent starts the cursor reflects what was already pushed, so no re-publish.
     const rows = (await this.db.execA(
       `SELECT MIN(last_db_version) FROM sync_relays WHERE is_active = 1`,
     )) as Array<[number | bigint | null]>;
     const min = rows[0]?.[0];
-    if (min !== null && min !== undefined && min !== 0 && Number(min) !== 0) {
-      return typeof min === 'bigint' ? Number(min) : Number(min);
+    if (min === null || min === undefined) {
+      // No active relays — start from head, nothing to push yet.
+      return await getDbVersion(this.db);
     }
-    // Fresh setup: don't replay full history; start from current head.
-    return await getDbVersion(this.db);
+    return typeof min === 'bigint' ? Number(min) : Number(min);
   }
 
   private subscribeAll(): void {
@@ -193,6 +196,7 @@ export class SyncEngine {
       const { changeset, newVersion } = await captureChanges(this.db, this.lastPushedVersion);
       if (!changeset.rows.length) return;
 
+      console.log('[sync] publishing', changeset.rows.length, 'rows, new db_version:', newVersion);
       const event = encodeEvent({
         changeset,
         channel: 'personal',
@@ -201,6 +205,7 @@ export class SyncEngine {
       });
       this.markSeen(event.id);
       await this.relay.publish(event);
+      console.log('[sync] published event', event.id.slice(0, 12), 'kind:', event.kind);
 
       this.lastPushedVersion = newVersion;
       await this.db.exec(
@@ -235,8 +240,12 @@ export class SyncEngine {
     };
 
     const decoded = decodeEvent(event, resolver);
-    if (!decoded) return;
+    if (!decoded) {
+      console.warn('[sync] could not decode event', event.id.slice(0, 12), '— wrong key or channel?');
+      return;
+    }
 
+    console.log('[sync] applying', decoded.changeset.rows.length, 'rows from event', event.id.slice(0, 12));
     try {
       await applyChanges(this.db, decoded.changeset);
       await this.db.exec(
