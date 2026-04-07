@@ -103,8 +103,12 @@ function App() {
   // ── navigateToNote: find or create note, switch feed, focus ────────
   useEffect(() => {
     (window as any).navigateToNote = async (noteId: string) => {
-      const existing = await db.execO(`SELECT id, feed_id FROM notes WHERE id = ? AND is_deleted = 0`, [noteId]) as any[];
+      const existing = await db.execO(`SELECT id, feed_id, is_deleted FROM notes WHERE id = ?`, [noteId]) as any[];
       if (existing.length > 0) {
+        if (existing[0].is_deleted) {
+          alert('Эта заметка была удалена.');
+          return;
+        }
         if (existing[0].feed_id && existing[0].feed_id !== activeFeedId) {
           setActiveFeedId(existing[0].feed_id);
         }
@@ -225,10 +229,28 @@ function App() {
     }
   }, [db, encrypt, encryptFeedKey]);
 
-  const handleDeleteFeed = useCallback(async (id: string) => {
-    await db.exec(`DELETE FROM feeds WHERE id = ?`, [id]);
-    await db.exec(`DELETE FROM notes WHERE feed_id = ?`, [id]);
-    if (activeFeedId === id) setActiveFeedId(feeds.find(f => f.id !== id)?.id ?? null);
+  const handleDeleteFeed = useCallback(async (id: string, isShared: boolean) => {
+    if (!isShared) {
+      // Author deleting their feed: Soft-delete notes first so the deletion syncs over Nostr
+      await db.exec(`UPDATE notes SET is_deleted = 1 WHERE feed_id = ?`, [id]);
+      // Give SyncEngine 2500ms to flush the soft deletes, then hard delete locally.
+      setTimeout(async () => {
+        await db.exec(`DELETE FROM feeds WHERE id = ?`, [id]);
+        await db.exec(`DELETE FROM notes WHERE feed_id = ?`, [id]);
+      }, 2500);
+    } else {
+      // Reader leaving shared feed: Hard delete immediately.
+      // SyncEngine won't push hard deletes to the shared channel (can't map __crsql_del to feed_id).
+      await db.exec(`DELETE FROM feeds WHERE id = ?`, [id]);
+      await db.exec(`DELETE FROM notes WHERE feed_id = ?`, [id]);
+      if ((window as any).__syncEngine) {
+        setTimeout(() => (window as any).__syncEngine.refreshRelays(), 100);
+      }
+    }
+
+    if (activeFeedId === id) {
+      setActiveFeedId(feeds.find(f => f.id !== id)?.id ?? null);
+    }
   }, [db, activeFeedId, feeds]);
 
   // ── Theme ──────────────────────────────────────────────────────────

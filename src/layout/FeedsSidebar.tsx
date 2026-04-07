@@ -65,7 +65,7 @@ export const FeedsSidebar = ({
   onSelect: (id: string) => void;
   onCreateFeed: (name: string, color: string, avatar: string | null) => void;
   onUpdateFeed: (id: string, name: string, color: string, avatar: string | null) => void;
-  onDeleteFeed: (id: string) => void;
+  onDeleteFeed: (id: string, isShared: boolean) => void;
   onImportSharedFeed?: (payload: { flow_id: string; fek: string; name: string; relay?: string }) => void;
   onShareFeed?: (id: string) => void;
 }) => {
@@ -387,9 +387,9 @@ export const FeedsSidebar = ({
               {modal !== 'create' && typeof modal === 'object' && (
                 <>
                   <button
-                    onClick={() => { onDeleteFeed(modal.id); setModal(null); }}
+                    onClick={() => { onDeleteFeed(modal.id, !!modal.is_shared); setModal(null); }}
                     style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.82rem' }}
-                  >Удалить</button>
+                  >{modal.is_shared ? 'Отписаться' : 'Удалить'}</button>
                   {modal.encryption_key && (
                     <button
                       onClick={() => openShare(modal)}
