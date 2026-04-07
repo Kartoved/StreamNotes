@@ -426,6 +426,15 @@ function App() {
         onUpdateFeed={handleUpdateFeed}
         onDeleteFeed={handleDeleteFeed}
         onImportSharedFeed={handleImportSharedFeed}
+        onShareFeed={async (id) => {
+          await db.exec(`UPDATE feeds SET is_shared = 1 WHERE id = ?`, [id]);
+          // Tell SyncEngine it's a shared feed now
+          if ((window as any).__syncEngine) {
+            await (window as any).__syncEngine.refreshRelays();
+            // Publish entire history to the feed channel immediately
+            await (window as any).__syncEngine.resyncFeed(id);
+          }
+        }}
       />
 
       {/* ── Main content ── */}

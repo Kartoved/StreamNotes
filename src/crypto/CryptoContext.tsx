@@ -31,6 +31,10 @@ interface CryptoContextValue {
   decryptFeedKey: (encryptedFek: string) => string;
   nostrPubKey: string;
   nostrPrivKey: Uint8Array;
+  /** Log out and clear keys from memory/storage */
+  logout: () => void;
+  nickname: string;
+  setNickname: (name: string) => void;
 }
 
 const CryptoContext = createContext<CryptoContextValue | null>(null);
@@ -81,6 +85,13 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
     return 'setup';
   });
   const [keys, setKeys] = useState<DerivedKeys | null>(null);
+  const [nickname, setNicknameState] = useState(() => localStorage.getItem('sn_nickname') || 'you');
+
+  const setNickname = useCallback((name: string) => {
+    const cleanName = name.trim() || 'you';
+    setNicknameState(cleanName);
+    localStorage.setItem('sn_nickname', cleanName);
+  }, []);
 
   // In-memory cache: feedId -> FEK (Uint8Array)
   const feedKeysRef = useRef<Map<string, Uint8Array>>(new Map());
@@ -211,6 +222,21 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
 
       nostrPubKey: keys.nostrPubKey,
       nostrPrivKey: keys.nostrPrivKey,
+      logout: () => {
+        if (!confirm('Вы действительно хотите выйти? Это удалит ключи с этого устройства. Убедитесь, что у вас сохранена seed-фраза!')) return;
+        localStorage.removeItem('sn_seed_plain');
+        localStorage.removeItem('sn_seed_encrypted');
+        localStorage.removeItem('sn_has_password');
+        localStorage.removeItem('sn_initialized');
+        localStorage.removeItem('sn_npub');
+        // We don't delete the database (OPFS) by default to avoid accidental data loss,
+        // but without the keys, the data is unreadable.
+        setKeys(null);
+        setScreen('setup');
+        feedKeysRef.current.clear();
+      },
+      nickname,
+      setNickname,
     };
     return (
       <CryptoContext.Provider value={value}>

@@ -14,7 +14,7 @@ interface Props {
 }
 
 export default function SettingsModal({ onClose, onExport, onImport, font, setFont, fontOptions }: Props) {
-  const { nostrPubKey } = useCrypto();
+  const { nostrPubKey, logout, nickname, setNickname } = useCrypto();
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -68,6 +68,8 @@ export default function SettingsModal({ onClose, onExport, onImport, font, setFo
     boxShadow: 'var(--shadow-lg)',
     fontFamily: "var(--font-body)",
     color: 'var(--text)',
+    maxHeight: '90vh',
+    overflowY: 'auto',
   };
 
   const sectionDivider: React.CSSProperties = {
@@ -139,6 +141,16 @@ export default function SettingsModal({ onClose, onExport, onImport, font, setFo
 
         {/* Identity */}
         <div style={sectionDivider}>
+          <span style={labelStyle}>Профиль</span>
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ fontSize: '0.75rem', color: 'var(--text-sub)', display: 'block', marginBottom: '6px' }}>Никнейм</label>
+            <input 
+              style={{ ...inputStyle, fontFamily: 'var(--font-body)' }}
+              placeholder="Ваш никнейм (локально)"
+              value={nickname}
+              onChange={e => setNickname(e.target.value)}
+            />
+          </div>
           <span style={labelStyle}>Nostr Identity (npub)</span>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <code style={{
@@ -217,12 +229,18 @@ export default function SettingsModal({ onClose, onExport, onImport, font, setFo
         {/* Data management */}
         <div>
           <span style={labelStyle}>Утилиты</span>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button onClick={onExport} style={btn}>↑ Экспорт данных</button>
             <label style={{ ...btn, display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
               ↓ Импорт
               <input type="file" accept=".json" style={{ display: 'none' }} onChange={onImport} />
             </label>
+            <button 
+              onClick={() => { logout(); onClose(); }}
+              style={{ ...btn, color: '#f87171', borderColor: '#f87171' }}
+            >
+              Выйти из аккаунта
+            </button>
           </div>
         </div>
       </div>

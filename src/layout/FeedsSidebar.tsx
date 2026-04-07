@@ -58,6 +58,7 @@ export const FeedsSidebar = ({
   onUpdateFeed,
   onDeleteFeed,
   onImportSharedFeed,
+  onShareFeed,
 }: {
   feeds: FeedData[];
   activeFeedId: string | null;
@@ -66,6 +67,7 @@ export const FeedsSidebar = ({
   onUpdateFeed: (id: string, name: string, color: string, avatar: string | null) => void;
   onDeleteFeed: (id: string) => void;
   onImportSharedFeed?: (payload: { flow_id: string; fek: string; name: string; relay?: string }) => void;
+  onShareFeed?: (id: string) => void;
 }) => {
   const { decryptFeedKey, nostrPubKey } = useCrypto();
   const [modal, setModal] = useState<'create' | 'share' | 'import' | FeedData | null>(null);
@@ -113,6 +115,7 @@ export const FeedsSidebar = ({
         author_npub: nostrPubKey,
       }, null, 2);
       setSharePayload(payload);
+      onShareFeed?.(feed.id);
       setModal('share');
     } catch (e) {
       console.error('Failed to generate share payload', e);

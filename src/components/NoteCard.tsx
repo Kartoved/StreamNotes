@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
+import { useCrypto } from '../crypto/CryptoContext';
 
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 
@@ -13,8 +14,9 @@ function npubColor(npub: string): string {
 }
 
 function AuthorBadge({ authorId, isLocal }: { authorId: string; isLocal: boolean }) {
+  const { nickname } = useCrypto();
   const color = npubColor(authorId);
-  const label = isLocal ? 'you' : `${authorId.slice(0, 6)}…${authorId.slice(-4)}`;
+  const label = isLocal ? nickname : `${authorId.slice(0, 6)}…${authorId.slice(-4)}`;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
       <span style={{
@@ -187,6 +189,7 @@ export const NoteCard = ({
   isSharedFeed = false,
   localNpub = '',
 }: NoteCardProps) => {
+  const { nickname } = useCrypto();
   let props: any = {};
   try { 
     const raw = decrypt(note.properties) || '{}';
@@ -304,7 +307,7 @@ export const NoteCard = ({
               <AuthorBadge authorId={note.author_id} isLocal={note.author_id === localNpub} />
             ) : (
               <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-sub)', letterSpacing: '0.02em' }}>
-                {note.author_id === localNpub || note.author_id === 'local-user' ? 'you' : note.author_id.slice(0, 8)}
+                {note.author_id === localNpub || note.author_id === 'local-user' ? nickname : note.author_id.slice(0, 8)}
               </span>
             )}
             <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>

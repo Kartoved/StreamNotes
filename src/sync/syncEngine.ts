@@ -197,16 +197,91 @@ export class SyncEngine {
       const { changeset, newVersion } = await captureChanges(this.db, this.lastPushedVersion);
       if (!changeset.rows.length) return;
 
-      console.log('[sync] publishing', changeset.rows.length, 'rows, new db_version:', newVersion);
-      const event = encodeEvent({
-        changeset,
-        channel: 'personal',
-        encrypt: this.crypto.encrypt,
-        secretKey: this.crypto.nostrPrivKey,
-      });
-      this.markSeen(event.id);
-      await this.relay.publish(event);
-      console.log('[sync] published event', event.id.slice(0, 12), 'kind:', event.kind);
+      console.log('[sync] capturing', changeset.rows.length, 'rows, new db_version:', newVersion);
+
+      // We need to route changes either to 'personal' (master key) or 'feed' (FEK).
+      // Find feed_id for each note by full-text searching the binary PK blob.
+      const rowsDb = await this.db.execO(`SELECT id, feed_id FROM notes`);
+      const notesMap = new Map<string, string>();
+      for (const r of rowsDb as any[]) {
+        if (r.feed_id) notesMap.set(r.id, r.feed_id);
+      }
+
+      function getFeedId(pkBase64: string): string | null {
+        const bin = atob(pkBase64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const text = new TextDecoder().decode(bytes);
+        for (const [id, feedId] of notesMap.entries()) {
+          if (text.includes(id)) return feedId;
+        }
+        return null;
+      }
+
+      const personalRows: typeof changeset.rows = [];
+      const feedGroups = new Map<string, typeof changeset.rows>();
+
+      for (const row of changeset.rows) {
+        let feedId: string | null = null;
+        if (row.table === 'notes') {
+          feedId = getFeedId(row.pk);
+          // If the cid itself is feed_id and val is string, it might be the initial creation
+          if (!feedId && row.cid === 'feed_id' && typeof row.val === 'string' && row.val.startsWith('feed-')) {
+            feedId = row.val;
+          }
+        } else if (row.table === 'feeds') {
+          // The PK for feeds table is feed_id itself
+          const bin = atob(row.pk);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          const text = new TextDecoder().decode(bytes);
+          
+          const match = text.match(/feed-[\w-]+/);
+          if (match) feedId = match[0];
+          else if (row.cid === 'id' && typeof row.val === 'string' && row.val.startsWith('feed-')) {
+            feedId = row.val;
+          }
+        }
+        
+        // Ensure we actually treat this feed as shared!
+        if (feedId && this.sharedFeedIds.has(feedId)) {
+          let rows = feedGroups.get(feedId);
+          if (!rows) { rows = []; feedGroups.set(feedId, rows); }
+          rows.push(row);
+        } else {
+          personalRows.push(row);
+        }
+      }
+
+      const publishPromises: Promise<void>[] = [];
+
+      // 1. Publish personal rows
+      if (personalRows.length > 0) {
+        const ev = encodeEvent({
+          changeset: { v: changeset.v, rows: personalRows },
+          channel: 'personal',
+          encrypt: this.crypto.encrypt,
+          secretKey: this.crypto.nostrPrivKey,
+        });
+        this.markSeen(ev.id);
+        publishPromises.push(this.relay.publish(ev));
+      }
+
+      // 2. Publish per-feed rows
+      for (const [feedId, rows] of feedGroups.entries()) {
+        const ev = encodeEvent({
+          changeset: { v: changeset.v, rows },
+          channel: 'feed',
+          feedId,
+          encrypt: (pt) => this.crypto.encryptForFeed(pt, feedId),
+          secretKey: this.crypto.nostrPrivKey,
+        });
+        this.markSeen(ev.id);
+        publishPromises.push(this.relay.publish(ev));
+      }
+
+      await Promise.all(publishPromises);
+      console.log('[sync] published to', (personalRows.length ? 1 : 0) + feedGroups.size, 'channels');
 
       this.lastPushedVersion = newVersion;
       await this.db.exec(
@@ -261,6 +336,58 @@ export class SyncEngine {
       SyncEvents.dispatchEvent(new Event('sync'));
     } catch (err) {
       console.error('[sync] applyChanges failed', err);
+    }
+  }
+
+  public async resyncFeed(feedId: string): Promise<void> {
+    if (!this.started || !this.sharedFeedIds.has(feedId)) return;
+    try {
+      const { changeset } = await captureChanges(this.db, -1); // -1 fetches everything
+      if (!changeset.rows.length) return;
+
+      const rowsDb = await this.db.execO(`SELECT id, feed_id FROM notes`);
+      const notesMap = new Map<string, string>();
+      for (const r of rowsDb as any[]) if (r.feed_id) notesMap.set(r.id, r.feed_id);
+
+      function getFeedId(pkBase64: string): string | null {
+        try {
+          const bin = atob(pkBase64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          const text = new TextDecoder().decode(bytes);
+          for (const [id, fid] of notesMap.entries()) if (text.includes(id)) return fid;
+          return null;
+        } catch { return null; }
+      }
+
+      const feedRows = changeset.rows.filter(row => {
+        if (row.table === 'notes') return getFeedId(row.pk) === feedId;
+        if (row.table === 'feeds') {
+          try {
+            const bin = atob(row.pk);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            const text = new TextDecoder().decode(bytes);
+            return text.includes(feedId);
+          } catch { return false; }
+        }
+        return false;
+      });
+
+      if (feedRows.length === 0) return;
+
+      const ev = encodeEvent({
+        changeset: { v: changeset.v, rows: feedRows },
+        channel: 'feed',
+        feedId,
+        encrypt: (pt) => this.crypto.encryptForFeed(pt, feedId),
+        secretKey: this.crypto.nostrPrivKey,
+      });
+      this.markSeen(ev.id);
+      await this.relay.publish(ev);
+      console.log(`[sync] resync published ${feedRows.length} rows for feed ${feedId}`);
+    } catch (e) {
+      console.error('[sync] failed to resync feed', e);
     }
   }
 
