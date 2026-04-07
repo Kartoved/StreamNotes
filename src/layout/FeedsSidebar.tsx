@@ -88,10 +88,23 @@ export const FeedsSidebar = ({
 
   const handleSave = () => {
     if (!modalName.trim()) return;
+
+    const trimmed = modalName.trim();
+    if (trimmed.startsWith('{') && trimmed.includes('"flow_id"')) {
+      try {
+        const data = JSON.parse(trimmed);
+        if (data.flow_id && data.fek) {
+          onImportSharedFeed?.(data);
+          setModal(null);
+          return;
+        }
+      } catch (e) { /* ignore */ }
+    }
+
     if (modal === 'create') {
-      onCreateFeed(modalName.trim(), modalColor, modalAvatar);
+      onCreateFeed(trimmed, modalColor, modalAvatar);
     } else if (modal && typeof modal === 'object') {
-      onUpdateFeed(modal.id, modalName.trim(), modalColor, modalAvatar);
+      onUpdateFeed(modal.id, trimmed, modalColor, modalAvatar);
     }
     setModal(null);
   };

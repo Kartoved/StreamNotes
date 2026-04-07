@@ -86,7 +86,7 @@ export class RelayClient {
   /** Subscribe to events matching the filter. Returns an unsubscribe fn. */
   subscribe(filter: Filter, onEvent: (event: Event) => void): () => void {
     if (!this.relays.length) return () => {};
-    const sub = this.pool.subscribeMany(this.relays, filter, {
+    const sub = this.pool.subscribeMany(this.relays, filter as any, {
       onevent: (event) => {
         try {
           onEvent(event);

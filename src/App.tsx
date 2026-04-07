@@ -218,6 +218,11 @@ function App() {
       [flow_id, encrypt(name || 'Shared Flow'), '#6095ed', encryptedFek, null, 1, Date.now()]
     );
     setActiveFeedId(flow_id);
+    
+    // Tell SyncEngine to subscribe to the new shared feed immediately
+    if ((window as any).__syncEngine) {
+      await (window as any).__syncEngine.refreshRelays();
+    }
   }, [db, encrypt, encryptFeedKey]);
 
   const handleDeleteFeed = useCallback(async (id: string) => {

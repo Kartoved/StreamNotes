@@ -244,7 +244,9 @@ export class SyncEngine {
         }
         
         // Ensure we actually treat this feed as shared!
-        if (feedId && this.sharedFeedIds.has(feedId)) {
+        // But ONLY 'notes' and 'links' (feed data) should go to the shared channel!
+        // 'feeds' table is encrypted with Master Key and is personal.
+        if (feedId && this.sharedFeedIds.has(feedId) && row.table !== 'feeds') {
           let rows = feedGroups.get(feedId);
           if (!rows) { rows = []; feedGroups.set(feedId, rows); }
           rows.push(row);
@@ -362,15 +364,6 @@ export class SyncEngine {
 
       const feedRows = changeset.rows.filter(row => {
         if (row.table === 'notes') return getFeedId(row.pk) === feedId;
-        if (row.table === 'feeds') {
-          try {
-            const bin = atob(row.pk);
-            const bytes = new Uint8Array(bin.length);
-            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-            const text = new TextDecoder().decode(bytes);
-            return text.includes(feedId);
-          } catch { return false; }
-        }
         return false;
       });
 
