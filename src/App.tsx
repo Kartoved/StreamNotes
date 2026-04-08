@@ -444,7 +444,7 @@ function App() {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)' }}>
+    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg-page)' }}>
       {/* ── Feeds sidebar ── */}
       <FeedsSidebar
         feeds={feeds}

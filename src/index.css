@@ -3,6 +3,7 @@
 /* ── Lumen/Notion-style design tokens ────────────────────────────── */
 :root {
   --bg:           #ffffff;
+  --bg-page:      #F5F7FA;
   --bg-hover:     rgba(55, 53, 47, 0.06);
   --bg-active:    rgba(55, 53, 47, 0.1);
   --bg-aside:     #f7f6f3;
@@ -26,7 +27,8 @@
 }
 
 [data-theme="dark"] {
-  --bg:           #191919;
+  --bg:           #1e1e1e;
+  --bg-page:      #141414;
   --bg-hover:     rgba(255, 255, 255, 0.055);
   --bg-active:    rgba(255, 255, 255, 0.09);
   --bg-aside:     #111111;
@@ -52,7 +54,7 @@ html, body, #root {
 
 body {
   font-family: var(--font-body);
-  background: var(--bg);
+  background: var(--bg-page);
   color: var(--text);
   font-size: 15px;
   line-height: 1.85;
@@ -106,13 +108,25 @@ body {
 /* ── Note content typography ──────────────────────────────────────── */
 .note-content {
   color: var(--text);
-  font-size: 1rem;        /* synced with body & editor */
+  font-size: 1.05rem;
   line-height: 1.85;
   letter-spacing: 0.01em;
 }
 
 .note-content p { margin: 0; }
 .note-content p + p { margin-top: 0.6em; }
+
+/* ── Note card hover elevation ────────────────────────────────────── */
+.note-card-inner {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.note-card-inner:hover {
+  box-shadow: 0 4px 16px rgba(15, 15, 15, 0.09), 0 1px 4px rgba(15, 15, 15, 0.05);
+  transform: translateY(-1px);
+}
+[data-theme="dark"] .note-card-inner:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.2);
+}
 
 /* ── Feed scroll container ────────────────────────────────────────── */
 .feed-scroll-container {
