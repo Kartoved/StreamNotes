@@ -3,7 +3,7 @@
 /* ── Lumen/Notion-style design tokens ────────────────────────────── */
 :root {
   --bg:           #ffffff;
-  --bg-page:      #ECEEF2;
+  --bg-page:      linear-gradient(180deg, #1a3870 0%, #8ab8d4 100%);
   --bg-hover:     rgba(55, 53, 47, 0.06);
   --bg-active:    rgba(55, 53, 47, 0.1);
   --bg-aside:     #f7f6f3;
@@ -16,7 +16,7 @@
   --line:         #e9e9e7;
   --line-strong:  #d0cfcb;
   --card-bg:      #ffffff;
-  --sidebar-bg:   #f7f6f3;
+  --sidebar-bg:   transparent;
   --radius:       6px;
   --radius-lg:    10px;
   --font-body:    'Courier Prime', 'Courier New', monospace;
@@ -76,7 +76,7 @@ body {
 /* ── Feeds sidebar ────────────────────────────────────────────────── */
 .feeds-sidebar {
   background: var(--sidebar-bg) !important;
-  border-right: 1px solid var(--line) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
 }
 
 /* Tooltip */

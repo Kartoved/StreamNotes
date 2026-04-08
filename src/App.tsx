@@ -430,9 +430,9 @@ function App() {
   const activeFeed = feeds.find(f => f.id === activeFeedId);
 
   const iconBtn: React.CSSProperties = {
-    background: 'transparent',
-    border: '1px solid var(--line)',
-    color: 'var(--text-sub)',
+    background: 'rgba(255,255,255,0.12)',
+    border: '1px solid rgba(255,255,255,0.25)',
+    color: 'rgba(255,255,255,0.85)',
     padding: '3px 10px',
     borderRadius: 'var(--radius)',
     cursor: 'pointer',
@@ -466,17 +466,17 @@ function App() {
       />
 
       {/* ── Main content ── */}
-      <div className="main-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1.5rem', boxSizing: 'border-box', alignItems: 'center', background: 'var(--bg)', overflowY: 'auto' }}>
+      <div className="main-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1.5rem', boxSizing: 'border-box', alignItems: 'center', background: 'transparent', overflowY: 'auto' }}>
         {/* Header */}
-        <header className="app-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem', flexShrink: 0, width: '100%', maxWidth: '980px', borderBottom: '1px solid var(--line)', paddingBottom: '12px' }}>
-          <h1 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)', flexShrink: 0, letterSpacing: '-0.01em' }}>
+        <header className="app-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem', flexShrink: 0, width: '100%', maxWidth: '980px', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '12px' }}>
+          <h1 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'rgba(255,255,255,0.95)', flexShrink: 0, letterSpacing: '-0.01em' }}>
             {activeFeed?.avatar
               ? <img src={activeFeed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '1.2rem', height: '1.2rem', objectFit: 'cover', borderRadius: '50%', marginRight: '6px', verticalAlign: 'middle' }} />
               : null
             }
             {activeFeed?.name || 'Sheafy'}
           </h1>
-          <span style={{ color: 'var(--text-faint)', fontSize: '0.8rem', flexShrink: 0 }}>
+          <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', flexShrink: 0 }}>
             {focusedTweetId ? '/ ветка' : ''}
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -484,7 +484,7 @@ function App() {
               <span
                 className="header-npub"
                 onClick={() => setShowSettings(true)}
-                style={{ fontSize: '0.7rem', color: 'var(--text-faint)', cursor: 'pointer', fontFamily: 'var(--font-mono)', padding: '2px 6px', border: '1px solid var(--line)', borderRadius: 'var(--radius)' }}
+                style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontFamily: 'var(--font-mono)', padding: '2px 6px', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 'var(--radius)' }}
               >
                 {nostrPubKey.slice(0, 6)}…{nostrPubKey.slice(-4)}
               </span>
@@ -508,7 +508,7 @@ function App() {
             </button>
             <button onClick={() => setShowSettings(true)} style={iconBtn}>⚙</button>
             {focusedTweetId && (
-              <button onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }} style={{ ...iconBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}>← Назад</button>
+              <button onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }} style={{ ...iconBtn, borderColor: 'rgba(255,255,255,0.5)', color: 'rgba(255,255,255,0.95)' }}>← Назад</button>
             )}
           </div>
         </header>
