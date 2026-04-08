@@ -112,6 +112,10 @@ export const Feed = ({
     setContextMenu({ x: e.clientX, y: e.clientY, noteId });
   };
 
+  const openContextMenuAt = (x: number, y: number, noteId: string) => {
+    setContextMenu({ x, y, noteId });
+  };
+
   const closeContextMenu = () => setContextMenu(null);
 
   // ── Filter by search + tags + date ────────────────────────────────
@@ -257,16 +261,16 @@ export const Feed = ({
             onClick={(e) => e.stopPropagation()}
             style={{
               position: 'fixed',
-              top: contextMenu.y,
-              left: contextMenu.x,
+              top: Math.min(contextMenu.y, window.innerHeight - 300),
+              left: Math.min(contextMenu.x, window.innerWidth - 200),
               background: 'var(--card-bg)',
               backdropFilter: 'blur(16px)',
               WebkitBackdropFilter: 'blur(16px)',
-              border: '1px solid var(--border)',
-              borderRadius: '10px',
-              padding: '4px',
-              minWidth: '180px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+              border: '1px solid var(--line)',
+              borderRadius: '12px',
+              padding: '6px',
+              minWidth: '190px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
               zIndex: 4001,
             }}
           >
@@ -288,10 +292,11 @@ export const Feed = ({
                   style={{
                     display: 'block', width: '100%', textAlign: 'left',
                     background: 'transparent', border: 'none',
-                    color: (item as any).danger ? '#f87171' : 'var(--text-main)',
-                    padding: '7px 12px', borderRadius: '6px', cursor: 'pointer',
-                    fontSize: '13px', fontFamily: 'inherit',
+                    color: (item as any).danger ? '#f87171' : 'var(--text)',
+                    padding: '10px 14px', borderRadius: '8px', cursor: 'pointer',
+                    fontSize: '14px', fontFamily: 'inherit',
                     transition: 'background 0.1s',
+                    minHeight: '44px',
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = (item as any).danger ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.07)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -364,6 +369,8 @@ export const Feed = ({
                   dragOverInfo={dragOverInfo}
                   onNoteClick={onNoteClick}
                   openContextMenu={openContextMenu}
+                  openContextMenuAt={openContextMenuAt}
+                  onStartReply={onStartReply}
                   onDragStart={(e, id) => { setDraggedId(id); e.dataTransfer.effectAllowed = 'move'; }}
                   onDragOver={(e, id) => {
                     e.preventDefault();

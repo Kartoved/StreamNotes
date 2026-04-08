@@ -26,6 +26,7 @@ function App() {
   const useCryptoRef = useRef(crypto);
   useCryptoRef.current = crypto;
   const [showSettings, setShowSettings] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // ── One-time graph integrity check ────────────────────────────────
   const rescueDone = useRef(false);
@@ -481,6 +482,7 @@ function App() {
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
             {nostrPubKey && (
               <span
+                className="header-npub"
                 onClick={() => setShowSettings(true)}
                 style={{ fontSize: '0.7rem', color: 'var(--text-faint)', cursor: 'pointer', fontFamily: 'var(--font-mono)', padding: '2px 6px', border: '1px solid var(--line)', borderRadius: 'var(--radius)' }}
               >
@@ -493,11 +495,20 @@ function App() {
               ) : (
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
               )}
-              {theme === 'dark' ? 'Светлая' : 'Тёмная'}
+              <span className="header-theme-label">{theme === 'dark' ? 'Светлая' : 'Тёмная'}</span>
             </button>
-            <button onClick={() => setShowSettings(true)} style={iconBtn}>⚙ Настройки</button>
+            {/* Filter/search button — shown on mobile only */}
+            <button
+              className="mobile-filter-btn"
+              onClick={() => setShowMobileFilters(true)}
+              style={{ ...iconBtn, display: 'none', alignItems: 'center', gap: '4px' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              {(searchQuery || selectedTags.size > 0 || selectedDate) ? '●' : ''}
+            </button>
+            <button onClick={() => setShowSettings(true)} style={iconBtn}>⚙</button>
             {focusedTweetId && (
-              <button onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }} style={{ ...iconBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}>← В шифлоу</button>
+              <button onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }} style={{ ...iconBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}>← Назад</button>
             )}
           </div>
         </header>
@@ -570,6 +581,72 @@ function App() {
           autoFocus
           zenMode={true}
         />
+      )}
+
+      {/* ── Mobile filter bottom sheet ── */}
+      {showMobileFilters && (
+        <div className="mobile-filter-sheet" onClick={() => setShowMobileFilters(false)}>
+          <div className="mobile-filter-sheet-panel" onClick={e => e.stopPropagation()}>
+            <div className="mobile-filter-sheet-handle" />
+
+            {/* Search */}
+            <div style={{ marginBottom: '16px', position: 'relative' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                type="search"
+                className="search-bar"
+                placeholder="Поиск..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                autoFocus
+                style={{ paddingLeft: '32px', width: '100%' }}
+              />
+            </div>
+
+            {/* Tags */}
+            {allTags.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginBottom: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Теги</div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {allTags.map(tag => (
+                    <span
+                      key={tag}
+                      className={`tag-pill${selectedTags.has(tag) ? ' active' : ''}`}
+                      onClick={() => toggleTag(tag)}
+                    >{tag}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Date filter indicator */}
+            {selectedDate && (
+              <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-sub)' }}>📅 {selectedDate}</span>
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: 'var(--radius)', padding: '4px 10px', fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
+                >✕ Сбросить</button>
+              </div>
+            )}
+
+            {/* Reset all */}
+            {(searchQuery || selectedTags.size > 0 || selectedDate) && (
+              <button
+                onClick={() => { setSearchQuery(''); setSelectedTags(new Set()); setSelectedDate(null); setShowMobileFilters(false); }}
+                style={{ width: '100%', background: 'var(--bg-hover)', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: 'var(--radius-lg)', padding: '10px', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'var(--font-body)', marginTop: '4px' }}
+              >Сбросить все фильтры</button>
+            )}
+
+            <button
+              onClick={() => setShowMobileFilters(false)}
+              style={{ width: '100%', marginTop: '12px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-lg)', padding: '12px', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
+            >Готово</button>
+          </div>
+        </div>
       )}
     </div>
   );

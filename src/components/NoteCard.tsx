@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
 import { useCrypto } from '../crypto/CryptoContext';
@@ -141,6 +141,8 @@ interface NoteCardProps {
 
   onNoteClick?: (id: string) => void;
   openContextMenu: (e: React.MouseEvent, id: string) => void;
+  openContextMenuAt?: (x: number, y: number, id: string) => void;
+  onStartReply?: (id: string) => void;
   onDragStart: (e: React.DragEvent, id: string) => void;
   onDragOver: (e: React.DragEvent, id: string) => void;
   onDragLeave: () => void;
@@ -172,6 +174,8 @@ export const NoteCard = ({
   dragOverInfo,
   onNoteClick,
   openContextMenu,
+  openContextMenuAt,
+  onStartReply,
   onDragStart,
   onDragOver,
   onDragLeave,
@@ -223,6 +227,44 @@ export const NoteCard = ({
   const handleStatus = (v: string) => { setStatus(v); saveProp('status', v); };
   const handleDate   = (v: string) => { setDate(v);   saveProp('date', v); };
 
+  // ── Touch gestures: swipe-to-reply + long-press context menu ───────
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const isSwiping = useRef(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isSwiping.current = false;
+    longPressTimer.current = setTimeout(() => {
+      openContextMenuAt?.(e.touches[0].clientX, e.touches[0].clientY, note.id);
+    }, 500);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+      clearTimeout(longPressTimer.current);
+    }
+    if (Math.abs(dx) > Math.abs(dy) && dx < 0) {
+      isSwiping.current = true;
+      e.stopPropagation();
+      setSwipeOffset(Math.max(-72, dx));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    clearTimeout(longPressTimer.current);
+    if (swipeOffset < -48) {
+      onStartReply?.(note.id);
+    }
+    isSwiping.current = false;
+    setSwipeOffset(0);
+  };
+
   const isDragOverChild   = dragOverInfo?.id === note.id && dragOverInfo?.zone === 'child';
   const isDragOverSibling = dragOverInfo?.id === note.id && dragOverInfo?.zone === 'sibling';
 
@@ -269,19 +311,30 @@ export const NoteCard = ({
         }} />
       )}
 
-      {/* ── Card panel ── */}
-      <div style={{
-        marginLeft: `${indent}px`,
-        background: finalBg !== 'transparent' ? finalBg : 'var(--card-bg)',
-        border: (isDragOverSibling || isDragOverChild)
-          ? '1px solid var(--accent)'
-          : '1px solid var(--line)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '14px 20px',
-        position: 'relative',
-        overflow: 'hidden',
-        transition: 'border-color 0.12s, background 0.12s',
-      }}>
+      {/* ── Card panel with swipe wrapper ── */}
+      <div style={{ marginLeft: `${indent}px`, position: 'relative' }}>
+        {/* Swipe-to-reply hint (revealed behind card on left swipe) */}
+        <div className={`swipe-reply-hint${swipeOffset < -20 ? ' visible' : ''}`}>
+          ↩ Ответить
+        </div>
+
+      <div
+        className={`note-card-swipeable note-card-inner${isSwiping.current ? ' swiping' : ''}`}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          background: finalBg !== 'transparent' ? finalBg : 'var(--card-bg)',
+          border: (isDragOverSibling || isDragOverChild)
+            ? '1px solid var(--accent)'
+            : '1px solid var(--line)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '14px 20px',
+          position: 'relative',
+          overflow: 'hidden',
+          transition: swipeOffset !== 0 ? 'none' : 'border-color 0.12s, background 0.12s, transform 0.2s cubic-bezier(0.32, 0.72, 0, 1)',
+          transform: swipeOffset !== 0 ? `translateX(${swipeOffset}px)` : 'none',
+        }}>
 
         {/* DnD overlays */}
         {draggedId && draggedId !== note.id && (
@@ -372,6 +425,7 @@ export const NoteCard = ({
           </div>
         )}
       </div>
+      </div>{/* end swipe wrapper */}
 
     </div>
   );

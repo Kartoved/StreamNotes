@@ -177,25 +177,154 @@ body {
 
 /* ── Mobile ───────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
+  /* ── Bottom tab bar ── */
   .feeds-sidebar {
     position: fixed !important;
     bottom: 0; left: 0; right: 0;
     width: 100% !important;
-    height: 60px !important;
+    height: 64px !important;
     flex-direction: row !important;
-    padding: 0 12px !important;
-    gap: 6px !important;
+    padding: 0 8px !important;
+    gap: 4px !important;
     border-right: none !important;
     border-top: 1px solid var(--line) !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
-    z-index: 100;
+    z-index: 200;
     justify-content: flex-start;
     align-items: center;
+    -webkit-overflow-scrolling: touch;
   }
   .feeds-sidebar .feed-logo-sep { display: none; }
+
+  /* ── Right sidebar hidden — shown as bottom sheet ── */
   .right-sidebar { display: none !important; }
-  .main-content { padding-bottom: 68px !important; }
+
+  /* ── Main content ── */
+  .main-content {
+    padding: 0.5rem 0.75rem !important;
+    padding-bottom: 72px !important;
+  }
+
+  /* ── App header compact ── */
+  .app-header {
+    gap: 6px !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 10px !important;
+  }
+  .app-header h1 { font-size: 0.95rem !important; }
+  .header-npub { display: none !important; }
+  .header-theme-label { display: none !important; }
+
+  /* ── Touch targets ── */
+  .app-header button {
+    min-height: 36px !important;
+    padding: 6px 10px !important;
+  }
+  .feed-toolbar button {
+    min-height: 36px !important;
+    padding: 6px 12px !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* ── Tag pills ── */
+  .tag-pill {
+    padding: 5px 10px !important;
+    font-size: 0.82rem !important;
+    min-height: 34px !important;
+  }
+
+  /* ── Search ── */
+  .search-bar {
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+    font-size: 1rem !important;
+  }
+
+  /* ── Note cards ── */
+  .note-card-inner {
+    padding: 11px 14px !important;
+  }
+
+  /* ── Filter button — only visible on mobile ── */
+  .mobile-filter-btn { display: inline-flex !important; }
+}
+
+/* Hide mobile-only elements on desktop */
+.mobile-filter-btn { display: none; }
+
+/* ── Mobile bottom sheet ──────────────────────────────────────────── */
+.mobile-filter-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: sheet-backdrop-in 0.18s ease;
+}
+
+.mobile-filter-sheet-panel {
+  background: var(--card-bg);
+  border-top: 1px solid var(--line);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  padding: 12px 20px;
+  padding-bottom: max(80px, 80px);
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: sheet-panel-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-filter-sheet-handle {
+  width: 40px;
+  height: 4px;
+  background: var(--line-strong);
+  border-radius: 2px;
+  margin: 0 auto 20px;
+}
+
+@keyframes sheet-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes sheet-panel-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* ── Swipe-to-reply hint ──────────────────────────────────────────── */
+.swipe-reply-hint {
+  position: absolute;
+  right: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6095ed;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.swipe-reply-hint.visible { opacity: 1; }
+
+/* ── Swipe card transition ────────────────────────────────────────── */
+.note-card-swipeable {
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+}
+.note-card-swipeable.swiping {
+  transition: none;
 }
 
 /* ── Hide browser extension injections ───────────────────────────── */
