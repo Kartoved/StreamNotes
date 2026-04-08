@@ -327,7 +327,7 @@ export const NoteCard = ({
           background: finalBg !== 'transparent' ? finalBg : 'var(--card-bg)',
           border: (isDragOverSibling || isDragOverChild)
             ? '1px solid var(--accent)'
-            : '1px solid var(--line)',
+            : '1px solid rgba(0,0,0,0.06)',
           borderRadius: 'var(--radius-lg)',
           padding: '14px 20px',
           position: 'relative',
