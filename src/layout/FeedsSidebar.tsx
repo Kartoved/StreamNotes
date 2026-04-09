@@ -31,15 +31,15 @@ const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
     <div style={{
       width: '40px', height: '40px',
       borderRadius: active ? '12px' : '10px',
-      background: feed.avatar ? 'transparent' : (active ? feed.color : 'var(--bg-aside)'),
-      border: active ? `none` : '1px solid var(--line)',
+      background: feed.avatar ? 'transparent' : (active ? 'var(--text)' : 'var(--bg-aside)'),
+      border: active ? 'none' : '1px solid var(--line)',
       overflow: 'hidden',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       cursor: 'pointer', flexShrink: 0,
       opacity: 1,
       transition: 'all 0.15s ease',
-      boxShadow: active ? `0 2px 8px ${feed.color}25` : 'none',
-      color: active ? 'white' : 'var(--text-faint)',
+      boxShadow: 'none',
+      color: active ? 'var(--bg)' : 'var(--text-faint)',
     }}>
       {feed.avatar
         ? <img src={feed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
