@@ -25,6 +25,7 @@ interface FeedProps {
   searchQuery?: string;
   selectedTags?: Set<string>;
   selectedDate?: string | null;
+  statusFilter?: string | null;
 }
 
 // Export helpers for use in sidebar
@@ -74,6 +75,7 @@ export const Feed = ({
   searchQuery = '',
   selectedTags = new Set(),
   selectedDate = null,
+  statusFilter = null,
 }: FeedProps) => {
   const db = useDB();
   const { encrypt, decrypt, encryptForFeed, decryptForFeed } = useCrypto();
@@ -118,13 +120,14 @@ export const Feed = ({
 
   const closeContextMenu = () => setContextMenu(null);
 
-  // ── Filter by search + tags + date ────────────────────────────────
+  // ── Filter by search + tags + date + status ───────────────────────
   const filteredNotes = React.useMemo(() => {
     const q = searchQuery.toLocaleLowerCase().trim();
     const hasSearch = q.length > 0;
     const hasTags = selectedTags.size > 0;
     const hasDate = !!selectedDate;
-    if (!hasSearch && !hasTags && !hasDate) return notes;
+    const hasStatus = !!statusFilter;
+    if (!hasSearch && !hasTags && !hasDate && !hasStatus) return notes;
 
     const matchingIds = new Set<string>();
     for (const note of notes) {
@@ -132,7 +135,14 @@ export const Feed = ({
       const searchOk = !hasSearch || text.includes(q);
       const tagOk = !hasTags || [...selectedTags].every(tag => text.includes(tag));
       const dateOk = !hasDate || new Date(note.created_at).toISOString().slice(0, 10) === selectedDate;
-      if (searchOk && tagOk && dateOk) matchingIds.add(note.id);
+      let statusOk = true;
+      if (hasStatus) {
+        try {
+          const props = JSON.parse(note.properties || '{}');
+          statusOk = props.status === statusFilter;
+        } catch { statusOk = false; }
+      }
+      if (searchOk && tagOk && dateOk && statusOk) matchingIds.add(note.id);
     }
 
     const parentOf = new Map(notes.map(n => [n.id, n.parent_id]));

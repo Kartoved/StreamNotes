@@ -11,6 +11,7 @@ import { RelayClient } from './sync/relayClient';
 import SettingsModal from './components/SettingsModal';
 import { FeedsSidebar } from './layout/FeedsSidebar';
 import { RightSidebar } from './layout/RightSidebar';
+import { DashboardPanel } from './layout/DashboardPanel';
 import './index.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -304,6 +305,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [dashboardStatusFilter, setDashboardStatusFilter] = useState<string | null>(null);
 
   const allNotes = useNotes(null, activeFeedId);
 
@@ -465,6 +467,17 @@ function App() {
         }}
       />
 
+      {/* ── Dashboard panel ── */}
+      <DashboardPanel
+        activeStatusFilter={dashboardStatusFilter}
+        onStatusFilter={setDashboardStatusFilter}
+        onSelectToday={() => {
+          const d = new Date();
+          const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          setSelectedDate(todayStr);
+        }}
+      />
+
       {/* ── Main content ── */}
       <div className="main-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1.5rem', boxSizing: 'border-box', alignItems: 'center', background: 'var(--bg)', overflowY: 'auto' }}>
         {/* Header */}
@@ -555,6 +568,7 @@ function App() {
               searchQuery={searchQuery}
               selectedTags={selectedTags}
               selectedDate={selectedDate}
+              statusFilter={dashboardStatusFilter}
             />
           </div>
 
