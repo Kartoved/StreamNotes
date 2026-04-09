@@ -134,7 +134,17 @@ export const Feed = ({
       const text = extractPlainText(note.content).toLocaleLowerCase();
       const searchOk = !hasSearch || text.includes(q);
       const tagOk = !hasTags || [...selectedTags].every(tag => text.includes(tag));
-      const dateOk = !hasDate || new Date(note.created_at).toISOString().slice(0, 10) === selectedDate;
+      let dateOk = true;
+      if (hasDate) {
+        try {
+          const props = JSON.parse(note.properties || '{}');
+          const propsDate = props.date ? props.date.slice(0, 10) : null;
+          const createdDate = new Date(note.created_at).toISOString().slice(0, 10);
+          dateOk = propsDate === selectedDate || (!propsDate && createdDate === selectedDate);
+        } catch {
+          dateOk = new Date(note.created_at).toISOString().slice(0, 10) === selectedDate;
+        }
+      }
       let statusOk = true;
       if (hasStatus) {
         try {
@@ -143,6 +153,7 @@ export const Feed = ({
         } catch { statusOk = false; }
       }
       if (searchOk && tagOk && dateOk && statusOk) matchingIds.add(note.id);
+
     }
 
     const parentOf = new Map(notes.map(n => [n.id, n.parent_id]));
@@ -156,7 +167,7 @@ export const Feed = ({
     }
 
     return notes.filter(n => toKeep.has(n.id));
-  }, [notes, searchQuery, selectedTags, selectedDate]);
+  }, [notes, searchQuery, selectedTags, selectedDate, statusFilter]);
 
   const visibleNotes = React.useMemo(() => {
     const result = [];

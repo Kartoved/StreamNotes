@@ -62,10 +62,9 @@ const StatRow = ({
 interface DashboardPanelProps {
   activeStatusFilter: string | null;
   onStatusFilter: (status: string | null) => void;
-  onSelectToday: () => void;
 }
 
-export const DashboardPanel = ({ activeStatusFilter, onStatusFilter, onSelectToday }: DashboardPanelProps) => {
+export const DashboardPanel = ({ activeStatusFilter, onStatusFilter }: DashboardPanelProps) => {
   const { todoToday, doingToday, doneToday, totalToday } = useDashboardStats();
 
   const today = new Date();
@@ -74,7 +73,6 @@ export const DashboardPanel = ({ activeStatusFilter, onStatusFilter, onSelectTod
   const handleClick = (status: string) => {
     const next = activeStatusFilter === status ? null : status;
     onStatusFilter(next);
-    onSelectToday();
   };
 
   return (
