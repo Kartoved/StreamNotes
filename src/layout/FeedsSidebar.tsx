@@ -316,94 +316,112 @@ export const FeedsSidebar = ({
       {modal && modal !== 'share' && modal !== 'import' && (
         <div
           onClick={() => setModal(null)}
-          style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           <div
             onClick={e => e.stopPropagation()}
             style={{
               background: 'var(--bg)', border: '1px solid var(--line)',
-              borderRadius: 'var(--radius-lg)', padding: '24px', width: '380px',
-              display: 'flex', flexDirection: 'column', gap: '20px',
-              boxShadow: 'var(--shadow-md)',
+              borderRadius: '12px', padding: '28px 28px 24px',
+              width: '420px', display: 'flex', flexDirection: 'column', gap: '0',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
             }}
           >
-            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em' }}>
+            {/* Header */}
+            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-faint)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '20px' }}>
               {modal === 'create' ? 'Новый шифлоу' : 'Редактировать шифлоу'}
             </div>
 
-            {/* Preview */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Avatar + Name */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
               <div
                 onClick={() => avatarRef.current?.click()}
+                title="Загрузить аватар"
                 style={{
-                  width: '52px', height: '52px', borderRadius: '16px',
+                  width: '48px', height: '48px', borderRadius: '12px', flexShrink: 0,
                   background: modalAvatar ? 'transparent' : modalColor,
                   overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0, border: '2px solid var(--border)',
-                  position: 'relative',
+                  cursor: 'pointer', position: 'relative',
+                  border: '1px solid var(--line)',
                 }}
-                title="Загрузить аватар"
               >
                 {modalAvatar
                   ? <img src={modalAvatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ color: 'white', fontWeight: 700, fontSize: '1.2rem' }}>{(modalName || '?').slice(0, 2).toUpperCase()}</span>
+                  : <span style={{ color: 'white', fontWeight: 700, fontSize: '1rem', userSelect: 'none' }}>{(modalName || '?').slice(0, 2).toUpperCase()}</span>
                 }
-                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: '0.15s' }}
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: '0.15s', fontSize: '1rem' }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '1'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '0'}
-                >
-                  <span style={{ fontSize: '1.2rem' }}>📷</span>
-                </div>
+                >📷</div>
               </div>
               <input
                 type="text"
                 value={modalName}
                 onChange={e => setModalName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
-                placeholder="Название шифлоу"
+                placeholder="Название"
                 autoFocus
                 style={{
-                  flex: 1, background: 'var(--bg)',
-                  border: '1px solid var(--line)', borderRadius: 'var(--radius)',
-                  color: 'var(--text)', fontSize: '0.9rem',
-                  padding: '8px 12px', outline: 'none',
+                  flex: 1, background: 'var(--bg-hover)',
+                  border: '1px solid var(--line)', borderRadius: '8px',
+                  color: 'var(--text)', fontSize: '0.9rem', fontWeight: 500,
+                  padding: '9px 12px', outline: 'none',
                   fontFamily: 'var(--font-body)',
+                  transition: 'border-color 0.12s',
                 }}
+                onFocus={e => (e.currentTarget.style.borderColor = 'var(--line-strong)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'var(--line)')}
               />
             </div>
 
             <input ref={avatarRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
 
             {/* Color swatches */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 24px)', gap: '8px', marginBottom: '24px' }}>
               {FEED_COLORS.map(swatch)}
               {modalAvatar && (
-                <div onClick={() => setModalAvatar(null)} style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'var(--text-muted)' }} title="Убрать аватар">✕</div>
+                <div
+                  onClick={() => setModalAvatar(null)}
+                  title="Убрать аватар"
+                  style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--line)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', color: 'var(--text-faint)' }}
+                >✕</div>
               )}
             </div>
 
+            {/* Divider */}
+            <div style={{ height: '1px', background: 'var(--line)', margin: '0 0 20px' }} />
+
             {/* Actions */}
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px' }}>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               {modal !== 'create' && typeof modal === 'object' && (
                 <>
                   <button
                     onClick={() => { onDeleteFeed(modal.id, !!modal.is_shared); setModal(null); }}
-                    style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.82rem' }}
+                    style={{ flex: 1, background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: '8px', padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)', transition: 'all 0.12s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#f87171'; (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; }}
                   >{modal.is_shared ? 'Отписаться' : 'Удалить'}</button>
                   {modal.encryption_key && (
                     <button
                       onClick={() => openShare(modal)}
-                      style={{ background: 'rgba(96,165,237,0.12)', border: '1px solid rgba(96,165,237,0.3)', color: '#6095ed', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
-                    >Share</button>
+                      style={{ flex: 1, background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: '8px', padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)', transition: 'all 0.12s' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line-strong)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; }}
+                    >Поделиться</button>
                   )}
                 </>
               )}
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-                <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: 'var(--radius)', padding: '6px 12px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>Отмена</button>
-                <button onClick={handleSave} disabled={!modalName.trim()} style={{ background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', opacity: modalName.trim() ? 1 : 0.5, fontFamily: 'var(--font-body)' }}>
-                  {modal === 'create' ? 'Создать' : 'Сохранить'}
-                </button>
-              </div>
+              <button
+                onClick={() => setModal(null)}
+                style={{ flex: 1, background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: '8px', padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}
+              >Отмена</button>
+              <button
+                onClick={handleSave}
+                disabled={!modalName.trim()}
+                style={{ flex: 1, background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: '8px', padding: '8px 14px', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem', opacity: modalName.trim() ? 1 : 0.4, fontFamily: 'var(--font-body)', transition: 'opacity 0.12s' }}
+              >
+                {modal === 'create' ? 'Создать' : 'Сохранить'}
+              </button>
             </div>
           </div>
         </div>
