@@ -62,10 +62,11 @@ const StatRow = ({
 interface DashboardPanelProps {
   activeStatusFilter: string | null;
   onStatusFilter: (status: string | null) => void;
+  activeFeedId: string | null;
 }
 
-export const DashboardPanel = ({ activeStatusFilter, onStatusFilter }: DashboardPanelProps) => {
-  const { todoToday, doingToday, doneToday, totalToday } = useDashboardStats();
+export const DashboardPanel = ({ activeStatusFilter, onStatusFilter, activeFeedId }: DashboardPanelProps) => {
+  const { todoToday, doingToday, doneToday, totalToday } = useDashboardStats(activeFeedId);
 
   const today = new Date();
   const dateLabel = today.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
@@ -126,13 +127,13 @@ export const DashboardPanel = ({ activeStatusFilter, onStatusFilter }: Dashboard
           onClick={() => handleClick('todo')}
         />
         <StatRow
-          label="In progress"
+          label="In Progress"
           count={doingToday}
           active={activeStatusFilter === 'doing'}
           onClick={() => handleClick('doing')}
         />
         <StatRow
-          label="Done"
+          label="Done today"
           count={doneToday}
           active={activeStatusFilter === 'done'}
           onClick={() => handleClick('done')}

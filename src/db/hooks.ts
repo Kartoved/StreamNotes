@@ -52,6 +52,17 @@ export async function rescueOrphans(db: any) {
   if (cyclesFixed > 0) {
     console.warn(`Внимание: разорвано ${cyclesFixed} циклических ссылок.`);
   }
+
+  // Mark children of deleted notes as deleted too (cascade cleanup)
+  await db.exec(`
+    WITH RECURSIVE deleted_tree AS (
+      SELECT id FROM notes WHERE is_deleted = 1
+      UNION ALL
+      SELECT n.id FROM notes n JOIN deleted_tree d ON n.parent_id = d.id
+    )
+    UPDATE notes SET is_deleted = 1
+    WHERE id IN (SELECT id FROM deleted_tree) AND is_deleted = 0
+  `);
 }
 
 export function useNotes(parentId: string | null = null, feedId: string | null = null) {

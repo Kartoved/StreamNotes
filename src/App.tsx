@@ -471,6 +471,7 @@ function App() {
       <DashboardPanel
         activeStatusFilter={dashboardStatusFilter}
         onStatusFilter={setDashboardStatusFilter}
+        activeFeedId={activeFeedId}
       />
 
       {/* ── Main content ── */}

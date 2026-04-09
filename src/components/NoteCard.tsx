@@ -212,6 +212,13 @@ export const NoteCard = ({
   // Save a single prop change to DB immediately
   const saveProp = useCallback(async (key: string, val: string) => {
     const current = { ...props, status, type, date: targetDate, [key]: val };
+    // Track when a note is marked as done
+    if (key === 'status' && val === 'done') {
+      const today = new Date();
+      current.completed_at = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    } else if (key === 'status' && val !== 'done') {
+      delete current.completed_at;
+    }
     await db.exec(
       `UPDATE notes SET properties = ?, updated_at = ? WHERE id = ?`,
       [encrypt(JSON.stringify(current)), Date.now(), note.id]

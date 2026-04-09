@@ -17,7 +17,7 @@ function todayStr() {
   return `${y}-${m}-${day}`;
 }
 
-export function useDashboardStats(): DashboardStats {
+export function useDashboardStats(feedId: string | null): DashboardStats {
   const db = useDB();
   const { decrypt, decryptForFeed } = useCrypto();
   const [stats, setStats] = useState<DashboardStats>({ todoToday: 0, doingToday: 0, doneToday: 0, totalToday: 0 });
@@ -25,10 +25,16 @@ export function useDashboardStats(): DashboardStats {
   useEffect(() => {
     let cancelled = false;
 
+    // Reset immediately on feedId change before async query completes
+    setStats({ todoToday: 0, doingToday: 0, doneToday: 0, totalToday: 0 });
+
     async function compute() {
       const today = todayStr();
       const rows = await db.execO(
-        `SELECT properties, feed_id FROM notes WHERE is_deleted = 0 AND properties IS NOT NULL`
+        feedId
+          ? `SELECT properties, feed_id FROM notes WHERE is_deleted = 0 AND properties IS NOT NULL AND feed_id = ?`
+          : `SELECT properties, feed_id FROM notes WHERE is_deleted = 0 AND properties IS NOT NULL`,
+        feedId ? [feedId] : []
       ) as any[];
 
       let todoToday = 0, doingToday = 0, doneToday = 0;
@@ -40,15 +46,23 @@ export function useDashboardStats(): DashboardStats {
             ? (s: string) => decryptForFeed(s, row.feed_id)
             : decrypt;
           const props = JSON.parse(dec(row.properties));
-          if (!props.date || !props.status) continue;
-          // date stored as YYYY-MM-DD or as ISO string
-          const noteDate = props.date.slice(0, 10);
-          if (noteDate !== today) continue;
-          if (props.status === 'todo') todoToday++;
-          else if (props.status === 'doing') doingToday++;
-          else if (props.status === 'done') doneToday++;
+          const status = props.status;
+          if (!status || status === 'none' || status === 'archived') continue;
+
+          if (status === 'todo') {
+            // todo: no date OR date <= today
+            const noteDate = props.date ? props.date.slice(0, 10) : null;
+            if (!noteDate || noteDate <= today) todoToday++;
+          } else if (status === 'doing') {
+            // doing: all, regardless of date
+            doingToday++;
+          } else if (status === 'done') {
+            // done: only completed today (via completed_at)
+            const completedAt = props.completed_at ? props.completed_at.slice(0, 10) : null;
+            if (completedAt === today) doneToday++;
+          }
         } catch {
-          // skip notes that fail to decrypt (e.g. wrong key)
+          // skip notes that fail to decrypt
         }
       }
 
@@ -60,12 +74,14 @@ export function useDashboardStats(): DashboardStats {
     compute();
 
     // Re-compute on DB updates
-    const unsub = db.onUpdate?.(() => compute());
+    const unsub = db.onUpdate((_: any, __: any, tblName: string) => {
+      if (tblName === 'notes' || tblName === 'crsql_changes') compute();
+    });
     return () => {
       cancelled = true;
       unsub?.();
     };
-  }, [db, decrypt, decryptForFeed]);
+  }, [db, decrypt, decryptForFeed, feedId]);
 
   return stats;
 }

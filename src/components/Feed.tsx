@@ -95,14 +95,26 @@ export const Feed = ({
   const [bulkAction, setBulkAction] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; noteId: string } | null>(null);
 
+  const deleteWithChildren = async (id: string) => {
+    // Recursively soft-delete the note and all its descendants
+    await db.exec(`
+      WITH RECURSIVE subtree AS (
+        SELECT id FROM notes WHERE id = ?
+        UNION ALL
+        SELECT n.id FROM notes n JOIN subtree s ON n.parent_id = s.id
+      )
+      UPDATE notes SET is_deleted = 1 WHERE id IN (SELECT id FROM subtree)
+    `, [id]);
+  };
+
   const handleDeleteNote = async (id: string) => {
-    await db.exec(`UPDATE notes SET is_deleted = 1 WHERE id = ?`, [id]);
+    await deleteWithChildren(id);
     setDeleteConfirmId(null);
   };
 
   const handleBulkDelete = async () => {
     for (const id of selectedIds) {
-      await db.exec(`UPDATE notes SET is_deleted = 1 WHERE id = ?`, [id]);
+      await deleteWithChildren(id);
     }
     setSelectedIds(new Set());
     setBulkAction(null);
@@ -149,7 +161,21 @@ export const Feed = ({
       if (hasStatus) {
         try {
           const props = JSON.parse(note.properties || '{}');
-          statusOk = props.status === statusFilter;
+          if (statusFilter === 'todo') {
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const noteDate = props.date ? props.date.slice(0, 10) : null;
+            statusOk = props.status === 'todo' && (!noteDate || noteDate <= todayStr);
+          } else if (statusFilter === 'doing') {
+            statusOk = props.status === 'doing';
+          } else if (statusFilter === 'done') {
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const completedAt = props.completed_at ? props.completed_at.slice(0, 10) : null;
+            statusOk = props.status === 'done' && completedAt === todayStr;
+          } else {
+            statusOk = props.status === statusFilter;
+          }
         } catch { statusOk = false; }
       }
       if (searchOk && tagOk && dateOk && statusOk) matchingIds.add(note.id);
