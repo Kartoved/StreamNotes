@@ -551,7 +551,7 @@ export const Feed = ({
               const type = props.type || 'sheaf';
               const targetDate = props.date || '';
 
-              const indent = isFlat ? 0 : Math.min(note.depth * 24, 240);
+              const indent = Math.min(note.depth * 24, 240);
               const isReplying = replyingToId === note.id;
               const isDragOverChild = dragOverInfo?.id === note.id && dragOverInfo.zone === 'child';
               const isDragOverSibling = dragOverInfo?.id === note.id && dragOverInfo.zone === 'sibling';
@@ -579,9 +579,8 @@ export const Feed = ({
                   openContextMenu={openContextMenu}
                   openContextMenuAt={openContextMenuAt}
                   onStartReply={onStartReply}
-                  onDragStart={(e, id) => { if (isFlat) return; setDraggedId(id); e.dataTransfer.effectAllowed = 'move'; }}
+                  onDragStart={(e, id) => { setDraggedId(id); e.dataTransfer.effectAllowed = 'move'; }}
                   onDragOver={(e, id) => {
-                    if (isFlat) return;
                     e.preventDefault();
                     const rect = e.currentTarget.getBoundingClientRect();
                     const zone = (e.clientX - rect.left) < rect.width / 2 ? 'sibling' : 'child';

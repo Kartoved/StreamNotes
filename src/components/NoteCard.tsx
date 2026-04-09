@@ -337,15 +337,17 @@ export const NoteCard = ({
           transform: swipeOffset !== 0 ? `translateX(${swipeOffset}px)` : 'none',
         }}>
 
-        {/* DnD overlays */}
-        {draggedId && draggedId !== note.id && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', pointerEvents: 'none', borderRadius: 'inherit', overflow: 'hidden', zIndex: 1, border: (isDragOverSibling || isDragOverChild) ? '1px solid var(--line-strong)' : 'none' }}>
-            <div style={{ flex: 1, background: isDragOverSibling ? 'var(--bg-hover)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {isDragOverSibling && <span style={{ fontSize: '0.6rem', color: 'var(--text-sub)', fontWeight: 600 }}>sibling</span>}
-            </div>
-            <div style={{ flex: 1, background: isDragOverChild ? 'var(--bg-hover)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {isDragOverChild && <span style={{ fontSize: '0.6rem', color: 'var(--text-sub)', fontWeight: 600 }}>child</span>}
-            </div>
+        {/* DnD indicators */}
+        {draggedId && draggedId !== note.id && (isDragOverSibling || isDragOverChild) && (
+          <div style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10,
+            borderRadius: 'inherit',
+            border: isDragOverChild ? '2px solid var(--accent)' : 'none',
+            background: isDragOverChild ? 'rgba(55, 53, 47, 0.03)' : 'transparent'
+          }}>
+            {isDragOverSibling && (
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px', background: 'var(--accent)', borderRadius: '4px 0 0 4px' }} />
+            )}
           </div>
         )}
 
