@@ -189,7 +189,7 @@ function App() {
     })();
   }, [db, encrypt]);
 
-  const handleCreateFeed = useCallback(async (name: string, color: string, avatar: string | null) => {
+  const handleCreateFeed = useCallback(async (name: string, color: string, avatar: string | null, icon: string | null) => {
     const id = 'feed-' + uid();
     // Get next key_index by counting existing feeds
     const countRes = await db.execA(`SELECT COALESCE(MAX(key_index), -1) + 1 FROM feeds`);
@@ -197,15 +197,15 @@ function App() {
     const fekHex = deriveNewFeedKey(keyIndex);
     const encryptedFek = encryptFeedKey(fekHex);
     await db.exec(
-      `INSERT INTO feeds (id, name, color, avatar, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?,?)`,
-      [id, encrypt(name), color, avatar ? encrypt(avatar) : null, encryptedFek, keyIndex, 0, Date.now()]
+      `INSERT INTO feeds (id, name, color, avatar, icon, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+      [id, encrypt(name), color, avatar ? encrypt(avatar) : null, icon, encryptedFek, keyIndex, 0, Date.now()]
     );
     setActiveFeedId(id);
   }, [db, encrypt, deriveNewFeedKey, encryptFeedKey]);
 
-  const handleUpdateFeed = useCallback(async (id: string, name: string, color: string, avatar: string | null) => {
+  const handleUpdateFeed = useCallback(async (id: string, name: string, color: string, avatar: string | null, icon: string | null) => {
     // Feed name/avatar are always encrypted with master key (they're metadata)
-    await db.exec(`UPDATE feeds SET name = ?, color = ?, avatar = ? WHERE id = ?`, [encrypt(name), color, avatar ? encrypt(avatar) : null, id]);
+    await db.exec(`UPDATE feeds SET name = ?, color = ?, avatar = ?, icon = ? WHERE id = ?`, [encrypt(name), color, avatar ? encrypt(avatar) : null, icon, id]);
   }, [db, encrypt]);
 
   const handleImportSharedFeed = useCallback(async (payload: { flow_id: string; fek: string; name: string; relay?: string }) => {

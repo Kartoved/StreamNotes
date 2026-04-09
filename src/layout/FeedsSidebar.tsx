@@ -1,10 +1,64 @@
 import React, { useState, useRef } from 'react';
 import type { Feed as FeedData } from '../db/hooks';
 import { useCrypto } from '../crypto/CryptoContext';
+import {
+  Notebook, FileText, ScrollText, BookOpen,
+  Code2, Terminal, Braces, Hash,
+  Music, Camera, ImageIcon, Video,
+  MessageCircle, Mail, Send, AtSign,
+  Folder, Tag, Archive, Bookmark,
+  Star, Heart, Briefcase, Globe,
+  Zap, Flame, Coffee, Moon,
+  Rocket, Trophy, Layers, Link2,
+  type LucideIcon,
+} from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 const FEED_COLORS = ['#787774', '#c9cbd0', '#969591', '#b1b1ae', '#a3a6ad', '#37352f', '#606a7b', '#868e96'];
 const randomColor = () => FEED_COLORS[Math.floor(Math.random() * FEED_COLORS.length)];
+
+// Curated icon set — slug maps to Lucide component
+const FEED_ICONS: { name: string; Icon: LucideIcon }[] = [
+  { name: 'Notebook', Icon: Notebook },
+  { name: 'FileText', Icon: FileText },
+  { name: 'ScrollText', Icon: ScrollText },
+  { name: 'BookOpen', Icon: BookOpen },
+  { name: 'Code2', Icon: Code2 },
+  { name: 'Terminal', Icon: Terminal },
+  { name: 'Braces', Icon: Braces },
+  { name: 'Hash', Icon: Hash },
+  { name: 'Music', Icon: Music },
+  { name: 'Camera', Icon: Camera },
+  { name: 'ImageIcon', Icon: ImageIcon },
+  { name: 'Video', Icon: Video },
+  { name: 'MessageCircle', Icon: MessageCircle },
+  { name: 'Mail', Icon: Mail },
+  { name: 'Send', Icon: Send },
+  { name: 'AtSign', Icon: AtSign },
+  { name: 'Folder', Icon: Folder },
+  { name: 'Tag', Icon: Tag },
+  { name: 'Archive', Icon: Archive },
+  { name: 'Bookmark', Icon: Bookmark },
+  { name: 'Star', Icon: Star },
+  { name: 'Heart', Icon: Heart },
+  { name: 'Briefcase', Icon: Briefcase },
+  { name: 'Globe', Icon: Globe },
+  { name: 'Zap', Icon: Zap },
+  { name: 'Flame', Icon: Flame },
+  { name: 'Coffee', Icon: Coffee },
+  { name: 'Moon', Icon: Moon },
+  { name: 'Rocket', Icon: Rocket },
+  { name: 'Trophy', Icon: Trophy },
+  { name: 'Layers', Icon: Layers },
+  { name: 'Link2', Icon: Link2 },
+];
+
+const ICON_MAP = new Map(FEED_ICONS.map(({ name, Icon }) => [name, Icon]));
+
+export function getLucideIcon(name: string | null): LucideIcon | null {
+  if (!name) return null;
+  return ICON_MAP.get(name) ?? null;
+}
 
 async function resizeAvatar(file: File): Promise<string> {
   return new Promise((resolve) => {
@@ -27,6 +81,7 @@ async function resizeAvatar(file: File): Promise<string> {
 // ─── Feed Icon ────────────────────────────────────────────────────────
 const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
   const initials = feed.name.slice(0, 2).toUpperCase();
+  const LIcon = getLucideIcon(feed.icon);
   return (
     <div style={{
       width: '40px', height: '40px',
@@ -43,7 +98,9 @@ const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
     }}>
       {feed.avatar
         ? <img src={feed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : <span style={{ color: active ? 'white' : 'inherit', fontWeight: 700, fontSize: '0.85rem', userSelect: 'none' }}>{initials}</span>
+        : LIcon
+          ? <LIcon size={18} strokeWidth={1.5} color={active ? 'var(--bg)' : 'var(--text-faint)'} />
+          : <span style={{ color: active ? 'white' : 'inherit', fontWeight: 700, fontSize: '0.85rem', userSelect: 'none' }}>{initials}</span>
       }
     </div>
   );
@@ -63,8 +120,8 @@ export const FeedsSidebar = ({
   feeds: FeedData[];
   activeFeedId: string | null;
   onSelect: (id: string) => void;
-  onCreateFeed: (name: string, color: string, avatar: string | null) => void;
-  onUpdateFeed: (id: string, name: string, color: string, avatar: string | null) => void;
+  onCreateFeed: (name: string, color: string, avatar: string | null, icon: string | null) => void;
+  onUpdateFeed: (id: string, name: string, color: string, avatar: string | null, icon: string | null) => void;
   onDeleteFeed: (id: string, isShared: boolean) => void;
   onImportSharedFeed?: (payload: { flow_id: string; fek: string; name: string; relay?: string }) => void;
   onShareFeed?: (id: string) => void;
@@ -74,16 +131,17 @@ export const FeedsSidebar = ({
   const [modalName, setModalName] = useState('');
   const [modalColor, setModalColor] = useState('#3b82f6');
   const [modalAvatar, setModalAvatar] = useState<string | null>(null);
+  const [modalIcon, setModalIcon] = useState<string | null>(null);
   const [sharePayload, setSharePayload] = useState<string>('');
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState('');
   const avatarRef = useRef<HTMLInputElement>(null);
 
   const openCreate = () => {
-    setModalName(''); setModalColor(randomColor()); setModalAvatar(null); setModal('create');
+    setModalName(''); setModalColor(randomColor()); setModalAvatar(null); setModalIcon(null); setModal('create');
   };
   const openEdit = (feed: FeedData) => {
-    setModalName(feed.name); setModalColor(feed.color); setModalAvatar(feed.avatar); setModal(feed);
+    setModalName(feed.name); setModalColor(feed.color); setModalAvatar(feed.avatar); setModalIcon(feed.icon); setModal(feed);
   };
 
   const handleSave = () => {
@@ -102,9 +160,9 @@ export const FeedsSidebar = ({
     }
 
     if (modal === 'create') {
-      onCreateFeed(trimmed, modalColor, modalAvatar);
+      onCreateFeed(trimmed, modalColor, modalAvatar, modalIcon);
     } else if (modal && typeof modal === 'object') {
-      onUpdateFeed(modal.id, trimmed, modalColor, modalAvatar);
+      onUpdateFeed(modal.id, trimmed, modalColor, modalAvatar, modalIcon);
     }
     setModal(null);
   };
@@ -114,6 +172,7 @@ export const FeedsSidebar = ({
     if (!file) return;
     const dataUrl = await resizeAvatar(file);
     setModalAvatar(dataUrl);
+    setModalIcon(null);
     e.target.value = '';
   };
 
@@ -162,6 +221,9 @@ export const FeedsSidebar = ({
       }}
     />
   );
+
+  // Preview icon in modal avatar area
+  const ModalPreviewIcon = modalIcon ? getLucideIcon(modalIcon) : null;
 
   return (
     <>
@@ -347,7 +409,9 @@ export const FeedsSidebar = ({
               >
                 {modalAvatar
                   ? <img src={modalAvatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ color: 'white', fontWeight: 700, fontSize: '1rem', userSelect: 'none' }}>{(modalName || '?').slice(0, 2).toUpperCase()}</span>
+                  : ModalPreviewIcon
+                    ? <ModalPreviewIcon size={22} strokeWidth={1.5} color="white" />
+                    : <span style={{ color: 'white', fontWeight: 700, fontSize: '1rem', userSelect: 'none' }}>{(modalName || '?').slice(0, 2).toUpperCase()}</span>
                 }
                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: '0.15s', fontSize: '1rem' }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '1'}
@@ -377,7 +441,7 @@ export const FeedsSidebar = ({
             <input ref={avatarRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
 
             {/* Color swatches */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 24px)', gap: '8px', marginBottom: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 24px)', gap: '8px', marginBottom: '16px' }}>
               {FEED_COLORS.map(swatch)}
               {modalAvatar && (
                 <div
@@ -386,6 +450,48 @@ export const FeedsSidebar = ({
                   style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--line)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', color: 'var(--text-faint)' }}
                 >✕</div>
               )}
+            </div>
+
+            {/* Icon picker */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                Иконка
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 32px)', gap: '4px' }}>
+                {/* Clear icon option */}
+                <div
+                  onClick={() => setModalIcon(null)}
+                  title="Без иконки"
+                  style={{
+                    width: '32px', height: '32px', borderRadius: '6px',
+                    border: modalIcon === null && !modalAvatar ? '1.5px solid var(--text)' : '1px solid var(--line)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: 'var(--text-faint)', fontSize: '0.6rem',
+                    background: modalIcon === null && !modalAvatar ? 'var(--bg-hover)' : 'transparent',
+                    transition: '0.1s',
+                  }}
+                >Аб</div>
+                {FEED_ICONS.map(({ name, Icon }) => (
+                  <div
+                    key={name}
+                    onClick={() => { setModalIcon(name); setModalAvatar(null); }}
+                    title={name}
+                    style={{
+                      width: '32px', height: '32px', borderRadius: '6px',
+                      border: modalIcon === name ? '1.5px solid var(--text)' : '1px solid var(--line)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer',
+                      background: modalIcon === name ? 'var(--bg-hover)' : 'transparent',
+                      color: modalIcon === name ? 'var(--text)' : 'var(--text-faint)',
+                      transition: '0.1s',
+                    }}
+                    onMouseEnter={e => { if (modalIcon !== name) { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; } }}
+                    onMouseLeave={e => { if (modalIcon !== name) { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; } }}
+                  >
+                    <Icon size={15} strokeWidth={1.5} />
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Divider */}

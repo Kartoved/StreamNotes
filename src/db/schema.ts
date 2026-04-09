@@ -4,6 +4,7 @@ export const schema = [
     name TEXT DEFAULT '',
     avatar TEXT DEFAULT NULL,
     color TEXT DEFAULT '#3b82f6',
+    icon TEXT DEFAULT NULL,
     encryption_key TEXT DEFAULT NULL,
     key_index INTEGER DEFAULT NULL,
     is_shared BOOLEAN DEFAULT 0,
@@ -51,4 +52,6 @@ export const migrations = [
   `ALTER TABLE feeds ADD COLUMN encryption_key TEXT DEFAULT NULL;`,
   `ALTER TABLE feeds ADD COLUMN key_index INTEGER DEFAULT NULL;`,
   `ALTER TABLE feeds ADD COLUMN is_shared BOOLEAN DEFAULT 0;`,
+  // v3: Lucide icon name for feed avatar
+  `ALTER TABLE feeds ADD COLUMN icon TEXT DEFAULT NULL;`,
 ];

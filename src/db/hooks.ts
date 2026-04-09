@@ -23,6 +23,7 @@ export interface Feed {
   name: string;
   avatar: string | null;
   color: string;
+  icon: string | null;
   encryption_key: string | null;
   key_index: number | null;
   is_shared: number;

@@ -45,7 +45,10 @@
       "Bash(npm ls:*)",
       "Bash(git stash:*)",
       "Bash(npx vite:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(cmd /c \"npx tsc --noEmit\")",
+      "Bash(cmd /c \"npx vite build 2>&1\")",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }
