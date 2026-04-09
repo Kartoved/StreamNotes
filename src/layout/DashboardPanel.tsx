@@ -127,22 +127,22 @@ export const DashboardPanel = ({ activeStatusFilter, onStatusFilter, activeFeedI
           onClick={() => handleClick('todo')}
         />
         <StatRow
-          label="В работе"
+          label="В процессе"
           count={doingToday}
           active={activeStatusFilter === 'doing'}
           onClick={() => handleClick('doing')}
         />
         <StatRow
-          label="Сделано за сегодня"
+          label="Выполнено"
           count={doneToday}
           active={activeStatusFilter === 'done'}
           onClick={() => handleClick('done')}
         />
 
-        <div style={{ height: '4px' }} />
+        <div style={{ height: '1px', background: 'var(--line)', margin: '4px 4px 8px 4px' }} />
         
         <StatRow
-          label="В планах"
+          label="Неразобранные"
           count={somedayCount}
           active={activeStatusFilter === 'todo-no-date'}
           onClick={() => handleClick('todo-no-date')}

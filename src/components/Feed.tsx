@@ -233,7 +233,7 @@ export const Feed = ({
     const result: any[] = [];
     if (groupMode === 'status' && isFlat) {
       const groups: any = { 'doing': [], 'todo': [], 'none': [], 'done': [], 'archived': [] };
-      const labels: any = { 'doing': 'В работе', 'todo': 'Нужно сделать', 'none': 'Заметки', 'done': 'Готово', 'archived': 'Архив' };
+      const labels: any = { 'doing': 'В процессе', 'todo': 'Нужно сделать', 'none': 'Заметки', 'done': 'Выполнено', 'archived': 'Архив' };
       base.forEach(n => {
         const s = JSON.parse(n.properties || '{}').status || 'none';
         if (groups[s]) groups[s].push(n); else groups['none'].push(n);
@@ -247,13 +247,13 @@ export const Feed = ({
     } else if (groupMode === 'date' && isFlat) {
       const groups: Map<string, any[]> = new Map();
       base.forEach(n => {
-        const d = JSON.parse(n.properties || '{}').date || 'В планах';
+        const d = JSON.parse(n.properties || '{}').date || 'Неразобранные';
         if (!groups.has(d)) groups.set(d, []);
         groups.get(d)!.push(n);
       });
       const sortedDates = [...groups.keys()].sort((a, b) => {
-        if (a === 'В планах') return 1;
-        if (b === 'В планах') return -1;
+        if (a === 'Неразобранные') return 1;
+        if (b === 'Неразобранные') return -1;
         return a.localeCompare(b);
       });
       sortedDates.forEach(d => {
