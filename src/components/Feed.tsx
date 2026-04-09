@@ -232,13 +232,20 @@ export const Feed = ({
 
     const result: any[] = [];
     if (groupMode === 'status' && isFlat) {
-      const groups: any = { 'doing': [], 'todo': [], 'none': [], 'done': [], 'archived': [] };
-      const labels: any = { 'doing': 'В процессе', 'todo': 'Нужно сделать', 'none': 'Заметки', 'done': 'Выполнено', 'archived': 'Архив' };
+      const groups: any = { 'doing': [], 'todo': [], 'todo-no-date': [], 'none': [], 'done': [], 'archived': [] };
+      const labels: any = { 'doing': 'В процессе', 'todo': 'Нужно сделать', 'todo-no-date': 'Неразобранные', 'none': 'Заметки', 'done': 'Выполнено', 'archived': 'Архив' };
       base.forEach(n => {
-        const s = JSON.parse(n.properties || '{}').status || 'none';
-        if (groups[s]) groups[s].push(n); else groups['none'].push(n);
+        const p = JSON.parse(n.properties || '{}');
+        const s = p.status || 'none';
+        if (s === 'todo' && !p.date) {
+          groups['todo-no-date'].push(n);
+        } else if (groups[s]) {
+          groups[s].push(n);
+        } else {
+          groups['none'].push(n);
+        }
       });
-      ['doing', 'todo', 'none', 'done', 'archived'].forEach(k => {
+      ['doing', 'todo', 'todo-no-date', 'none', 'done', 'archived'].forEach(k => {
         if (groups[k].length > 0) {
           result.push({ type: 'header', label: labels[k], count: groups[k].length });
           groups[k].forEach((n: any) => result.push({ type: 'note', note: n }));
@@ -277,7 +284,7 @@ export const Feed = ({
   const virtualizer = useVirtualizer({
     count: visibleNotes.length,
     getScrollElement: () => document.querySelector('.main-content'),
-    estimateSize: () => 92,
+    estimateSize: (i) => visibleNotes[i]?.type === 'header' ? 32 : 100,
   });
 
   React.useEffect(() => {
@@ -508,10 +515,12 @@ export const Feed = ({
                 return (
                   <div
                     key={virtualItem.key}
+                    ref={virtualizer.measureElement}
+                    data-index={virtualItem.index}
                     style={{
                       position: 'absolute', top: 0, left: 0, width: '100%',
                       transform: `translateY(${virtualItem.start}px)`,
-                      padding: '24px 8px 8px 8px',
+                      padding: '16px 8px 0px 8px',
                       fontSize: '0.72rem',
                       fontWeight: 700,
                       color: 'var(--text-faint)',

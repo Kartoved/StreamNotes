@@ -297,7 +297,7 @@ export const NoteCard = ({
       style={{
         position: 'absolute', top: 0, left: 0, width: '100%',
         transform: `translateY(${virtualItem.start}px)`,
-        padding: '5px 6px',
+        padding: '2px 6px',
         opacity: draggedId === note.id ? 0.3 : 1,
       }}
     >
@@ -330,7 +330,7 @@ export const NoteCard = ({
             ? '1px solid var(--accent)'
             : '1px solid rgba(0,0,0,0.06)',
           borderRadius: 'var(--radius-lg)',
-          padding: '14px 20px',
+          padding: '10px 20px',
           position: 'relative',
           overflow: 'hidden',
           transition: swipeOffset !== 0 ? 'none' : 'border-color 0.12s, background 0.12s, transform 0.2s cubic-bezier(0.32, 0.72, 0, 1)',
