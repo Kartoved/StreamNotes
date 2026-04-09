@@ -175,8 +175,8 @@ export const FeedsSidebar = ({
         overflowX: 'hidden',
       }}>
         {/* Logo */}
-        <div style={{ fontSize: '1.4rem', marginBottom: '12px', userSelect: 'none', lineHeight: 1, color: 'rgba(255,255,255,0.85)' }}>✦</div>
-        <div className="feed-logo-sep" style={{ width: '28px', height: '1.5px', background: 'rgba(255,255,255,0.2)', marginBottom: '16px' }} />
+        <div style={{ fontSize: '1.4rem', marginBottom: '12px', userSelect: 'none', lineHeight: 1, color: 'var(--text)' }}>✦</div>
+        <div className="feed-logo-sep" style={{ width: '28px', height: '1.5px', background: 'var(--line)', marginBottom: '16px' }} />
 
         {feeds.map(feed => (
           <div
