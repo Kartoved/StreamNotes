@@ -6,7 +6,7 @@ import { useNotes, useFeeds, rescueOrphans } from './db/hooks';
 import type { Feed as FeedData } from './db/hooks';
 import { useCrypto } from './crypto/CryptoContext';
 import { isEncrypted } from './crypto/cipher';
-import { SyncEngine, seedDefaultRelays } from './sync/syncEngine';
+import { SyncEngine, seedDefaultRelays, SyncEvents } from './sync/syncEngine';
 import { RelayClient } from './sync/relayClient';
 import SettingsModal from './components/SettingsModal';
 import { FeedsSidebar } from './layout/FeedsSidebar';
@@ -204,8 +204,77 @@ function App() {
   }, [db, encrypt, deriveNewFeedKey, encryptFeedKey]);
 
   const handleUpdateFeed = useCallback(async (id: string, name: string, color: string, avatar: string | null, icon: string | null) => {
-    // Feed name/avatar are always encrypted with master key (they're metadata)
-    await db.exec(`UPDATE feeds SET name = ?, color = ?, avatar = ?, icon = ? WHERE id = ?`, [encrypt(name), color, avatar ? encrypt(avatar) : null, icon, id]);
+    try {
+      // 1. Try the full update first
+      await db.exec(
+        `UPDATE feeds SET name = ?, color = ?, avatar = ?, icon = ? WHERE id = ?`,
+        [encrypt(name), color, avatar ? encrypt(avatar) : null, icon, id]
+      );
+      SyncEvents.dispatchEvent(new Event('sync'));
+    } catch (e) {
+      const errStr = String(e);
+      if (errStr.includes("values, got")) {
+         try {
+           console.log("Hard repairing feeds CRR...");
+           
+           // 1. Backup existing data
+           await db.exec(`CREATE TABLE IF NOT EXISTS feeds_backup AS SELECT * FROM feeds`);
+           await db.exec(`DELETE FROM feeds_backup`);
+           await db.exec(`INSERT INTO feeds_backup SELECT * FROM feeds`);
+           
+           // 2. Drop the broken CRR table and all its internal crsqlite triggers
+           await db.exec(`DROP TABLE feeds`);
+           
+           // 3. Recreate the precise base schema
+           await db.exec(`
+             CREATE TABLE feeds (
+               id TEXT PRIMARY KEY NOT NULL,
+               name TEXT DEFAULT '',
+               avatar TEXT DEFAULT NULL,
+               color TEXT DEFAULT '#3b82f6',
+               icon TEXT DEFAULT NULL,
+               encryption_key TEXT DEFAULT NULL,
+               key_index INTEGER DEFAULT NULL,
+               is_shared BOOLEAN DEFAULT 0,
+               created_at INTEGER DEFAULT 0
+             )
+           `);
+           
+           // 4. Make it a CRR afresh. This generates pristine triggers.
+           await db.exec(`SELECT crsql_as_crr('feeds')`);
+           
+           // 5. Restore data
+           await db.exec(`
+             INSERT INTO feeds (id, name, avatar, color, icon, encryption_key, key_index, is_shared, created_at)
+             SELECT id, name, avatar, color, icon, encryption_key, key_index, is_shared, created_at FROM feeds_backup
+           `);
+           
+           // 6. Cleanup
+           await db.exec(`DROP TABLE feeds_backup`);
+
+           // Retry the full update now that the table is flawless
+           await db.exec(
+             `UPDATE feeds SET name = ?, color = ?, avatar = ?, icon = ? WHERE id = ?`,
+             [encrypt(name), color, avatar ? encrypt(avatar) : null, icon, id]
+           );
+           SyncEvents.dispatchEvent(new Event('sync'));
+           return;
+         } catch (repairErr) {
+           console.error("Hard repair failed:", repairErr);
+         }
+      }
+
+      // 2. Fallback to basic fields if repair failed or wasn't applicable
+      try {
+        await db.exec(`UPDATE feeds SET name = ?, color = ? WHERE id = ?`, [encrypt(name), color, id]);
+        try { await db.exec(`UPDATE feeds SET icon = ? WHERE id = ?`, [icon, id]); } catch {}
+        try { await db.exec(`UPDATE feeds SET avatar = ? WHERE id = ?`, [avatar ? encrypt(avatar) : null, id]); } catch {}
+        SyncEvents.dispatchEvent(new Event('sync'));
+      } catch (e2) {
+        console.error('Core update failed:', e2);
+        alert('Ошибка сохранения: ' + errStr);
+      }
+    }
   }, [db, encrypt]);
 
   const handleImportSharedFeed = useCallback(async (payload: { flow_id: string; fek: string; name: string; relay?: string }) => {

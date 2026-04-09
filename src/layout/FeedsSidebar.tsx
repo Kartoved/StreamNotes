@@ -144,7 +144,7 @@ export const FeedsSidebar = ({
     setModalName(feed.name); setModalColor(feed.color); setModalAvatar(feed.avatar); setModalIcon(feed.icon); setModal(feed);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!modalName.trim()) return;
 
     const trimmed = modalName.trim();
@@ -162,7 +162,7 @@ export const FeedsSidebar = ({
     if (modal === 'create') {
       onCreateFeed(trimmed, modalColor, modalAvatar, modalIcon);
     } else if (modal && typeof modal === 'object') {
-      onUpdateFeed(modal.id, trimmed, modalColor, modalAvatar, modalIcon);
+      await onUpdateFeed(modal.id, trimmed, modalColor, modalAvatar, modalIcon);
     }
     setModal(null);
   };

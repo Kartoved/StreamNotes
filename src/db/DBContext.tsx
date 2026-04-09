@@ -24,38 +24,53 @@ export const AppDBProvider: React.FC<{children: React.ReactNode}> = ({ children 
                 const sqlite = await initWasm(() => wasmUrl);
                 
                 // Подключение к БД (сохраняется в Origin Private File System)
-                // Это дает практически нативную скорость диска
                 console.log("Открываем БД в OPFS...");
                 const database = await sqlite.open('sheafy_v1.db');
                 
-                // Накатываем структуру таблиц (для MVP прямо при загрузке)
+                // Накатываем структуру таблиц
                 for (const query of schema) {
                    await database.exec(query);
                 }
 
-                // Run migrations only if columns don't exist yet
+                // Ремонт: чиним триггеры после прошлых сбоев ALTER (решает проблему "expected 19 values got 17")
+                for (const table of ['feeds', 'notes', 'links']) {
+                  try {
+                    await database.exec(`SELECT crsql_alter_begin('${table}')`);
+                    await database.exec(`SELECT crsql_alter_commit('${table}')`);
+                    console.log(`Ремонт ${table} завершен успешно`);
+                  } catch (e) {
+                    console.error(`Ошибка при ремонте ${table}:`, e);
+                  }
+                }
+
+                // Проверяем существующие колонки
                 const feedsInfo = await database.execO<{name: string}>('PRAGMA table_info(feeds)');
                 const existingFeedsColumns = feedsInfo.map(row => row.name);
 
+                // Запускаем миграции максимально безопасно
                 for (const mig of migrations) {
-                  let skip = false;
-                  // Простейшая проверка, чтобы не спамить в консоль ошибками дупликатов колонок
                   const match = mig.match(/ALTER TABLE (\w+) ADD COLUMN\s+([A-Za-z0-9_]+)/i);
-                  if (match && match[1].toLowerCase() === 'feeds') {
-                     const colName = match[2];
-                     if (existingFeedsColumns.includes(colName)) {
-                         skip = true;
-                     }
+                  const tblName = match ? match[1].toLowerCase() : null;
+                  const colName = match ? match[2] : null;
+
+                  if (tblName === 'feeds' && colName && existingFeedsColumns.includes(colName)) {
+                    continue; // Пропускаем, если колонка уже есть
                   }
                   
-                  if (!skip) {
-                      try { await database.exec(mig); } catch { /* fail silently if column exists */ }
+                  try {
+                    if (tblName) { try { await database.exec(`SELECT crsql_alter_begin('${tblName}')`); } catch(e) {} }
+                    await database.exec(mig);
+                    if (tblName) { try { await database.exec(`SELECT crsql_alter_commit('${tblName}')`); } catch(e) {} }
+                  } catch (e) {
+                    // Если упало (например, колонка уже есть), просто идем дальше
                   }
                 }
                 
-                // CRITICAL: Re-register as CRR after migrations to pick up new columns
+                // Финальная регистрация CRR
                 for (const table of ['feeds', 'notes', 'links']) {
-                  try { await database.exec(`SELECT crsql_as_crr('${table}')`); } catch { /* ignore */ }
+                  try { 
+                    await database.exec(`SELECT crsql_as_crr('${table}')`); 
+                  } catch (e) { /* ignore already CRR */ }
                 }
                 
                 if (isMounted) {
@@ -71,7 +86,6 @@ export const AppDBProvider: React.FC<{children: React.ReactNode}> = ({ children 
         return () => { isMounted = false; };
     }, []);
 
-    // Показываем загрузочный экран пока скачивается wasm и парсится БД
     if (error) return <div style={{ color: "red", padding: "2rem" }}>❌ Ошибка БД: {error}</div>;
     if (!db) return <div style={{ padding: "2rem", color: "#f8fafc", textAlign: "center" }}>⏳ Загрузка OPFS базы данных и WebAssembly...</div>;
 
