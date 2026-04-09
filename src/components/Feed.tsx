@@ -95,6 +95,9 @@ export const Feed = ({
   const [bulkAction, setBulkAction] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; noteId: string } | null>(null);
 
+  const [sortMode, setSortMode] = useState<'default' | 'date' | 'status' | 'created'>('default');
+  const [groupMode, setGroupMode] = useState<'none' | 'date' | 'status'>('none');
+
   const deleteWithChildren = async (id: string) => {
     // Recursively soft-delete the note and all its descendants
     await db.exec(`
@@ -166,6 +169,13 @@ export const Feed = ({
             const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             const noteDate = props.date ? props.date.slice(0, 10) : null;
             statusOk = props.status === 'todo' && (!noteDate || noteDate <= todayStr);
+          } else if (statusFilter === 'todo-no-date') {
+            statusOk = props.status === 'todo' && !props.date;
+          } else if (statusFilter === 'todo-future') {
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const noteDate = props.date ? props.date.slice(0, 10) : null;
+            statusOk = props.status === 'todo' && noteDate && noteDate > todayStr;
           } else if (statusFilter === 'doing') {
             statusOk = props.status === 'doing';
           } else if (statusFilter === 'done') {
@@ -196,18 +206,73 @@ export const Feed = ({
   }, [notes, searchQuery, selectedTags, selectedDate, statusFilter]);
 
   const visibleNotes = React.useMemo(() => {
-    const result = [];
-    let hidingDepth = -1;
-    for (const note of filteredNotes) {
-      if (hidingDepth !== -1) {
-        if (note.depth <= hidingDepth) hidingDepth = -1;
-        else continue;
+    let base = [...filteredNotes];
+    const isFlat = sortMode !== 'default' || groupMode !== 'none';
+
+    if (isFlat) {
+      if (sortMode === 'date') {
+        base.sort((a, b) => {
+          const pa = JSON.parse(a.properties || '{}');
+          const pb = JSON.parse(b.properties || '{}');
+          const da = pa.date || '9999-12-31';
+          const db = pb.date || '9999-12-31';
+          return da.localeCompare(db) || b.created_at - a.created_at;
+        });
+      } else if (sortMode === 'status') {
+        const order: any = { 'doing': 0, 'todo': 1, 'none': 2, 'done': 3, 'archived': 4 };
+        base.sort((a, b) => {
+          const sa = JSON.parse(a.properties || '{}').status || 'none';
+          const sb = JSON.parse(b.properties || '{}').status || 'none';
+          return (order[sa] ?? 2) - (order[sb] ?? 2) || b.created_at - a.created_at;
+        });
+      } else if (sortMode === 'created') {
+        base.sort((a, b) => b.created_at - a.created_at);
       }
-      result.push(note);
-      if (collapsedIds.has(note.id)) hidingDepth = note.depth;
+    }
+
+    const result: any[] = [];
+    if (groupMode === 'status' && isFlat) {
+      const groups: any = { 'doing': [], 'todo': [], 'none': [], 'done': [], 'archived': [] };
+      const labels: any = { 'doing': 'В работе', 'todo': 'Нужно сделать', 'none': 'Заметки', 'done': 'Готово', 'archived': 'Архив' };
+      base.forEach(n => {
+        const s = JSON.parse(n.properties || '{}').status || 'none';
+        if (groups[s]) groups[s].push(n); else groups['none'].push(n);
+      });
+      ['doing', 'todo', 'none', 'done', 'archived'].forEach(k => {
+        if (groups[k].length > 0) {
+          result.push({ type: 'header', label: labels[k], count: groups[k].length });
+          groups[k].forEach((n: any) => result.push({ type: 'note', note: n }));
+        }
+      });
+    } else if (groupMode === 'date' && isFlat) {
+      const groups: Map<string, any[]> = new Map();
+      base.forEach(n => {
+        const d = JSON.parse(n.properties || '{}').date || 'В планах';
+        if (!groups.has(d)) groups.set(d, []);
+        groups.get(d)!.push(n);
+      });
+      const sortedDates = [...groups.keys()].sort((a, b) => {
+        if (a === 'В планах') return 1;
+        if (b === 'В планах') return -1;
+        return a.localeCompare(b);
+      });
+      sortedDates.forEach(d => {
+        result.push({ type: 'header', label: d, count: groups.get(d)!.length });
+        groups.get(d)!.forEach(n => result.push({ type: 'note', note: n }));
+      });
+    } else {
+      let hidingDepth = -1;
+      for (const note of base) {
+        if (!isFlat && hidingDepth !== -1) {
+          if (note.depth <= hidingDepth) hidingDepth = -1;
+          else continue;
+        }
+        result.push({ type: 'note', note });
+        if (!isFlat && collapsedIds.has(note.id)) hidingDepth = note.depth;
+      }
     }
     return result;
-  }, [filteredNotes, collapsedIds]);
+  }, [filteredNotes, collapsedIds, sortMode, groupMode]);
 
   const virtualizer = useVirtualizer({
     count: visibleNotes.length,
@@ -217,7 +282,7 @@ export const Feed = ({
 
   React.useEffect(() => {
     (window as any).scrollToNote = (id: string) => {
-      const index = visibleNotes.findIndex(n => n.id === id);
+      const index = visibleNotes.findIndex(n => n.type === 'note' && n.note.id === id);
       if (index !== -1) {
         virtualizer.scrollToIndex(index, { align: 'start' });
         setTimeout(() => {
@@ -365,11 +430,70 @@ export const Feed = ({
       )}
 
       {/* Toolbar */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
         <button onClick={() => { if (collapsedIds.size > 0) setCollapsedIds(new Set()); else setCollapsedIds(new Set(notes.map(n => n.id))); }}
-          style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
+          style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-sub)', padding: '4px 10px', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'var(--font-body)' }}>
           {collapsedIds.size > 0 ? 'Развернуть всё' : 'Свернуть всё'}
         </button>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* Grouping */}
+          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-hover)', borderRadius: 'var(--radius)', padding: '2px', border: '1px solid var(--line)' }}>
+             {[
+               { id: 'none', label: 'Дерево', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L12 22"/><path d="M12 8L20 8"/><path d="M12 16L20 16"/></svg> },
+               { id: 'status', label: 'Статусы', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8V12L14 14"/></svg> },
+               { id: 'date', label: 'Даты', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> }
+             ].map(opt => (
+               <button
+                 key={opt.id}
+                 onClick={() => setGroupMode(opt.id as any)}
+                 title={`Группировка: ${opt.label}`}
+                 style={{
+                   background: groupMode === opt.id ? 'var(--bg)' : 'transparent',
+                   color: groupMode === opt.id ? 'var(--text)' : 'var(--text-faint)',
+                   border: 'none',
+                   padding: '4px 8px',
+                   borderRadius: '4px',
+                   cursor: 'pointer',
+                   display: 'flex',
+                   alignItems: 'center',
+                   gap: '4px',
+                   fontSize: '0.7rem',
+                   fontWeight: groupMode === opt.id ? 600 : 400,
+                   boxShadow: groupMode === opt.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                   transition: 'all 0.1s'
+                 }}
+               >
+                 {opt.icon}
+                 <span className="feed-toolbar-label">{opt.label}</span>
+               </button>
+             ))}
+          </div>
+
+          {/* Sorting - only show if flat */}
+          {(groupMode !== 'none' || sortMode !== 'default') && (
+            <select
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value as any)}
+              style={{
+                background: 'var(--bg-hover)',
+                color: 'var(--text-sub)',
+                border: '1px solid var(--line)',
+                borderRadius: 'var(--radius)',
+                padding: '3px 8px',
+                fontSize: '0.72rem',
+                fontFamily: 'var(--font-body)',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="default">По умолчанию</option>
+              <option value="created">По дате создания</option>
+              <option value="date">По дате задачи</option>
+              <option value="status">По статусу</option>
+            </select>
+          )}
+        </div>
       </div>
 
       {filteredNotes.length === 0 ? (
@@ -378,7 +502,35 @@ export const Feed = ({
         <div ref={parentRef} className="feed-container">
           <div style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
             {virtualizer.getVirtualItems().map((virtualItem) => {
-              const note = visibleNotes[virtualItem.index];
+              const item = visibleNotes[virtualItem.index];
+
+              if (item.type === 'header') {
+                return (
+                  <div
+                    key={virtualItem.key}
+                    style={{
+                      position: 'absolute', top: 0, left: 0, width: '100%',
+                      transform: `translateY(${virtualItem.start}px)`,
+                      padding: '24px 8px 8px 8px',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      color: 'var(--text-faint)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <span>{item.label}</span>
+                    <span style={{ fontWeight: 400, opacity: 0.6 }}>({item.count})</span>
+                    <div style={{ flex: 1, height: '1px', background: 'var(--line)', opacity: 0.5 }} />
+                  </div>
+                );
+              }
+
+              const note = item.note;
+              const isFlat = sortMode !== 'default' || groupMode !== 'none';
 
               let props: any = {};
               try {
@@ -390,7 +542,7 @@ export const Feed = ({
               const type = props.type || 'sheaf';
               const targetDate = props.date || '';
 
-              const indent = Math.min(note.depth * 24, 240);
+              const indent = isFlat ? 0 : Math.min(note.depth * 24, 240);
               const isReplying = replyingToId === note.id;
               const isDragOverChild = dragOverInfo?.id === note.id && dragOverInfo.zone === 'child';
               const isDragOverSibling = dragOverInfo?.id === note.id && dragOverInfo.zone === 'sibling';
@@ -418,8 +570,9 @@ export const Feed = ({
                   openContextMenu={openContextMenu}
                   openContextMenuAt={openContextMenuAt}
                   onStartReply={onStartReply}
-                  onDragStart={(e, id) => { setDraggedId(id); e.dataTransfer.effectAllowed = 'move'; }}
+                  onDragStart={(e, id) => { if (isFlat) return; setDraggedId(id); e.dataTransfer.effectAllowed = 'move'; }}
                   onDragOver={(e, id) => {
+                    if (isFlat) return;
                     e.preventDefault();
                     const rect = e.currentTarget.getBoundingClientRect();
                     const zone = (e.clientX - rect.left) < rect.width / 2 ? 'sibling' : 'child';

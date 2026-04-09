@@ -7,6 +7,8 @@ export interface DashboardStats {
   doingToday: number;
   doneToday: number;
   totalToday: number;
+  somedayCount: number;
+  futureCount: number;
 }
 
 function todayStr() {
@@ -20,13 +22,27 @@ function todayStr() {
 export function useDashboardStats(feedId: string | null): DashboardStats {
   const db = useDB();
   const { decrypt, decryptForFeed } = useCrypto();
-  const [stats, setStats] = useState<DashboardStats>({ todoToday: 0, doingToday: 0, doneToday: 0, totalToday: 0 });
+  const [stats, setStats] = useState<DashboardStats>({
+    todoToday: 0,
+    doingToday: 0,
+    doneToday: 0,
+    totalToday: 0,
+    somedayCount: 0,
+    futureCount: 0
+  });
 
   useEffect(() => {
     let cancelled = false;
 
     // Reset immediately on feedId change before async query completes
-    setStats({ todoToday: 0, doingToday: 0, doneToday: 0, totalToday: 0 });
+    setStats({
+      todoToday: 0,
+      doingToday: 0,
+      doneToday: 0,
+      totalToday: 0,
+      somedayCount: 0,
+      futureCount: 0
+    });
 
     async function compute() {
       const today = todayStr();
@@ -38,6 +54,7 @@ export function useDashboardStats(feedId: string | null): DashboardStats {
       ) as any[];
 
       let todoToday = 0, doingToday = 0, doneToday = 0;
+      let somedayCount = 0, futureCount = 0;
 
       for (const row of rows) {
         if (!row.properties) continue;
@@ -50,14 +67,22 @@ export function useDashboardStats(feedId: string | null): DashboardStats {
           if (!status || status === 'none' || status === 'archived') continue;
 
           if (status === 'todo') {
-            // todo: no date OR date <= today
             const noteDate = props.date ? props.date.slice(0, 10) : null;
-            if (!noteDate || noteDate <= today) todoToday++;
+            if (!noteDate) {
+              somedayCount++;
+              // Also include in todoToday? 
+              // Usually "Today" view includes tasks without date as they are "available" to do.
+              // But the user asked for a separate filter for "tasks without a date".
+              // Let's keep todoToday as "available tasks" (no date or date <= today)
+              todoToday++;
+            } else if (noteDate <= today) {
+              todoToday++;
+            } else {
+              futureCount++;
+            }
           } else if (status === 'doing') {
-            // doing: all, regardless of date
             doingToday++;
           } else if (status === 'done') {
-            // done: only completed today (via completed_at)
             const completedAt = props.completed_at ? props.completed_at.slice(0, 10) : null;
             if (completedAt === today) doneToday++;
           }
@@ -67,7 +92,14 @@ export function useDashboardStats(feedId: string | null): DashboardStats {
       }
 
       if (!cancelled) {
-        setStats({ todoToday, doingToday, doneToday, totalToday: todoToday + doingToday + doneToday });
+        setStats({
+          todoToday,
+          doingToday,
+          doneToday,
+          totalToday: todoToday + doingToday + doneToday,
+          somedayCount,
+          futureCount
+        });
       }
     }
 

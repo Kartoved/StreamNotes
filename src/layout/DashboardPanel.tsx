@@ -66,7 +66,7 @@ interface DashboardPanelProps {
 }
 
 export const DashboardPanel = ({ activeStatusFilter, onStatusFilter, activeFeedId }: DashboardPanelProps) => {
-  const { todoToday, doingToday, doneToday, totalToday } = useDashboardStats(activeFeedId);
+  const { todoToday, doingToday, doneToday, totalToday, somedayCount, futureCount } = useDashboardStats(activeFeedId);
 
   const today = new Date();
   const dateLabel = today.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
@@ -121,22 +121,37 @@ export const DashboardPanel = ({ activeStatusFilter, onStatusFilter, activeFeedI
       {/* Stat rows */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
         <StatRow
-          label="Todo"
+          label="Нужно сделать"
           count={todoToday}
           active={activeStatusFilter === 'todo'}
           onClick={() => handleClick('todo')}
         />
         <StatRow
-          label="In Progress"
+          label="В работе"
           count={doingToday}
           active={activeStatusFilter === 'doing'}
           onClick={() => handleClick('doing')}
         />
         <StatRow
-          label="Done today"
+          label="Сделано за сегодня"
           count={doneToday}
           active={activeStatusFilter === 'done'}
           onClick={() => handleClick('done')}
+        />
+
+        <div style={{ height: '4px' }} />
+        
+        <StatRow
+          label="В планах"
+          count={somedayCount}
+          active={activeStatusFilter === 'todo-no-date'}
+          onClick={() => handleClick('todo-no-date')}
+        />
+        <StatRow
+          label="Будущие"
+          count={futureCount}
+          active={activeStatusFilter === 'todo-future'}
+          onClick={() => handleClick('todo-future')}
         />
       </div>
 
