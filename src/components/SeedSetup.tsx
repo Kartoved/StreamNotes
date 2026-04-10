@@ -29,6 +29,14 @@ export default function SeedSetup({ onComplete, onRecover }: Props) {
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopySeed = () => {
+    if (!mnemonicData) return;
+    navigator.clipboard.writeText(mnemonicData.mnemonic);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleConfirm = () => {
     if (!mnemonicData) return;
@@ -137,6 +145,9 @@ export default function SeedSetup({ onComplete, onRecover }: Props) {
           </div>
           <button style={btnStyle} onClick={() => setStep('confirm')}>
             Я сохранил фразу
+          </button>
+          <button style={btnSecondary} onClick={handleCopySeed}>
+            {copied ? '✓ Скопировано' : 'Скопировать фразу'}
           </button>
           <button style={btnSecondary} onClick={() => setStep('welcome')}>
             Назад
