@@ -14,7 +14,12 @@ import {
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
-const FEED_COLORS = ['#787774', '#c9cbd0', '#969591', '#b1b1ae', '#a3a6ad', '#37352f', '#606a7b', '#868e96'];
+const FEED_COLORS = [
+  // muted hues
+  '#6b4444', '#6b5533', '#556b33', '#336b4a', '#33576b', '#334a6b', '#4a336b', '#6b3355',
+  // neutrals
+  '#37352f', '#4a4a4a', '#606a7b', '#787774', '#868e96', '#a3a6ad', '#b1b1ae', '#c9cbd0',
+];
 const randomColor = () => FEED_COLORS[Math.floor(Math.random() * FEED_COLORS.length)];
 
 // Lucide icons stored as "lucide:Name" in the avatar field — no extra column needed

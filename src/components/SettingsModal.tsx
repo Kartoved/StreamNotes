@@ -3,6 +3,7 @@ import { useCrypto } from '../crypto/CryptoContext';
 import { decryptSeedWithPassword } from '../crypto/CryptoContext';
 import { validateMnemonic } from '../crypto';
 import SyncRelaysPanel from './SyncRelaysPanel';
+import { THEMES, type ThemeId } from '../themes';
 
 interface Props {
   onClose: () => void;
@@ -11,9 +12,11 @@ interface Props {
   font: string;
   setFont: (f: string) => void;
   fontOptions: string[];
+  theme: ThemeId;
+  setTheme: (t: ThemeId) => void;
 }
 
-export default function SettingsModal({ onClose, onExport, onImport, font, setFont, fontOptions }: Props) {
+export default function SettingsModal({ onClose, onExport, onImport, font, setFont, fontOptions, theme, setTheme }: Props) {
   const { nostrPubKey, logout, nickname, setNickname } = useCrypto();
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -125,10 +128,68 @@ export default function SettingsModal({ onClose, onExport, onImport, font, setFo
         {/* Appearance */}
         <div style={sectionDivider}>
             <span style={labelStyle}>Оформление</span>
+
+            {/* Theme switcher */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+              {THEMES.map(t => {
+                const p = t.preview;
+                const active = theme === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTheme(t.id)}
+                    title={t.label}
+                    style={{
+                      padding: 0, cursor: 'pointer', background: 'none',
+                      border: active ? '2px solid var(--text)' : '2px solid var(--line)',
+                      borderRadius: '8px', overflow: 'hidden',
+                      transition: 'border-color 0.15s',
+                      display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+                    }}
+                  >
+                    {/* Mini app preview */}
+                    <div style={{ display: 'flex', width: '80px', height: '52px', background: p.bg }}>
+                      {/* Sidebar strip */}
+                      <div style={{ width: '18px', background: p.sidebar, borderRight: `1px solid ${p.line}`, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '6px', gap: '4px' }}>
+                        {[0, 1, 2].map(i => (
+                          <div key={i} style={{ width: '8px', height: '8px', borderRadius: '2px', background: p.textSub, opacity: i === 1 ? 0.6 : 0.25 }} />
+                        ))}
+                      </div>
+                      {/* Main area */}
+                      <div style={{ flex: 1, padding: '5px 5px 5px 4px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {/* Header bar */}
+                        <div style={{ height: '5px', borderRadius: '2px', background: p.textSub, opacity: 0.2, width: '60%' }} />
+                        {/* Cards */}
+                        {[0, 1].map(i => (
+                          <div key={i} style={{ background: p.card, border: `1px solid ${p.line}`, borderRadius: '3px', padding: '3px 4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ height: '3px', borderRadius: '1px', background: p.text, opacity: 0.7, width: i === 0 ? '70%' : '50%' }} />
+                            <div style={{ height: '2px', borderRadius: '1px', background: p.textSub, opacity: 0.4, width: '85%' }} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Label */}
+                    <div style={{
+                      fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.04em',
+                      color: active ? 'var(--text)' : 'var(--text-faint)',
+                      padding: '4px 0',
+                      textAlign: 'center',
+                      background: 'var(--bg)',
+                      borderTop: '1px solid var(--line)',
+                      transition: 'color 0.15s',
+                    }}>
+                      {t.label}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Font picker */}
             <div style={{ position: 'relative' }}>
-                <select 
-                    style={selectStyle} 
-                    value={font} 
+                <select
+                    style={selectStyle}
+                    value={font}
                     onChange={e => setFont(e.target.value)}
                 >
                     {fontOptions.map(f => <option key={f} value={f} style={{ background: 'var(--bg)', color: 'var(--text)' }}>{f}</option>)}

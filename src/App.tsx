@@ -9,6 +9,7 @@ import { isEncrypted } from './crypto/cipher';
 import { SyncEngine, seedDefaultRelays, SyncEvents } from './sync/syncEngine';
 import { RelayClient } from './sync/relayClient';
 import SettingsModal from './components/SettingsModal';
+import { THEMES, type ThemeId } from './themes';
 import { FeedsSidebar } from './layout/FeedsSidebar';
 import { RightSidebar } from './layout/RightSidebar';
 import { DashboardPanel } from './layout/DashboardPanel';
@@ -262,14 +263,16 @@ function App() {
   // ── Theme ──────────────────────────────────────────────────────────
   // Force light theme for the new minimalist design (reset old localStorage)
   const DESIGN_VERSION = 'minimalist-v1';
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+  const validThemeIds = new Set(THEMES.map(t => t.id));
+  const [theme, setTheme] = useState<ThemeId>(() => {
     if (localStorage.getItem('design_version') !== DESIGN_VERSION) {
       localStorage.setItem('design_version', DESIGN_VERSION);
       localStorage.setItem('theme', 'light');
       localStorage.setItem('sn_font', 'Courier Prime'); // Reset default font
       return 'light';
     }
-    return (localStorage.getItem('theme') as 'dark' | 'light') || 'light';
+    const saved = localStorage.getItem('theme');
+    return (saved && validThemeIds.has(saved as ThemeId) ? saved : 'light') as ThemeId;
   });
 
   const [font, setFont] = useState<string>(() => {
@@ -277,7 +280,7 @@ function App() {
   });
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : '');
+    document.documentElement.setAttribute('data-theme', theme === 'light' ? '' : theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
 
@@ -526,13 +529,15 @@ function App() {
           </div>
         </header>
         {showSettings && (
-          <SettingsModal 
-            onClose={() => setShowSettings(false)} 
+          <SettingsModal
+            onClose={() => setShowSettings(false)}
             onExport={handleExport}
             onImport={handleImport}
             font={font}
             setFont={setFont}
             fontOptions={Object.keys(FONT_FAMILIES)}
+            theme={theme}
+            setTheme={setTheme}
           />
         )}
 
