@@ -285,7 +285,15 @@ export const Feed = ({
     count: visibleNotes.length,
     getScrollElement: () => document.querySelector('.main-content'),
     estimateSize: (i) => visibleNotes[i]?.type === 'header' ? 32 : 100,
+    overscan: 5,
   });
+
+  // Reset scroll to top whenever a filter changes so the virtualizer
+  // doesn't start mid-list with a stale offset
+  React.useEffect(() => {
+    document.querySelector('.main-content')?.scrollTo({ top: 0 });
+    virtualizer.scrollToOffset(0);
+  }, [searchQuery, selectedDate, statusFilter, selectedTags]);
 
   React.useEffect(() => {
     (window as any).scrollToNote = (id: string) => {
