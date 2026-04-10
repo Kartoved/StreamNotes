@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx tsc -b && npx vite build",
+  "buildCommand": "node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build",
   "headers": [
     {
       "source": "/(.*)",
