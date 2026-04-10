@@ -561,8 +561,8 @@ export const Feed = ({
 
               const indent = Math.min(note.depth * 24, 240);
               const isReplying = replyingToId === note.id;
-              const isDragOverChild = dragOverInfo?.id === note.id && dragOverInfo.zone === 'child';
-              const isDragOverSibling = dragOverInfo?.id === note.id && dragOverInfo.zone === 'sibling';
+              const isDragOverChild = dragOverInfo?.id === note.id && dragOverInfo?.zone === 'child';
+              const isDragOverSibling = dragOverInfo?.id === note.id && dragOverInfo?.zone === 'sibling';
 
               let baseBg = 'transparent';
               if (status === 'done') baseBg = 'rgba(134, 239, 172, 0.04)';
