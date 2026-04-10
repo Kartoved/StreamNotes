@@ -1,4 +1,4 @@
-export type ThemeId = 'light' | 'dark' | 'aurora';
+export type ThemeId = 'light' | 'dark' | 'aurora' | 'calopteryx' | 'test';
 
 export interface ThemeMeta {
   id: ThemeId;
@@ -54,6 +54,32 @@ export const THEMES: ThemeMeta[] = [
       line:     'rgba(255, 255, 255, 0.72)',
       text:     '#22203a',
       textSub:  '#b8bdd8',
+    },
+  },
+  {
+    id: 'calopteryx',
+    label: 'Calopteryx',
+    defaultFont: 'Inter (Base)',
+    preview: {
+      sidebar:  'rgba(16, 28, 62, 0.88)',
+      bg:       'linear-gradient(135deg, #162038 0%, #1c3050 50%, #183040 100%)',
+      card:     'rgba(22, 44, 88, 0.65)',
+      line:     'rgba(45, 200, 190, 0.28)',
+      text:     '#cce6f4',
+      textSub:  '#2e5878',
+    },
+  },
+  {
+    id: 'test',
+    label: 'Test',
+    defaultFont: 'Inter (Base)',
+    preview: {
+      sidebar:  '#edf3f7',
+      bg:       'linear-gradient(160deg, #eef4f8 0%, #e8f2f5 100%)',
+      card:     '#ffffff',
+      line:     '#d8e6ed',
+      text:     '#1a2d3d',
+      textSub:  '#b8cdd8',
     },
   },
 ];

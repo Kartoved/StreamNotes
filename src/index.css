@@ -115,6 +115,135 @@
     0 4px 14px rgba(55, 65, 145, 0.12) !important;
 }
 
+/* ══════════════════════════════════════════════════════════════════ */
+/* ── Calopteryx virgo — dark iridescent glass                    ── */
+/* ══════════════════════════════════════════════════════════════════ */
+
+[data-theme="calopteryx"] {
+  /* Mid-depth navy → teal, like sunlight through dragonfly wing */
+  --bg:           #1c3450;
+  --bg-page:      linear-gradient(135deg, #162038 0%, #1c3050 52%, #183040 100%);
+  --bg-hover:     rgba(45, 212, 192, 0.10);
+  --bg-active:    rgba(45, 212, 192, 0.18);
+  --bg-aside:     rgba(18, 32, 65, 0.78);
+  --text:         #cce6f4;
+  --text-sub:     #5e8fa8;
+  --text-faint:   #2e5878;
+  --accent:       #2dd4c0;
+  --accent-warm:  #60a5fa;
+  --accent-bg:    rgba(45, 212, 192, 0.12);
+  --line:         rgba(45, 190, 180, 0.22);
+  --line-strong:  rgba(45, 190, 180, 0.38);
+  --card-bg:      rgba(255, 255, 255, 0.07);
+  --sidebar-bg:   rgba(16, 28, 62, 0.78);
+  --radius:       10px;
+  --radius-lg:    16px;
+  --shadow-sm:    0 2px 8px rgba(0, 30, 80, 0.40);
+  --shadow-md:    0 6px 28px rgba(0, 40, 100, 0.45), 0 1px 6px rgba(0, 30, 80, 0.28);
+  --shadow-lg:    0 14px 52px rgba(0, 40, 100, 0.55);
+}
+
+[data-theme="calopteryx"] body {
+  background-attachment: fixed;
+}
+
+/* Sidebar — deepest layer */
+[data-theme="calopteryx"] .feeds-sidebar {
+  backdrop-filter: blur(28px) saturate(1.6) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(1.6) !important;
+  border-right: 1px solid rgba(45, 190, 180, 0.18) !important;
+  box-shadow: inset -1px 0 0 rgba(70, 220, 210, 0.10) !important;
+}
+
+/* Header — glass bar with subtle teal border */
+[data-theme="calopteryx"] .app-header {
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  background: rgba(8, 15, 36, 0.68) !important;
+  border-bottom: 1px solid rgba(45, 190, 180, 0.16) !important;
+  box-shadow: 0 1px 0 rgba(0, 20, 60, 0.40),
+              inset 0 -1px 0 rgba(45, 190, 180, 0.08) !important;
+}
+
+/* Note cards — colorless iridescent glass, volumetric */
+[data-theme="calopteryx"] .note-card-inner {
+  background: rgba(255, 255, 255, 0.22) !important;
+  backdrop-filter: blur(24px) saturate(1.8) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 8px 32px rgba(0, 30, 90, 0.42),
+    0 2px 6px rgba(0, 20, 70, 0.28) !important;
+}
+
+/* Settings modal — the most refined surface */
+[data-theme="calopteryx"] .settings-card {
+  backdrop-filter: blur(32px) saturate(1.8) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(1.8) !important;
+  border: 1px solid rgba(45, 200, 190, 0.26) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(80, 230, 218, 0.24),
+    inset 1px 0 0 rgba(60, 210, 200, 0.14),
+    0 20px 64px rgba(0, 30, 90, 0.55),
+    0 4px 14px rgba(0, 20, 70, 0.38) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════ */
+/* ── Test — rethought Calopteryx, calm & wearable               ── */
+/* ══════════════════════════════════════════════════════════════════ */
+
+[data-theme="test"] {
+  --bg:           #ffffff;
+  --bg-page:      linear-gradient(160deg, #eef4f8 0%, #e8f2f5 100%);
+  --bg-hover:     rgba(12, 165, 148, 0.06);
+  --bg-active:    rgba(12, 165, 148, 0.11);
+  --bg-aside:     rgba(238, 246, 250, 0.82);
+  --text:         #1a2d3d;
+  --text-sub:     #5a7a8a;
+  --text-faint:   #b8cdd8;
+  --accent:       #0ca899;
+  --accent-warm:  #4a9fd4;
+  --accent-bg:    rgba(12, 168, 153, 0.08);
+  --line:         #dae7ed;
+  --line-strong:  #c2d6e0;
+  --card-bg:      #ffffff;
+  --sidebar-bg:   rgba(238, 246, 250, 0.82);
+  --radius:       12px;
+  --radius-lg:    18px;
+  --shadow-sm:    0 1px 4px rgba(15, 45, 70, 0.06);
+  --shadow-md:    0 4px 20px rgba(15, 45, 70, 0.09), 0 1px 4px rgba(15, 45, 70, 0.05);
+  --shadow-lg:    0 10px 40px rgba(15, 45, 70, 0.12);
+
+}
+
+/* Fixed pseudo-element — sits under everything, not clipped by overflow:hidden */
+[data-theme="test"]::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 900' preserveAspectRatio='xMidYMid slice'%3E%3C!-- wavy lines --%3E%3Cpath d='M-100 210 Q220 155 540 210 Q860 265 1180 210 Q1320 183 1540 210' stroke='rgba(12,168,153,0.22)' stroke-width='1.5' fill='none'/%3E%3Cpath d='M-100 420 Q260 375 580 420 Q900 465 1220 420 Q1340 398 1540 420' stroke='rgba(12,168,153,0.15)' stroke-width='1.2' fill='none'/%3E%3Cpath d='M-100 640 Q240 600 560 640 Q880 680 1200 640 Q1360 620 1540 640' stroke='rgba(12,168,153,0.10)' stroke-width='1' fill='none'/%3E%3C!-- arc cluster top-right --%3E%3Ccircle cx='1400' cy='-40' r='320' stroke='rgba(12,168,153,0.13)' stroke-width='1.2' fill='none'/%3E%3Ccircle cx='1400' cy='-40' r='460' stroke='rgba(12,168,153,0.08)' stroke-width='1' fill='none'/%3E%3Ccircle cx='1400' cy='-40' r='600' stroke='rgba(12,168,153,0.05)' stroke-width='1' fill='none'/%3E%3C!-- single arc bottom-left --%3E%3Ccircle cx='40' cy='940' r='280' stroke='rgba(12,168,153,0.10)' stroke-width='1' fill='none'/%3E%3Ccircle cx='40' cy='940' r='420' stroke='rgba(12,168,153,0.06)' stroke-width='1' fill='none'/%3E%3C/svg%3E"),
+    linear-gradient(160deg, #eef4f8 0%, #e8f2f5 100%);
+  background-size: 100% 100%, 100% 100%;
+}
+
+[data-theme="test"] body {
+  background: transparent;
+}
+
+/* Root app div has inline background: var(--bg-page) — override to transparent */
+[data-theme="test"] .app-root {
+  background: transparent !important;
+}
+
+[data-theme="test"] .feeds-sidebar {
+  background: rgba(238, 246, 250, 0.88) !important;
+  border-right: 1px solid var(--line) !important;
+}
+
 /* ── Reset & Base ─────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
