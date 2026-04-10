@@ -284,6 +284,12 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  const handleSetTheme = (newTheme: ThemeId) => {
+    setTheme(newTheme);
+    const meta = THEMES.find(t => t.id === newTheme);
+    if (meta) setFont(meta.defaultFont);
+  };
+
   const FONT_FAMILIES: Record<string, string> = {
     'Courier Prime': "'Courier Prime', 'Courier New', monospace",
     'Source Code Pro': "'Source Code Pro', 'Courier New', monospace",
@@ -537,7 +543,7 @@ function App() {
             setFont={setFont}
             fontOptions={Object.keys(FONT_FAMILIES)}
             theme={theme}
-            setTheme={setTheme}
+            setTheme={handleSetTheme}
           />
         )}
 

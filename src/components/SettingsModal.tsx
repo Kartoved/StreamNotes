@@ -119,7 +119,7 @@ export default function SettingsModal({ onClose, onExport, onImport, font, setFo
 
   return (
     <div style={overlay} onClick={onClose}>
-      <div style={card} onClick={e => e.stopPropagation()}>
+      <div style={card} className="settings-card" onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, letterSpacing: '-0.02em' }}>Настройки</h2>
           <button onClick={onClose} style={{ ...btn, padding: '2px 8px', fontSize: '1.2rem', border: 'none', color: 'var(--text-faint)' }}>×</button>
