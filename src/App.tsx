@@ -189,7 +189,7 @@ function App() {
     })();
   }, [db, encrypt]);
 
-  const handleCreateFeed = useCallback(async (name: string, color: string, avatar: string | null, icon: string | null) => {
+  const handleCreateFeed = useCallback(async (name: string, color: string, avatar: string | null) => {
     const id = 'feed-' + uid();
     // Get next key_index by counting existing feeds
     const countRes = await db.execA(`SELECT COALESCE(MAX(key_index), -1) + 1 FROM feeds`);
@@ -197,84 +197,19 @@ function App() {
     const fekHex = deriveNewFeedKey(keyIndex);
     const encryptedFek = encryptFeedKey(fekHex);
     await db.exec(
-      `INSERT INTO feeds (id, name, color, avatar, icon, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-      [id, encrypt(name), color, avatar ? encrypt(avatar) : null, icon, encryptedFek, keyIndex, 0, Date.now()]
+      `INSERT INTO feeds (id, name, color, avatar, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?,?)`,
+      [id, encrypt(name), color, avatar ? encrypt(avatar) : null, encryptedFek, keyIndex, 0, Date.now()]
     );
     setActiveFeedId(id);
   }, [db, encrypt, deriveNewFeedKey, encryptFeedKey]);
 
-  const handleUpdateFeed = useCallback(async (id: string, name: string, color: string, avatar: string | null, icon: string | null) => {
-    try {
-      // 1. Try the full update first
-      await db.exec(
-        `UPDATE feeds SET name = ?, color = ?, avatar = ?, icon = ? WHERE id = ?`,
-        [encrypt(name), color, avatar ? encrypt(avatar) : null, icon, id]
-      );
-      SyncEvents.dispatchEvent(new Event('sync'));
-    } catch (e) {
-      const errStr = String(e);
-      if (errStr.includes("values, got")) {
-         try {
-           console.log("Hard repairing feeds CRR...");
-           
-           // 1. Backup existing data
-           await db.exec(`CREATE TABLE IF NOT EXISTS feeds_backup AS SELECT * FROM feeds`);
-           await db.exec(`DELETE FROM feeds_backup`);
-           await db.exec(`INSERT INTO feeds_backup SELECT * FROM feeds`);
-           
-           // 2. Drop the broken CRR table and all its internal crsqlite triggers
-           await db.exec(`DROP TABLE feeds`);
-           
-           // 3. Recreate the precise base schema
-           await db.exec(`
-             CREATE TABLE feeds (
-               id TEXT PRIMARY KEY NOT NULL,
-               name TEXT DEFAULT '',
-               avatar TEXT DEFAULT NULL,
-               color TEXT DEFAULT '#3b82f6',
-               icon TEXT DEFAULT NULL,
-               encryption_key TEXT DEFAULT NULL,
-               key_index INTEGER DEFAULT NULL,
-               is_shared BOOLEAN DEFAULT 0,
-               created_at INTEGER DEFAULT 0
-             )
-           `);
-           
-           // 4. Make it a CRR afresh. This generates pristine triggers.
-           await db.exec(`SELECT crsql_as_crr('feeds')`);
-           
-           // 5. Restore data
-           await db.exec(`
-             INSERT INTO feeds (id, name, avatar, color, icon, encryption_key, key_index, is_shared, created_at)
-             SELECT id, name, avatar, color, icon, encryption_key, key_index, is_shared, created_at FROM feeds_backup
-           `);
-           
-           // 6. Cleanup
-           await db.exec(`DROP TABLE feeds_backup`);
-
-           // Retry the full update now that the table is flawless
-           await db.exec(
-             `UPDATE feeds SET name = ?, color = ?, avatar = ?, icon = ? WHERE id = ?`,
-             [encrypt(name), color, avatar ? encrypt(avatar) : null, icon, id]
-           );
-           SyncEvents.dispatchEvent(new Event('sync'));
-           return;
-         } catch (repairErr) {
-           console.error("Hard repair failed:", repairErr);
-         }
-      }
-
-      // 2. Fallback to basic fields if repair failed or wasn't applicable
-      try {
-        await db.exec(`UPDATE feeds SET name = ?, color = ? WHERE id = ?`, [encrypt(name), color, id]);
-        try { await db.exec(`UPDATE feeds SET icon = ? WHERE id = ?`, [icon, id]); } catch {}
-        try { await db.exec(`UPDATE feeds SET avatar = ? WHERE id = ?`, [avatar ? encrypt(avatar) : null, id]); } catch {}
-        SyncEvents.dispatchEvent(new Event('sync'));
-      } catch (e2) {
-        console.error('Core update failed:', e2);
-        alert('Ошибка сохранения: ' + errStr);
-      }
-    }
+  const handleUpdateFeed = useCallback(async (id: string, name: string, color: string, avatar: string | null) => {
+    // avatar holds either a data-URL (photo), "lucide:Name" (icon), or null (initials)
+    // All non-null values are encrypted with the master key
+    await db.exec(
+      `UPDATE feeds SET name = ?, color = ?, avatar = ? WHERE id = ?`,
+      [encrypt(name), color, avatar ? encrypt(avatar) : null, id]
+    );
   }, [db, encrypt]);
 
   const handleImportSharedFeed = useCallback(async (payload: { flow_id: string; fek: string; name: string; relay?: string }) => {

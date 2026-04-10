@@ -17,7 +17,7 @@ import {
 const FEED_COLORS = ['#787774', '#c9cbd0', '#969591', '#b1b1ae', '#a3a6ad', '#37352f', '#606a7b', '#868e96'];
 const randomColor = () => FEED_COLORS[Math.floor(Math.random() * FEED_COLORS.length)];
 
-// Curated icon set — slug maps to Lucide component
+// Lucide icons stored as "lucide:Name" in the avatar field — no extra column needed
 const FEED_ICONS: { name: string; Icon: LucideIcon }[] = [
   { name: 'Notebook', Icon: Notebook },
   { name: 'FileText', Icon: FileText },
@@ -54,11 +54,16 @@ const FEED_ICONS: { name: string; Icon: LucideIcon }[] = [
 ];
 
 const ICON_MAP = new Map(FEED_ICONS.map(({ name, Icon }) => [name, Icon]));
+const LUCIDE_PREFIX = 'lucide:';
 
-export function getLucideIcon(name: string | null): LucideIcon | null {
-  if (!name) return null;
-  return ICON_MAP.get(name) ?? null;
+/** Returns the Lucide component if avatar encodes an icon (e.g. "lucide:Notebook"), else null */
+export function parseLucideAvatar(avatar: string | null): LucideIcon | null {
+  if (!avatar?.startsWith(LUCIDE_PREFIX)) return null;
+  return ICON_MAP.get(avatar.slice(LUCIDE_PREFIX.length)) ?? null;
 }
+
+/** Encode a Lucide icon name into the avatar slot */
+const lucideAvatar = (name: string) => `${LUCIDE_PREFIX}${name}`;
 
 async function resizeAvatar(file: File): Promise<string> {
   return new Promise((resolve) => {
@@ -81,7 +86,7 @@ async function resizeAvatar(file: File): Promise<string> {
 // ─── Feed Icon ────────────────────────────────────────────────────────
 const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
   const initials = feed.name.slice(0, 2).toUpperCase();
-  const LIcon = getLucideIcon(feed.icon);
+  const LIcon = parseLucideAvatar(feed.avatar);
   return (
     <div style={{
       width: '40px', height: '40px',
@@ -91,15 +96,15 @@ const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
       overflow: 'hidden',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       cursor: 'pointer', flexShrink: 0,
-      opacity: 1,
       transition: 'all 0.15s ease',
-      boxShadow: 'none',
       color: active ? 'var(--bg)' : 'var(--text-faint)',
+      // Use color bg for lucide icons too
+      ...(LIcon ? { background: active ? 'var(--text)' : 'var(--bg-aside)' } : {}),
     }}>
-      {feed.avatar
-        ? <img src={feed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : LIcon
-          ? <LIcon size={18} strokeWidth={1.5} color={active ? 'var(--bg)' : 'var(--text-faint)'} />
+      {LIcon
+        ? <LIcon size={18} strokeWidth={1.5} color={active ? 'var(--bg)' : 'var(--text-faint)'} />
+        : feed.avatar
+          ? <img src={feed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <span style={{ color: active ? 'white' : 'inherit', fontWeight: 700, fontSize: '0.85rem', userSelect: 'none' }}>{initials}</span>
       }
     </div>
@@ -120,8 +125,8 @@ export const FeedsSidebar = ({
   feeds: FeedData[];
   activeFeedId: string | null;
   onSelect: (id: string) => void;
-  onCreateFeed: (name: string, color: string, avatar: string | null, icon: string | null) => void;
-  onUpdateFeed: (id: string, name: string, color: string, avatar: string | null, icon: string | null) => void;
+  onCreateFeed: (name: string, color: string, avatar: string | null) => void;
+  onUpdateFeed: (id: string, name: string, color: string, avatar: string | null) => void;
   onDeleteFeed: (id: string, isShared: boolean) => void;
   onImportSharedFeed?: (payload: { flow_id: string; fek: string; name: string; relay?: string }) => void;
   onShareFeed?: (id: string) => void;
@@ -130,18 +135,18 @@ export const FeedsSidebar = ({
   const [modal, setModal] = useState<'create' | 'share' | 'import' | FeedData | null>(null);
   const [modalName, setModalName] = useState('');
   const [modalColor, setModalColor] = useState('#3b82f6');
+  // avatar holds either a data-URL (image), a "lucide:Name" string, or null
   const [modalAvatar, setModalAvatar] = useState<string | null>(null);
-  const [modalIcon, setModalIcon] = useState<string | null>(null);
   const [sharePayload, setSharePayload] = useState<string>('');
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState('');
   const avatarRef = useRef<HTMLInputElement>(null);
 
   const openCreate = () => {
-    setModalName(''); setModalColor(randomColor()); setModalAvatar(null); setModalIcon(null); setModal('create');
+    setModalName(''); setModalColor(randomColor()); setModalAvatar(null); setModal('create');
   };
   const openEdit = (feed: FeedData) => {
-    setModalName(feed.name); setModalColor(feed.color); setModalAvatar(feed.avatar); setModalIcon(feed.icon); setModal(feed);
+    setModalName(feed.name); setModalColor(feed.color); setModalAvatar(feed.avatar); setModal(feed);
   };
 
   const handleSave = async () => {
@@ -160,9 +165,9 @@ export const FeedsSidebar = ({
     }
 
     if (modal === 'create') {
-      onCreateFeed(trimmed, modalColor, modalAvatar, modalIcon);
+      onCreateFeed(trimmed, modalColor, modalAvatar);
     } else if (modal && typeof modal === 'object') {
-      await onUpdateFeed(modal.id, trimmed, modalColor, modalAvatar, modalIcon);
+      await onUpdateFeed(modal.id, trimmed, modalColor, modalAvatar);
     }
     setModal(null);
   };
@@ -172,7 +177,6 @@ export const FeedsSidebar = ({
     if (!file) return;
     const dataUrl = await resizeAvatar(file);
     setModalAvatar(dataUrl);
-    setModalIcon(null);
     e.target.value = '';
   };
 
@@ -213,17 +217,19 @@ export const FeedsSidebar = ({
   const swatch = (color: string) => (
     <div
       key={color}
-      onClick={() => { setModalColor(color); setModalAvatar(null); }}
+      onClick={() => { setModalColor(color); if (parseLucideAvatar(modalAvatar)) setModalAvatar(null); }}
       style={{
         width: '24px', height: '24px', borderRadius: '50%', background: color, cursor: 'pointer',
-        border: color === modalColor && !modalAvatar ? '2px solid white' : '2px solid transparent',
+        border: color === modalColor && !parseLucideAvatar(modalAvatar) ? '2px solid white' : '2px solid transparent',
         transition: '0.1s',
       }}
     />
   );
 
-  // Preview icon in modal avatar area
-  const ModalPreviewIcon = modalIcon ? getLucideIcon(modalIcon) : null;
+  // Derived state from modalAvatar
+  const selectedIcon = parseLucideAvatar(modalAvatar) ? modalAvatar!.slice(LUCIDE_PREFIX.length) : null;
+  const isImageAvatar = modalAvatar && !modalAvatar.startsWith(LUCIDE_PREFIX);
+  const ModalPreviewIcon = selectedIcon ? ICON_MAP.get(selectedIcon) : null;
 
   return (
     <>
@@ -394,26 +400,27 @@ export const FeedsSidebar = ({
               {modal === 'create' ? 'Новый шифлоу' : 'Редактировать шифлоу'}
             </div>
 
-            {/* Avatar + Name */}
+            {/* Avatar preview + Name */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
               <div
                 onClick={() => avatarRef.current?.click()}
                 title="Загрузить аватар"
                 style={{
                   width: '48px', height: '48px', borderRadius: '12px', flexShrink: 0,
-                  background: modalAvatar ? 'transparent' : modalColor,
+                  background: isImageAvatar ? 'transparent' : modalColor,
                   overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', position: 'relative',
                   border: '1px solid var(--line)',
                 }}
               >
-                {modalAvatar
-                  ? <img src={modalAvatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {isImageAvatar
+                  ? <img src={modalAvatar!} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : ModalPreviewIcon
                     ? <ModalPreviewIcon size={22} strokeWidth={1.5} color="white" />
                     : <span style={{ color: 'white', fontWeight: 700, fontSize: '1rem', userSelect: 'none' }}>{(modalName || '?').slice(0, 2).toUpperCase()}</span>
                 }
-                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: '0.15s', fontSize: '1rem' }}
+                <div
+                  style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: '0.15s', fontSize: '1rem' }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '1'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '0'}
                 >📷</div>
@@ -443,7 +450,7 @@ export const FeedsSidebar = ({
             {/* Color swatches */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 24px)', gap: '8px', marginBottom: '16px' }}>
               {FEED_COLORS.map(swatch)}
-              {modalAvatar && (
+              {isImageAvatar && (
                 <div
                   onClick={() => setModalAvatar(null)}
                   title="Убрать аватар"
@@ -458,35 +465,35 @@ export const FeedsSidebar = ({
                 Иконка
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 32px)', gap: '4px' }}>
-                {/* Clear icon option */}
+                {/* Clear / initials option */}
                 <div
-                  onClick={() => setModalIcon(null)}
+                  onClick={() => setModalAvatar(null)}
                   title="Без иконки"
                   style={{
                     width: '32px', height: '32px', borderRadius: '6px',
-                    border: modalIcon === null && !modalAvatar ? '1.5px solid var(--text)' : '1px solid var(--line)',
+                    border: !modalAvatar ? '1.5px solid var(--text)' : '1px solid var(--line)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', color: 'var(--text-faint)', fontSize: '0.6rem',
-                    background: modalIcon === null && !modalAvatar ? 'var(--bg-hover)' : 'transparent',
+                    background: !modalAvatar ? 'var(--bg-hover)' : 'transparent',
                     transition: '0.1s',
                   }}
                 >Аб</div>
                 {FEED_ICONS.map(({ name, Icon }) => (
                   <div
                     key={name}
-                    onClick={() => { setModalIcon(name); setModalAvatar(null); }}
+                    onClick={() => setModalAvatar(lucideAvatar(name))}
                     title={name}
                     style={{
                       width: '32px', height: '32px', borderRadius: '6px',
-                      border: modalIcon === name ? '1.5px solid var(--text)' : '1px solid var(--line)',
+                      border: selectedIcon === name ? '1.5px solid var(--text)' : '1px solid var(--line)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       cursor: 'pointer',
-                      background: modalIcon === name ? 'var(--bg-hover)' : 'transparent',
-                      color: modalIcon === name ? 'var(--text)' : 'var(--text-faint)',
+                      background: selectedIcon === name ? 'var(--bg-hover)' : 'transparent',
+                      color: selectedIcon === name ? 'var(--text)' : 'var(--text-faint)',
                       transition: '0.1s',
                     }}
-                    onMouseEnter={e => { if (modalIcon !== name) { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; } }}
-                    onMouseLeave={e => { if (modalIcon !== name) { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; } }}
+                    onMouseEnter={e => { if (selectedIcon !== name) { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; } }}
+                    onMouseLeave={e => { if (selectedIcon !== name) { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; } }}
                   >
                     <Icon size={15} strokeWidth={1.5} />
                   </div>
