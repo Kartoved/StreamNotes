@@ -77,7 +77,7 @@ export const DashboardPanel = ({ activeStatusFilter, onStatusFilter, activeFeedI
   };
 
   return (
-    <div style={{
+    <div className="dashboard-panel" style={{
       width: '180px', flexShrink: 0,
       display: 'flex', flexDirection: 'column',
       borderRight: '1px solid var(--line)',

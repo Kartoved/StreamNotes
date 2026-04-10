@@ -389,32 +389,21 @@ body {
   letter-spacing: 0.01em;
 }
 
-/* ── Mobile ───────────────────────────────────────────────────────── */
-@media (max-width: 640px) {
-  /* ── Bottom tab bar ── */
-  .feeds-sidebar {
-    position: fixed !important;
-    bottom: 0; left: 0; right: 0;
-    width: 100% !important;
-    height: 64px !important;
-    flex-direction: row !important;
-    padding: 0 8px !important;
-    gap: 4px !important;
-    border-right: none !important;
-    border-top: 1px solid var(--line) !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    z-index: 200;
-    justify-content: flex-start;
-    align-items: center;
-    -webkit-overflow-scrolling: touch;
-  }
-  .feeds-sidebar .feed-logo-sep { display: none; }
+/* ── Tablet (641–900px): compact two-column ──────────────────────── */
+@media (max-width: 900px) and (min-width: 641px) {
+  .dashboard-panel { display: none !important; }
+  .right-sidebar { width: 180px !important; }
+  .main-content { padding: 0.5rem 1rem !important; }
+}
 
-  /* ── Right sidebar hidden — shown as bottom sheet ── */
+/* ── Mobile (≤ 640px) ─────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* ── Hide sidebar panels; shown per-tab via data attribute ── */
+  .feeds-sidebar,
+  .dashboard-panel,
   .right-sidebar { display: none !important; }
 
-  /* ── Main content ── */
+  /* ── Main content (feed tab — default) ── */
   .main-content {
     padding: 0.5rem 0.75rem !important;
     padding-bottom: 72px !important;
@@ -460,12 +449,120 @@ body {
     padding: 11px 14px !important;
   }
 
-  /* ── Filter button — only visible on mobile ── */
-  .mobile-filter-btn { display: inline-flex !important; }
+  /* ── FEEDS TAB ── */
+  [data-mobile-tab="feeds"] .main-content { display: none !important; }
+  [data-mobile-tab="feeds"] .feeds-sidebar {
+    display: flex !important;
+    position: fixed !important;
+    top: 0; left: 0; right: 0;
+    bottom: 56px;
+    width: 100% !important;
+    height: auto !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 20px 16px 12px !important;
+    gap: 2px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    border-right: none !important;
+    -webkit-overflow-scrolling: touch;
+    z-index: 10;
+  }
+  [data-mobile-tab="feeds"] .feed-logo-sep { display: none !important; }
+  [data-mobile-tab="feeds"] .feed-item {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 14px !important;
+    padding: 13px 14px !important;
+    border-radius: var(--radius) !important;
+    transition: background 0.1s;
+  }
+  [data-mobile-tab="feeds"] .feed-item:active {
+    background: var(--bg-hover) !important;
+  }
+  [data-mobile-tab="feeds"] .feed-tooltip {
+    position: static !important;
+    opacity: 1 !important;
+    transform: none !important;
+    background: transparent !important;
+    color: var(--text) !important;
+    font-size: 0.92rem !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    pointer-events: none;
+    letter-spacing: 0.01em !important;
+  }
+
+  /* ── CALENDAR TAB ── */
+  [data-mobile-tab="calendar"] .main-content { display: none !important; }
+  [data-mobile-tab="calendar"] .right-sidebar {
+    display: flex !important;
+    position: fixed !important;
+    top: 0; left: 0; right: 0;
+    bottom: 56px;
+    width: 100% !important;
+    padding: 20px 20px 16px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    border: none !important;
+    z-index: 10;
+  }
+  [data-mobile-tab="calendar"] .right-sidebar > div:first-child {
+    margin-bottom: 12px !important;
+  }
+
+  /* ── Show tab bar on mobile ── */
+  .mobile-tab-bar { display: flex !important; }
 }
 
-/* Hide mobile-only elements on desktop */
-.mobile-filter-btn { display: none; }
+/* ── Mobile tab bar (hidden on desktop) ──────────────────────────── */
+.mobile-tab-bar {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 56px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  z-index: 200;
+  /* iOS safe area */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: content-box;
+}
+
+.mobile-tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-faint);
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 56px;
+}
+
+.mobile-tab-btn.active {
+  color: var(--text);
+}
+
+.mobile-tab-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.5;
+  flex-shrink: 0;
+}
 
 /* ── Mobile bottom sheet ──────────────────────────────────────────── */
 .mobile-filter-sheet {
