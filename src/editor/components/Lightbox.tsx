@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { createPortal } from 'react-dom';
 
 export const Lightbox = ({ url, name, onClose }: { url: string; name: string; onClose: () => void }) => {
   useEffect(() => {
@@ -8,7 +7,7 @@ export const Lightbox = ({ url, name, onClose }: { url: string; name: string; on
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  return createPortal(
+  return (
     <div
       onClick={onClose}
       style={{
@@ -38,7 +37,6 @@ export const Lightbox = ({ url, name, onClose }: { url: string; name: string; on
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >✕</button>
-    </div>,
-    document.body
+    </div>
   );
 };

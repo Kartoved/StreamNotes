@@ -73,9 +73,10 @@ if (typeof window !== 'undefined') {
     },
   });
 
-  // ── window.scrollToNote / window.navigateToNote ───────────────────
+  // ── window.scrollToNote / window.navigateToNote / window.openLightbox ─
   (window as any).scrollToNote = () => {};
   (window as any).navigateToNote = () => {};
+  (window as any).openLightbox = () => {};
 
   // ── matchMedia (needed by some theme-detection code) ──────────────
   Object.defineProperty(window, 'matchMedia', {

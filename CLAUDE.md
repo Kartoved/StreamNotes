@@ -68,7 +68,7 @@ const feedDecrypt = (text) => feedId ? decryptForFeed(text, feedId) : decrypt(te
 
 **`src/editor/TiptapViewer.tsx`** — read-only рендер TipTap JSON в React без инициализации редактора:
 - `renderTiptapNode` — рекурсивный рендер узлов.
-- `AttachmentDisplay` — read-only рендер вложений (изображение/видео/файл), резолвит `attachment://` через OPFS.
+- `AttachmentDisplay` — read-only рендер вложений (изображение/видео/файл), резолвит `attachment://` через OPFS. Клик по изображению вызывает `window.openLightbox(url, name)` — глобальный лайтбокс, зарегистрированный в `App.tsx`.
 - Внутренние ссылки (`note://`) при клике вызывают `window.navigateToNote(id)` (если установлен в `App.tsx`) или падают обратно на `window.scrollToNote(id)` (устанавливается в `Feed.tsx` и `App.tsx`). `navigateToNote` умеет переключать ленту; `scrollToNote` только скроллит текущую.
 
 **`src/components/Feed.tsx`** — виртуализированная лента:
@@ -95,6 +95,20 @@ const feedDecrypt = (text) => feedId ? decryptForFeed(text, feedId) : decrypt(te
 - `CryptoContext.tsx` — провайдер ключей, экраны авторизации (SeedSetup, UnlockScreen, SeedRecover). Экспортирует `encryptForFeed` / `decryptForFeed` / `deriveNewFeedKey` / `encryptFeedKey`.
 - `cipher.ts` — `encrypt/decrypt`.
 - `bip39.ts`, `keys.ts` — генерация Nostr-совместимых ключей из сид-фразы, деривация FEK.
+
+### Window globals (паттерн для связи глубоко вложенных компонентов с App)
+
+Ряд функций регистрируется в `App.tsx` через `useEffect` на `window` — это намеренный архитектурный выбор для компонентов, которые живут глубоко в дереве (особенно внутри виртуализатора) и не могут надёжно получать колбэки через пропсы или контекст:
+
+| `window.*` | Где регистрируется | Кто вызывает |
+|---|---|---|
+| `scrollToNote(id)` | `App.tsx` | `TiptapViewer.tsx` (внутренние ссылки) |
+| `navigateToNote(id)` | `App.tsx` | `TiptapViewer.tsx` (внутренние ссылки) |
+| `openLightbox(url, name)` | `App.tsx` | `AttachmentDisplay`, `AttachmentNodeView` |
+
+**Важно:** Не хранить стейт лайтбокса/оверлеев внутри виртуализированных компонентов — виртуализатор пересоздаёт компоненты при прокрутке, что сбрасывает локальный стейт. Лайтбокс (`src/editor/components/Lightbox.tsx`) намеренно не использует `createPortal` — он рендерится прямо в app-root без портала, чтобы избежать конфликта с `overflow: hidden` на `body`.
+
+Все три функции мокируются в `src/__tests__/ui/setup.ts`.
 
 ### Тема
 
@@ -123,7 +137,7 @@ Vite выставляет `Cross-Origin-Opener-Policy: same-origin` и `Cross-Or
 - `IntersectionObserver`, `ResizeObserver`
 - `URL.createObjectURL / revokeObjectURL`
 - `navigator.storage` (OPFS mock)
-- `window.scrollToNote`, `window.navigateToNote`
+- `window.scrollToNote`, `window.navigateToNote`, `window.openLightbox`
 - `window.matchMedia`
 
 ### Стратегия моков для UI-тестов

@@ -48,7 +48,8 @@
       "Bash(npx eslint:*)",
       "Bash(cmd /c \"npx tsc --noEmit\")",
       "Bash(cmd /c \"npx vite build 2>&1\")",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(node -e \"const pkg = require\\('./package.json'\\); console.log\\('react:', pkg.dependencies.react, 'react-dom:', pkg.dependencies['react-dom']\\)\")"
     ]
   }
 }

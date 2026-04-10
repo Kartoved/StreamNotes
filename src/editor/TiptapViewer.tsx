@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { resolveUrl, getFileType, formatSize } from '../utils/opfsFiles';
-import { Lightbox } from './components/Lightbox';
 
 // ─── SVG Icons ────────────────────────────────────────────────────────
 const FileIcon = () => (
@@ -22,7 +21,6 @@ const DownloadIcon = () => (
 export const AttachmentDisplay = ({ src, name, fileType, size, inGrid }: { src: string; name: string; fileType: string; size: number; inGrid?: boolean }) => {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
-  const [lightbox, setLightbox] = useState(false);
   
   useEffect(() => { 
     resolveUrl(src).then(setUrl).catch(() => setError(true)); 
@@ -60,10 +58,18 @@ export const AttachmentDisplay = ({ src, name, fileType, size, inGrid }: { src: 
   if (!url) return <div style={{ ...containerStyle, padding: '10px 14px', border: '1px solid var(--line)', background: 'var(--bg-aside)', fontSize: '0.85rem', color: 'var(--text-sub)' }}>⏳ {name}...</div>;
 
   if (fileType === 'image') return (
-    <div style={containerStyle} className="attachment-card" onClick={e => e.stopPropagation()}>
+    <div
+      style={containerStyle}
+      className="attachment-card"
+      onClick={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+    >
       <img
         src={url} alt={name}
-        onClick={() => setLightbox(true)}
+        draggable={false}
+        onClick={e => { e.stopPropagation(); (window as any).openLightbox?.(url, name); }}
+        onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
+        onDragStart={e => e.preventDefault()}
         onError={() => setError(true)}
         style={{
           width: '100%',
@@ -80,7 +86,6 @@ export const AttachmentDisplay = ({ src, name, fileType, size, inGrid }: { src: 
         {downloadBtn}
       </div>
       <style>{`.attachment-card:hover .attachment-actions { opacity: 1 !important; }`}</style>
-      {lightbox && <Lightbox url={url} name={name} onClose={() => setLightbox(false)} />}
     </div>
   );
 

@@ -3,13 +3,11 @@ import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import { Node, mergeAttributes } from '@tiptap/core';
 import type { NodeViewProps } from '@tiptap/core';
 import { resolveUrl, formatSize } from '../../utils/opfsFiles';
-import { Lightbox } from '../components/Lightbox';
 
 const AttachmentNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
   const { src, name, fileType, size } = node.attrs;
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
-  const [lightbox, setLightbox] = useState(false);
 
   useEffect(() => {
     resolveUrl(src).then(setUrl).catch(() => setError(true));
@@ -108,7 +106,9 @@ const AttachmentNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
       <div style={containerStyle} className="attachment-card">
         <img
           src={url} alt={name}
-          onClick={() => setLightbox(true)}
+          draggable={false}
+          onClick={() => (window as any).openLightbox?.(url, name)}
+          onDragStart={e => e.preventDefault()}
           style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: 'var(--radius)', display: 'block', cursor: 'zoom-in', background: 'var(--bg-aside)', border: '1px solid var(--line)' }}
           onError={() => setError(true)}
         />
@@ -117,7 +117,6 @@ const AttachmentNodeView = ({ node, deleteNode, selected }: NodeViewProps) => {
           {deleteBtn}
         </div>
         <style>{`.attachment-node-img:hover .attachment-actions { opacity: 1 !important; }`}</style>
-        {lightbox && <Lightbox url={url} name={name} onClose={() => setLightbox(false)} />}
       </div>
     </NodeViewWrapper>
   );

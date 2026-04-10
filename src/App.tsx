@@ -9,6 +9,7 @@ import { isEncrypted } from './crypto/cipher';
 import { SyncEngine, seedDefaultRelays, SyncEvents } from './sync/syncEngine';
 import { RelayClient } from './sync/relayClient';
 import SettingsModal from './components/SettingsModal';
+import { Lightbox } from './editor/components/Lightbox';
 import { THEMES, type ThemeId } from './themes';
 import { FeedsSidebar } from './layout/FeedsSidebar';
 import { RightSidebar } from './layout/RightSidebar';
@@ -29,6 +30,7 @@ function App() {
   useCryptoRef.current = crypto;
   const [showSettings, setShowSettings] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [lightboxEntry, setLightboxEntry] = useState<{ url: string; name: string } | null>(null);
 
   // ── One-time graph integrity check ────────────────────────────────
   const rescueDone = useRef(false);
@@ -44,6 +46,12 @@ function App() {
       setFocusedTweetId(id);
     };
     return () => { delete (window as any).scrollToNote; };
+  }, []);
+
+  // ── Global lightbox (image zoom) ───────────────────────────────────
+  useEffect(() => {
+    (window as any).openLightbox = (url: string, name: string) => setLightboxEntry({ url, name });
+    return () => { delete (window as any).openLightbox; };
   }, []);
 
   // ── E2E Migration: encrypt existing unencrypted data ──────────────
@@ -672,6 +680,10 @@ function App() {
             >Готово</button>
           </div>
         </div>
+      )}
+
+      {lightboxEntry && (
+        <Lightbox url={lightboxEntry.url} name={lightboxEntry.name} onClose={() => setLightboxEntry(null)} />
       )}
     </div>
   );
