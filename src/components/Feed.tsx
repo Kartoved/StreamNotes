@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotes } from '../db/hooks';
 import { useDB } from '../db/DBContext';
@@ -97,6 +98,70 @@ export const Feed = ({
 
   const [sortMode, setSortMode] = useState<'default' | 'date' | 'status' | 'created'>('default');
   const [groupMode, setGroupMode] = useState<'none' | 'date' | 'status'>('none');
+
+  // ── Touch drag-and-drop (mobile) ─────────────────────────────────
+  const touchDragId = useRef<string | null>(null);
+  const [touchDragActive, setTouchDragActive] = useState(false);
+  const [touchGhostPos, setTouchGhostPos] = useState({ x: 0, y: 0 });
+  const [touchGhostText, setTouchGhostText] = useState('');
+
+  const handleTouchDragStart = (noteId: string, startTouch: { clientX: number; clientY: number }) => {
+    touchDragId.current = noteId;
+    setDraggedId(noteId);
+    setTouchDragActive(true);
+    setTouchGhostPos({ x: startTouch.clientX, y: startTouch.clientY });
+    const noteItem = visibleNotes.find(n => n.type === 'note' && n.note?.id === noteId);
+    if (noteItem && noteItem.type === 'note') {
+      setTouchGhostText(extractPlainText(noteItem.note.content).slice(0, 60) || '...');
+    }
+    if (navigator.vibrate) navigator.vibrate(40);
+
+    const onMove = (ev: TouchEvent) => {
+      ev.preventDefault();
+      const t = ev.touches[0];
+      setTouchGhostPos({ x: t.clientX, y: t.clientY });
+
+      // Find target note under finger
+      const els = document.elementsFromPoint(t.clientX, t.clientY);
+      const noteEl = els.find(el =>
+        (el as HTMLElement).dataset?.noteId &&
+        (el as HTMLElement).dataset.noteId !== touchDragId.current
+      ) as HTMLElement | null;
+
+      if (noteEl) {
+        const targetId = noteEl.dataset.noteId!;
+        const rect = noteEl.getBoundingClientRect();
+        // Left half = sibling (before), right half = child (nest under)
+        const zone: 'sibling' | 'child' = (t.clientX - rect.left) < rect.width * 0.55 ? 'sibling' : 'child';
+        setDragOverInfo(prev =>
+          prev?.id === targetId && prev?.zone === zone ? prev : { id: targetId, zone }
+        );
+      } else {
+        setDragOverInfo(null);
+      }
+    };
+
+    const onEnd = (ev: TouchEvent) => {
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+
+      const currentDragOverInfo = dragOverInfoRef.current;
+      if (currentDragOverInfo && touchDragId.current) {
+        handleDrop(currentDragOverInfo.id, currentDragOverInfo.zone);
+      }
+      touchDragId.current = null;
+      setTouchDragActive(false);
+      setDraggedId(null);
+      setDragOverInfo(null);
+    };
+
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd, { once: true });
+  };
+
+  // Keep a ref of dragOverInfo for access inside touch closures
+  const dragOverInfoRef = useRef(dragOverInfo);
+  useEffect(() => { dragOverInfoRef.current = dragOverInfo; }, [dragOverInfo]);
 
   const deleteWithChildren = async (id: string) => {
     // Recursively soft-delete the note and all its descendants
@@ -608,11 +673,40 @@ export const Feed = ({
                   db={db}
                   isSharedFeed={isSharedFeed}
                   localNpub={localNpub}
+                  onTouchDragStart={handleTouchDragStart}
                 />
               );
             })}
           </div>
         </div>
+      )}
+
+      {/* Touch drag ghost */}
+      {touchDragActive && createPortal(
+        <div style={{
+          position: 'fixed',
+          left: touchGhostPos.x + 12,
+          top: touchGhostPos.y - 20,
+          zIndex: 9999,
+          background: 'var(--card-bg)',
+          border: '1px solid var(--accent)',
+          borderRadius: 'var(--radius)',
+          padding: '8px 14px',
+          fontSize: '0.82rem',
+          color: 'var(--text)',
+          maxWidth: '220px',
+          opacity: 0.92,
+          pointerEvents: 'none',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+          transform: 'rotate(1.5deg)',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          fontFamily: 'var(--font-body)',
+        }}>
+          {touchGhostText}
+        </div>,
+        document.body
       )}
     </>
   );

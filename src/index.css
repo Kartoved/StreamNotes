@@ -450,7 +450,8 @@ body {
   }
 
   /* ── FEEDS TAB ── */
-  [data-mobile-tab="feeds"] .main-content { display: none !important; }
+  [data-mobile-tab="feeds"] .app-header { display: none !important; }
+  [data-mobile-tab="feeds"] .feed-area { display: none !important; }
   [data-mobile-tab="feeds"] .feeds-sidebar {
     display: flex !important;
     position: fixed !important;
@@ -496,7 +497,8 @@ body {
   }
 
   /* ── CALENDAR TAB ── */
-  [data-mobile-tab="calendar"] .main-content { display: none !important; }
+  [data-mobile-tab="calendar"] .app-header { display: none !important; }
+  [data-mobile-tab="calendar"] .feed-area { display: none !important; }
   [data-mobile-tab="calendar"] .right-sidebar {
     display: flex !important;
     position: fixed !important;
@@ -608,6 +610,28 @@ body {
 @keyframes sheet-panel-in {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }
+}
+
+/* ── Mobile drag handle (hidden on desktop) ──────────────────────── */
+.mobile-drag-handle {
+  display: none;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  cursor: grab;
+  touch-action: none;
+  z-index: 5;
+  opacity: 0.5;
+}
+
+@media (max-width: 640px) {
+  .mobile-drag-handle { display: flex; }
 }
 
 /* ── Swipe-to-reply hint ──────────────────────────────────────────── */

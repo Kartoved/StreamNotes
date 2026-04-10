@@ -575,7 +575,7 @@ function App() {
         )}
 
         {/* Main layout: feed + right sidebar */}
-        <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0, width: '100%', maxWidth: '980px' }}>
+        <div className="feed-area" style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0, width: '100%', maxWidth: '980px' }}>
           {/* Editor + Feed */}
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ flexShrink: 0 }}>

@@ -155,6 +155,7 @@ interface NoteCardProps {
   db: any;
   isSharedFeed?: boolean;
   localNpub?: string;
+  onTouchDragStart?: (id: string, touch: { clientX: number; clientY: number }) => void;
 }
 
 export const NoteCard = ({
@@ -186,6 +187,7 @@ export const NoteCard = ({
   db,
   isSharedFeed = false,
   localNpub = '',
+  onTouchDragStart,
 }: NoteCardProps) => {
   const { nickname } = useCrypto();
   let props: any = {};
@@ -336,6 +338,23 @@ export const NoteCard = ({
           transition: swipeOffset !== 0 ? 'none' : 'border-color 0.12s, background 0.12s, transform 0.2s cubic-bezier(0.32, 0.72, 0, 1)',
           transform: swipeOffset !== 0 ? `translateX(${swipeOffset}px)` : 'none',
         }}>
+
+        {/* Mobile drag handle */}
+        {onTouchDragStart && editingNoteId !== note.id && (
+          <div
+            className="mobile-drag-handle"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              onTouchDragStart(note.id, e.touches[0]);
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+              <circle cx="4" cy="3" r="1.2"/><circle cx="10" cy="3" r="1.2"/>
+              <circle cx="4" cy="7" r="1.2"/><circle cx="10" cy="7" r="1.2"/>
+              <circle cx="4" cy="11" r="1.2"/><circle cx="10" cy="11" r="1.2"/>
+            </svg>
+          </div>
+        )}
 
         {/* DnD indicators */}
         {draggedId && draggedId !== note.id && (isDragOverSibling || isDragOverChild) && (
