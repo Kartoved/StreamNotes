@@ -5,7 +5,7 @@ import { TweetEditor } from './TiptapEditor';
 
 export const NoteModal = ({ noteId, onClose }: { noteId: string; onClose: () => void }) => {
   const db = useDB();
-  const { encrypt, decrypt } = useCrypto();
+  const { encrypt, decrypt, decryptForFeed, encryptForFeed } = useCrypto();
   const [note, setNote] = useState<any>(null);
 
   const load = useCallback(async () => {
@@ -24,10 +24,14 @@ export const NoteModal = ({ noteId, onClose }: { noteId: string; onClose: () => 
 
   if (!note) return null;
 
+  const feedId: string | null = note.feed_id ?? null;
+  const dec = (s: string) => feedId ? decryptForFeed(s, feedId) : decrypt(s);
+  const enc = (s: string) => feedId ? encryptForFeed(s, feedId) : encrypt(s);
+
   const handleSubmitEdit = async (ast: string, propsJson: string) => {
     await db.exec(
       `UPDATE notes SET content = ?, properties = ?, updated_at = ? WHERE id = ?`,
-      [encrypt(ast), encrypt(propsJson), Date.now(), noteId]
+      [enc(ast), enc(propsJson), Date.now(), noteId]
     );
     onClose();
   };
@@ -37,8 +41,8 @@ export const NoteModal = ({ noteId, onClose }: { noteId: string; onClose: () => 
       <div onClick={e => e.stopPropagation()} style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', height: '100%', overflow: 'hidden' }}>
         <TweetEditor
           placeholder="Редактировать..."
-          initialAst={decrypt(note.content)}
-          initialPropsStr={decrypt(note.properties)}
+          initialAst={dec(note.content)}
+          initialPropsStr={dec(note.properties)}
           buttonText="Сохранить"
           onCancel={onClose}
           onSubmit={handleSubmitEdit}

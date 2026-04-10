@@ -87,25 +87,24 @@ async function resizeAvatar(file: File): Promise<string> {
 const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
   const initials = feed.name.slice(0, 2).toUpperCase();
   const LIcon = parseLucideAvatar(feed.avatar);
+  const isImageAvatar = feed.avatar && !feed.avatar.startsWith(LUCIDE_PREFIX);
   return (
     <div style={{
       width: '40px', height: '40px',
       borderRadius: active ? '12px' : '10px',
-      background: feed.avatar ? 'transparent' : (active ? 'var(--text)' : 'var(--bg-aside)'),
-      border: active ? 'none' : '1px solid var(--line)',
+      background: isImageAvatar ? 'transparent' : (feed.color || 'var(--bg-aside)'),
+      border: active ? '2px solid var(--text)' : '1px solid transparent',
+      outline: active ? '2px solid var(--bg-aside)' : 'none',
       overflow: 'hidden',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       cursor: 'pointer', flexShrink: 0,
       transition: 'all 0.15s ease',
-      color: active ? 'var(--bg)' : 'var(--text-faint)',
-      // Use color bg for lucide icons too
-      ...(LIcon ? { background: active ? 'var(--text)' : 'var(--bg-aside)' } : {}),
     }}>
       {LIcon
-        ? <LIcon size={18} strokeWidth={1.5} color={active ? 'var(--bg)' : 'var(--text-faint)'} />
+        ? <LIcon size={18} strokeWidth={1.5} color="white" />
         : feed.avatar
           ? <img src={feed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <span style={{ color: active ? 'white' : 'inherit', fontWeight: 700, fontSize: '0.85rem', userSelect: 'none' }}>{initials}</span>
+          : <span style={{ color: 'white', fontWeight: 700, fontSize: '0.85rem', userSelect: 'none' }}>{initials}</span>
       }
     </div>
   );
@@ -217,7 +216,7 @@ export const FeedsSidebar = ({
   const swatch = (color: string) => (
     <div
       key={color}
-      onClick={() => { setModalColor(color); if (parseLucideAvatar(modalAvatar)) setModalAvatar(null); }}
+      onClick={() => setModalColor(color)}
       style={{
         width: '24px', height: '24px', borderRadius: '50%', background: color, cursor: 'pointer',
         border: color === modalColor && !parseLucideAvatar(modalAvatar) ? '2px solid white' : '2px solid transparent',
