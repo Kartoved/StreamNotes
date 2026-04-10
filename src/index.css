@@ -3,7 +3,7 @@
 /* ── Lumen/Notion-style design tokens ────────────────────────────── */
 :root {
   --bg:           #ffffff;
-  --bg-page:      #F5F7FA;
+  --bg-page:      #F7F6F3;
   --bg-hover:     rgba(55, 53, 47, 0.06);
   --bg-active:    rgba(55, 53, 47, 0.1);
   --bg-aside:     #f7f6f3;
@@ -282,7 +282,7 @@ body {
 }
 
 .mobile-filter-sheet-panel {
-  background: var(--card-bg);
+  background: var(--bg);
   border-top: 1px solid var(--line);
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
