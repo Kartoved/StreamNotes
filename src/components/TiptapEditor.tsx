@@ -577,17 +577,15 @@ export const TweetEditor = ({
   }, [editor, type, status, date, onSubmit, initialAst]);
   useEffect(() => { handleSubmitRef.current = handleSubmit; }, [handleSubmit]);
   
-  // ── Zen mode Escape support ──
+  // ── Escape: cancel reply / close zen ──
   useEffect(() => {
-    if (!zenMode || !onCancel) return;
+    if (!onCancel) return;
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onCancel();
-      }
+      if (e.key === 'Escape') onCancel();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [zenMode, onCancel]);
+  }, [onCancel]);
 
   const selStyle: React.CSSProperties = {
     background: 'var(--bg-hover)',
@@ -708,8 +706,15 @@ export const TweetEditor = ({
         </select>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...selStyle }} />
 
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
           {uploadProgress && <UploadRing done={uploadProgress.done} total={uploadProgress.total} />}
+          {onCancel && !zenMode && (
+            <button
+              type="button"
+              onClick={onCancel}
+              style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', padding: '8px 18px', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 500, fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}
+            >Отмена</button>
+          )}
           <button type="button" onClick={handleSubmit} disabled={!!uploadProgress} style={{ background: 'var(--accent)', border: 'none', color: '#fff', padding: '8px 32px', borderRadius: 'var(--radius)', cursor: uploadProgress ? 'not-allowed' : 'pointer', fontWeight: 600, fontFamily: 'var(--font-body)', fontSize: '0.9rem', opacity: uploadProgress ? 0.6 : 1 }}>{buttonText}</button>
         </div>
       </div>
