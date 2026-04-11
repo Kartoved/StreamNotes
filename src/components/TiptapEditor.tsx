@@ -313,7 +313,6 @@ export const TweetEditor = ({
   const { encrypt } = useCrypto();
 
   const [editorKey, setEditorKey] = useState(0);
-  const [isFocused, setIsFocused] = useState(false);
   const initP = initialPropsStr ? JSON.parse(initialPropsStr) : {};
   const [type, setType] = useState(initP.type || 'sheaf');
   const [status, setStatus] = useState(initP.status || 'none');
@@ -474,8 +473,6 @@ export const TweetEditor = ({
         return false;
       },
     },
-    onFocus: () => setIsFocused(true),
-    onBlur: () => setIsFocused(false),
     }, [editorKey, initialAst]);
 
   const blUid = () => Math.random().toString(36).substring(2, 9);

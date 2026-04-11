@@ -71,12 +71,17 @@ const feedDecrypt = (text) => feedId ? decryptForFeed(text, feedId) : decrypt(te
 - `AttachmentDisplay` — read-only рендер вложений (изображение/видео/файл), резолвит `attachment://` через OPFS. Клик по изображению вызывает `window.openLightbox(url, name)` — глобальный лайтбокс, зарегистрированный в `App.tsx`.
 - Внутренние ссылки (`note://`) при клике вызывают `window.navigateToNote(id)` (если установлен в `App.tsx`) или падают обратно на `window.scrollToNote(id)` (устанавливается в `Feed.tsx` и `App.tsx`). `navigateToNote` умеет переключать ленту; `scrollToNote` только скроллит текущую.
 
+**`src/layout/DashboardPanel.tsx`** — левая панель статистики и Pomodoro:
+- Кольцо прогресса задач на сегодня + статистика по статусам (todo/doing/done/неразобранные/будущие).
+- Клик по строке статуса → фильтрует ленту через `onStatusFilter`.
+- **Pomodoro-секция** внизу: крупное кольцо 120px, MM:SS, точки цикла (4 шт.), кнопки ▶/⏸/✕, название задачи, счётчик помидоров за сегодня.
+
 **`src/components/Feed.tsx`** — виртуализированная лента:
 - Drag-and-drop: зоны sibling/child определяют вложенность.
 - Поиск, фильтрация по тегам и дате (вычисляется через `extractPlainText` / `extractTags`).
-- Context menu (правая кнопка мыши): ответить, редактировать, открыть, свернуть/развернуть, удалить.
+- Context menu (правая кнопка мыши): ответить, редактировать, открыть, свернуть/развернуть, перейти в ветку, **🍅 Запустить помидор** (вызывает `onStartPomodoro`), удалить.
 - Bulk-операции: выбор нескольких заметок, удаление.
-- Collapse/expand all — кнопка в тулбаре.
+- Sticky toolbar сверху: collapse/expand all + группировка (Дерево/Статусы/Даты) + сортировка.
 - Принимает `isSharedFeed` и `localNpub` — пробрасывает в `NoteCard` для отображения `AuthorBadge`.
 
 **`src/components/NoteCard.tsx`** — карточка заметки:
@@ -86,6 +91,13 @@ const feedDecrypt = (text) => feedId ? decryptForFeed(text, feedId) : decrypt(te
 - `AuthorBadge` — показывает аватар-кружок + npub (или «you» для локального автора) при `isSharedFeed = true`.
 
 **`src/components/NoteModal.tsx`** — Zen Mode редактор для раскрытой заметки (fullscreen TweetEditor).
+
+**`src/hooks/usePomodoro.ts`** — Pomodoro-таймер:
+- Фазы: `idle → work (25 мин) → break (5 мин)`, каждые 4 помидора — `longBreak (15 мин)`.
+- Счётчик выполненных за сегодня в `localStorage` (ключ `pomodoro_YYYY-MM-DD`).
+- Browser Notifications при завершении фазы.
+- Можно привязать к задаче (`taskId`, `taskTitle`) — передаётся из контекстного меню Feed.
+- Стейт живёт в `App.tsx` через `usePomodoro()`, пробрасывается в `DashboardPanel` и `Feed`.
 
 **`src/hooks/useVoiceRecorder.ts`** — захват аудио с микрофона, ресемплинг в 16kHz Float32Array для Whisper.
 
@@ -109,6 +121,16 @@ const feedDecrypt = (text) => feedId ? decryptForFeed(text, feedId) : decrypt(te
 **Важно:** Не хранить стейт лайтбокса/оверлеев внутри виртуализированных компонентов — виртуализатор пересоздаёт компоненты при прокрутке, что сбрасывает локальный стейт. Лайтбокс (`src/editor/components/Lightbox.tsx`) намеренно не использует `createPortal` — он рендерится прямо в app-root без портала, чтобы избежать конфликта с `overflow: hidden` на `body`.
 
 Все три функции мокируются в `src/__tests__/ui/setup.ts`.
+
+### Мобильная навигация
+
+На мобилке (≤ 640px) три вкладки в нижнем таббаре: **Дашборд / Лента / Поиск** (`data-mobile-tab` = `dashboard` | `feed` | `calendar`).
+
+- **Дашборд** — показывает `DashboardPanel` на весь экран (статистика + Pomodoro).
+- **Лента** — основной контент (`main-content`). В шапке кнопка **«← Ленты»** (`.mobile-feeds-btn`), при клике открывает `.mobile-feeds-overlay` — полноэкранный overlay со списком лент поверх всего (z-index 200). Overlay закрывается крестиком или выбором ленты.
+- **Поиск** — показывает `RightSidebar` (календарь + теги).
+
+Swipe влево/вправо переключает между вкладками. Состояние overlay (`mobileFeedsOpen`) хранится в `App.tsx` — не в виртуализированных компонентах.
 
 ### Тема
 
