@@ -27,6 +27,7 @@ interface FeedProps {
   selectedTags?: Set<string>;
   selectedDate?: string | null;
   statusFilter?: string | null;
+  onStartPomodoro?: (taskId: string, taskTitle: string) => void;
 }
 
 // Export helpers for use in sidebar
@@ -77,6 +78,7 @@ export const Feed = ({
   selectedTags = new Set(),
   selectedDate = null,
   statusFilter = null,
+  onStartPomodoro,
 }: FeedProps) => {
   const db = useDB();
   const { encrypt, decrypt, encryptForFeed, decryptForFeed } = useCrypto();
@@ -502,6 +504,7 @@ export const Feed = ({
               { label: 'Открыть', action: () => { setExpandedNoteId(contextMenu.noteId); closeContextMenu(); } },
               { label: collapsedIds.has(contextMenu.noteId) ? 'Развернуть' : 'Свернуть', action: () => { setCollapsedIds(prev => { const next = new Set(prev); next.has(contextMenu.noteId) ? next.delete(contextMenu.noteId) : next.add(contextMenu.noteId); return next; }); closeContextMenu(); } },
               { label: '🔗 Перейти в ветку', action: () => { onNoteClick?.(contextMenu.noteId); closeContextMenu(); } },
+              ...(onStartPomodoro ? [null as null, { label: '🍅 Запустить помидор', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
               null, // separator
               { label: '🗑 Удалить', action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true },
             ].map((item, i) =>

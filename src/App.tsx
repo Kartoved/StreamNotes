@@ -14,6 +14,7 @@ import { THEMES, type ThemeId } from './themes';
 import { FeedsSidebar } from './layout/FeedsSidebar';
 import { RightSidebar } from './layout/RightSidebar';
 import { DashboardPanel } from './layout/DashboardPanel';
+import { usePomodoro } from './hooks/usePomodoro';
 import './index.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -335,6 +336,9 @@ function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [dashboardStatusFilter, setDashboardStatusFilter] = useState<string | null>(null);
 
+  // ── Pomodoro ───────────────────────────────────────────────────────
+  const [pomodoroState, pomodoroActions] = usePomodoro();
+
   const allNotes = useNotes(null, activeFeedId);
 
   const allTags = React.useMemo(() => {
@@ -521,6 +525,8 @@ function App() {
         activeStatusFilter={dashboardStatusFilter}
         onStatusFilter={setDashboardStatusFilter}
         activeFeedId={activeFeedId}
+        pomodoro={pomodoroState}
+        pomodoroActions={pomodoroActions}
       />
 
       {/* ── Main content ── */}
@@ -605,6 +611,7 @@ function App() {
             selectedTags={selectedTags}
             selectedDate={selectedDate}
             statusFilter={dashboardStatusFilter}
+            onStartPomodoro={(taskId, taskTitle) => pomodoroActions.start(taskId, taskTitle)}
           />
         </div>
       </div>
