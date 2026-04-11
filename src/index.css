@@ -449,9 +449,9 @@ body {
     padding: 11px 14px !important;
   }
 
-  /* ── FEEDS TAB ── */
-  [data-mobile-tab="feeds"] .main-content { display: none !important; }
-  [data-mobile-tab="feeds"] .feeds-sidebar {
+  /* ── DASHBOARD TAB ── */
+  [data-mobile-tab="dashboard"] .main-content { display: none !important; }
+  [data-mobile-tab="dashboard"] .dashboard-panel {
     display: flex !important;
     position: fixed !important;
     top: 0; left: 0; right: 0;
@@ -459,40 +459,65 @@ body {
     width: 100% !important;
     height: auto !important;
     flex-direction: column !important;
-    align-items: stretch !important;
-    padding: 20px 16px 12px !important;
-    gap: 2px !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
     border-right: none !important;
+    overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
     z-index: 10;
+    padding: 20px 20px 16px !important;
+    gap: 16px !important;
   }
-  [data-mobile-tab="feeds"] .feed-logo-sep { display: none !important; }
-  [data-mobile-tab="feeds"] .feed-item {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    gap: 14px !important;
-    padding: 13px 14px !important;
-    border-radius: var(--radius) !important;
-    transition: background 0.1s;
+
+  /* ── FEEDS OVERLAY ── */
+  .mobile-feeds-overlay {
+    display: none;
   }
-  [data-mobile-tab="feeds"] .feed-item:active {
-    background: var(--bg-hover) !important;
-  }
-  [data-mobile-tab="feeds"] .feed-tooltip {
-    position: static !important;
-    opacity: 1 !important;
-    transform: none !important;
-    background: transparent !important;
-    color: var(--text) !important;
-    font-size: 0.92rem !important;
-    font-weight: 500 !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-    pointer-events: none;
-    letter-spacing: 0.01em !important;
+  @media (max-width: 640px) {
+    .mobile-feeds-overlay {
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      bottom: 56px;
+      background: var(--bg);
+      z-index: 200;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .mobile-feeds-overlay .feeds-sidebar {
+      display: flex !important;
+      position: static !important;
+      width: 100% !important;
+      flex: 1 !important;
+      border-right: none !important;
+      padding: 12px 16px 16px !important;
+      gap: 2px !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+    }
+    .mobile-feeds-overlay .feed-logo-sep { display: none !important; }
+    .mobile-feeds-overlay .feed-item {
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      gap: 14px !important;
+      padding: 13px 14px !important;
+      border-radius: var(--radius) !important;
+    }
+    .mobile-feeds-overlay .feed-item:active { background: var(--bg-hover) !important; }
+    .mobile-feeds-overlay .feed-tooltip {
+      position: static !important;
+      opacity: 1 !important;
+      transform: none !important;
+      background: transparent !important;
+      color: var(--text) !important;
+      font-size: 0.92rem !important;
+      font-weight: 500 !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      pointer-events: none;
+      letter-spacing: 0.01em !important;
+    }
+    .mobile-feeds-btn { display: flex !important; }
   }
 
   /* ── CALENDAR TAB ── */

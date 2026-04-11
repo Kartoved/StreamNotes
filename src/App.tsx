@@ -33,9 +33,10 @@ function App() {
   const [lightboxEntry, setLightboxEntry] = useState<{ url: string; name: string } | null>(null);
 
   // ── Mobile tab navigation ─────────────────────────────────────────
-  const [mobileTab, setMobileTab] = useState<'feeds' | 'feed' | 'calendar'>('feed');
-  const mobileTabRef = useRef<'feeds' | 'feed' | 'calendar'>('feed');
+  const [mobileTab, setMobileTab] = useState<'dashboard' | 'feed' | 'calendar'>('feed');
+  const mobileTabRef = useRef<'dashboard' | 'feed' | 'calendar'>('feed');
   mobileTabRef.current = mobileTab;
+  const [mobileFeedsOpen, setMobileFeedsOpen] = useState(false);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
@@ -493,7 +494,7 @@ function App() {
         const target = e.target as Element;
         if (target.closest?.('.note-card-swipeable')) return;
         if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-          const tabs = ['feeds', 'feed', 'calendar'] as const;
+          const tabs = ['dashboard', 'feed', 'calendar'] as const;
           const idx = tabs.indexOf(mobileTabRef.current);
           if (dx < 0 && idx < tabs.length - 1) setMobileTab(tabs[idx + 1]);
           else if (dx > 0 && idx > 0) setMobileTab(tabs[idx - 1]);
@@ -504,7 +505,7 @@ function App() {
       <FeedsSidebar
         feeds={feeds}
         activeFeedId={activeFeedId}
-        onSelect={id => { setActiveFeedId(id); setFocusedTweetId(null); setReplyingToTweetId(null); if (window.innerWidth <= 640) setMobileTab('feed'); }}
+        onSelect={id => { setActiveFeedId(id); setFocusedTweetId(null); setReplyingToTweetId(null); if (window.innerWidth <= 640) { setMobileFeedsOpen(false); setMobileTab('feed'); } }}
         onCreateFeed={handleCreateFeed}
         onUpdateFeed={handleUpdateFeed}
         onDeleteFeed={handleDeleteFeed}
@@ -533,6 +534,15 @@ function App() {
       <div className="main-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1.5rem', boxSizing: 'border-box', alignItems: 'center', background: 'transparent', overflowY: 'auto' }}>
         {/* Header */}
         <header className="app-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem', flexShrink: 0, width: '100%', borderBottom: '1px solid var(--line)', paddingBottom: '12px' }}>
+          {/* Mobile: back button to feeds list */}
+          <button
+            className="mobile-feeds-btn"
+            onClick={() => setMobileFeedsOpen(true)}
+            style={{ display: 'none', background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', padding: '4px 6px 4px 0', fontSize: '0.8rem', alignItems: 'center', gap: '4px' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            Ленты
+          </button>
           <h1 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)', flexShrink: 0, letterSpacing: '-0.01em' }}>
             {activeFeed?.avatar
               ? <img src={activeFeed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '1.2rem', height: '1.2rem', objectFit: 'cover', borderRadius: '50%', marginRight: '6px', verticalAlign: 'middle' }} />
@@ -640,11 +650,39 @@ function App() {
         />
       )}
 
+      {/* ── Mobile feeds overlay ── */}
+      {mobileFeedsOpen && (
+        <div className="mobile-feeds-overlay">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 16px 8px', borderBottom: '1px solid var(--line)' }}>
+            <button onClick={() => setMobileFeedsOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+            <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)' }}>Ленты</span>
+          </div>
+          <FeedsSidebar
+            feeds={feeds}
+            activeFeedId={activeFeedId}
+            onSelect={id => { setActiveFeedId(id); setFocusedTweetId(null); setReplyingToTweetId(null); setMobileFeedsOpen(false); setMobileTab('feed'); }}
+            onCreateFeed={handleCreateFeed}
+            onUpdateFeed={handleUpdateFeed}
+            onDeleteFeed={handleDeleteFeed}
+            onImportSharedFeed={handleImportSharedFeed}
+            onShareFeed={async (id) => {
+              await db.exec(`UPDATE feeds SET is_shared = 1 WHERE id = ?`, [id]);
+              if ((window as any).__syncEngine) {
+                await (window as any).__syncEngine.refreshRelays();
+                await (window as any).__syncEngine.resyncFeed(id);
+              }
+            }}
+          />
+        </div>
+      )}
+
       {/* ── Mobile tab bar ── */}
       <nav className="mobile-tab-bar">
         {([
           {
-            id: 'feeds' as const, label: 'Ленты',
+            id: 'dashboard' as const, label: 'Дашборд',
             icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
           },
           {
