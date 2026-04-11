@@ -49,7 +49,9 @@
       "Bash(cmd /c \"npx tsc --noEmit\")",
       "Bash(cmd /c \"npx vite build 2>&1\")",
       "Bash(echo \"EXIT: $?\")",
-      "Bash(node -e \"const pkg = require\\('./package.json'\\); console.log\\('react:', pkg.dependencies.react, 'react-dom:', pkg.dependencies['react-dom']\\)\")"
+      "Bash(node -e \"const pkg = require\\('./package.json'\\); console.log\\('react:', pkg.dependencies.react, 'react-dom:', pkg.dependencies['react-dom']\\)\")",
+      "Bash(git add:*)",
+      "Bash(git commit -m 'feat: implement messenger-style layout with reversed note order and bottom input:*)"
     ]
   }
 }

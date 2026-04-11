@@ -540,11 +540,13 @@ export const Feed = ({
       )}
 
       {/* Toolbar */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <button onClick={() => { if (collapsedIds.size > 0) setCollapsedIds(new Set()); else setCollapsedIds(new Set(notes.map(n => n.id))); }}
-          style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-sub)', padding: '4px 10px', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'var(--font-body)' }}>
-          {collapsedIds.size > 0 ? 'Развернуть всё' : 'Свернуть всё'}
-        </button>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', flexWrap: 'wrap', position: 'sticky', top: 0, zIndex: 100, paddingTop: '8px', paddingBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-hover)', borderRadius: 'var(--radius)', padding: '2px', border: '1px solid var(--line)' }}>
+          <button onClick={() => { if (collapsedIds.size > 0) setCollapsedIds(new Set()); else setCollapsedIds(new Set(notes.map(n => n.id))); }}
+            style={{ background: 'var(--bg)', color: 'var(--text)', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', fontWeight: 600, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', transition: 'all 0.1s', fontFamily: 'var(--font-body)' }}>
+            {collapsedIds.size > 0 ? 'Развернуть всё' : 'Свернуть всё'}
+          </button>
+        </div>
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
           {/* Grouping */}
