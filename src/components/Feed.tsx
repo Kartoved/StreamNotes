@@ -88,6 +88,8 @@ export const Feed = ({
   const parentRef = useRef<HTMLDivElement>(null);
 
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const draggedIdRef = useRef<string | null>(null);
+  const setDraggedIdBoth = (id: string | null) => { draggedIdRef.current = id; setDraggedId(id); };
   const [dragOverInfo, setDragOverInfo] = useState<{ id: string; zone: 'sibling' | 'child' } | null>(null);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
@@ -107,7 +109,7 @@ export const Feed = ({
 
   const handleTouchDragStart = (noteId: string, startTouch: { clientX: number; clientY: number }) => {
     touchDragId.current = noteId;
-    setDraggedId(noteId);
+    setDraggedIdBoth(noteId);
     setTouchDragActive(true);
     setTouchGhostPos({ x: startTouch.clientX, y: startTouch.clientY });
     const noteItem = visibleNotes.find(n => n.type === 'note' && n.note?.id === noteId);
@@ -146,12 +148,40 @@ export const Feed = ({
       window.removeEventListener('touchend', onEnd);
 
       const currentDragOverInfo = dragOverInfoRef.current;
-      if (currentDragOverInfo && touchDragId.current) {
-        handleDrop(currentDragOverInfo.id, currentDragOverInfo.zone);
+      const currentDraggedId = draggedIdRef.current;
+      if (currentDragOverInfo && currentDraggedId) {
+        // Use a snapshot of draggedId for the drop since state may update
+        const dropDraggedId = currentDraggedId;
+        // Run drop logic directly to avoid stale closure on handleDrop
+        (async () => {
+          const targetId = currentDragOverInfo.id;
+          const zone = currentDragOverInfo.zone;
+          if (!dropDraggedId || dropDraggedId === targetId) return;
+          let isDescendant = false;
+          let curr: string | null = targetId;
+          while (curr) {
+            const rows: any[] = await db.execA(`SELECT parent_id FROM notes WHERE id = ?`, [curr]);
+            const row = rows[0];
+            if (!row) break;
+            if (row[0] === dropDraggedId) { isDescendant = true; break; }
+            curr = row[0];
+          }
+          if (isDescendant) { alert('Нельзя перетащить заметку внутрь самой себя!'); return; }
+          if (zone === 'child') {
+            await db.exec(`UPDATE notes SET parent_id = ? WHERE id = ?`, [targetId, dropDraggedId]);
+          } else {
+            const rows2: any[] = await db.execA(`SELECT parent_id, sort_key FROM notes WHERE id = ?`, [targetId]);
+            const targetRow = rows2[0];
+            if (targetRow) {
+              await db.exec(`UPDATE notes SET parent_id = ?, sort_key = ? WHERE id = ?`, [targetRow[0], (targetRow[1] ?? '') + '9', dropDraggedId]);
+            }
+          }
+          if (navigator.vibrate) navigator.vibrate(30);
+        })();
       }
       touchDragId.current = null;
       setTouchDragActive(false);
-      setDraggedId(null);
+      setDraggedIdBoth(null);
       setDragOverInfo(null);
     };
 
@@ -159,7 +189,7 @@ export const Feed = ({
     window.addEventListener('touchend', onEnd, { once: true });
   };
 
-  // Keep a ref of dragOverInfo for access inside touch closures
+  // Keep refs for access inside touch event closures (avoid stale captures)
   const dragOverInfoRef = useRef(dragOverInfo);
   useEffect(() => { dragOverInfoRef.current = dragOverInfo; }, [dragOverInfo]);
 
@@ -652,7 +682,7 @@ export const Feed = ({
                   openContextMenu={openContextMenu}
                   openContextMenuAt={openContextMenuAt}
                   onStartReply={onStartReply}
-                  onDragStart={(e, id) => { setDraggedId(id); e.dataTransfer.effectAllowed = 'move'; }}
+                  onDragStart={(e, id) => { setDraggedIdBoth(id); e.dataTransfer.effectAllowed = 'move'; }}
                   onDragOver={(e, id) => {
                     e.preventDefault();
                     const rect = e.currentTarget.getBoundingClientRect();
@@ -661,7 +691,7 @@ export const Feed = ({
                   }}
                   onDragLeave={() => setDragOverInfo(null)}
                   onDrop={(e, id) => { e.preventDefault(); if (dragOverInfo) handleDrop(id, dragOverInfo.zone); }}
-                  onDragEnd={() => { setDraggedId(null); setDragOverInfo(null); }}
+                  onDragEnd={() => { setDraggedIdBoth(null); setDragOverInfo(null); }}
                   onCancelEdit={onCancelEdit}
                   onSubmitEdit={onSubmitEdit}
                   onCancelReply={onCancelReply}

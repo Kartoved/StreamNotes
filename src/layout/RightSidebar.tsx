@@ -27,6 +27,9 @@ export const RightSidebar = ({
       width: '220px', flexShrink: 0,
       display: 'flex', flexDirection: 'column', gap: '8px',
       overflowY: 'auto', paddingTop: '14px',
+      borderLeft: '1px solid var(--line)',
+      padding: '14px 12px',
+      background: 'var(--bg)',
     }}>
       <div style={{ marginBottom: '8px', position: 'relative' }}>
         <svg

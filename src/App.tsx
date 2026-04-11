@@ -524,9 +524,9 @@ function App() {
       />
 
       {/* ── Main content ── */}
-      <div className="main-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1.5rem', boxSizing: 'border-box', alignItems: 'center', background: 'transparent', overflowY: 'auto' }}>
+      <div className="main-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '0.75rem 1.5rem', boxSizing: 'border-box', alignItems: 'stretch', background: 'transparent', overflowY: 'auto' }}>
         {/* Header */}
-        <header className="app-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem', flexShrink: 0, width: '100%', maxWidth: '980px', borderBottom: '1px solid var(--line)', paddingBottom: '12px' }}>
+        <header className="app-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem', flexShrink: 0, width: '100%', borderBottom: '1px solid var(--line)', paddingBottom: '12px' }}>
           <h1 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)', flexShrink: 0, letterSpacing: '-0.01em' }}>
             {activeFeed?.avatar
               ? <img src={activeFeed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '1.2rem', height: '1.2rem', objectFit: 'cover', borderRadius: '50%', marginRight: '6px', verticalAlign: 'middle' }} />
@@ -574,54 +574,52 @@ function App() {
           />
         )}
 
-        {/* Main layout: feed + right sidebar */}
-        <div className="feed-area" style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0, width: '100%', maxWidth: '980px' }}>
-          {/* Editor + Feed */}
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ flexShrink: 0 }}>
-              <TweetEditor
-                placeholder={focusedTweetId ? 'Оставить ответ в ветке...' : 'Что происходит?'}
-                buttonText="Шифнуть"
-                onSubmit={insertRootNote}
-                autoFocus
-                onExpand={(ast, pj) => {
-                  setFullscreenDraft({ ast, propsJson: pj, onSubmit: insertRootNote });
-                }}
-              />
-            </div>
-            <Feed
-              parentId={focusedTweetId}
-              feedId={activeFeedId}
-              isSharedFeed={!!activeFeed?.is_shared}
-              localNpub={nostrPubKey}
-              onNoteClick={(id) => { setFocusedTweetId(id); setReplyingToTweetId(null); }}
-              replyingToId={replyingToTweetId}
-              editingNote={editingTweet}
-              onStartReply={setReplyingToTweetId}
-              onCancelReply={() => setReplyingToTweetId(null)}
-              onSubmitReply={handleInlineReply}
-              onStartEdit={setEditingTweet}
-              onCancelEdit={() => setEditingTweet(null)}
-              onSubmitEdit={handleEditSubmit}
-              searchQuery={searchQuery}
-              selectedTags={selectedTags}
-              selectedDate={selectedDate}
-              statusFilter={dashboardStatusFilter}
+        {/* Editor + Feed */}
+        <div className="feed-area" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '760px' }}>
+          <div style={{ flexShrink: 0 }}>
+            <TweetEditor
+              placeholder={focusedTweetId ? 'Оставить ответ в ветке...' : 'Что происходит?'}
+              buttonText="Шифнуть"
+              onSubmit={insertRootNote}
+              autoFocus
+              onExpand={(ast, pj) => {
+                setFullscreenDraft({ ast, propsJson: pj, onSubmit: insertRootNote });
+              }}
             />
           </div>
-
-          <RightSidebar
+          <Feed
+            parentId={focusedTweetId}
+            feedId={activeFeedId}
+            isSharedFeed={!!activeFeed?.is_shared}
+            localNpub={nostrPubKey}
+            onNoteClick={(id) => { setFocusedTweetId(id); setReplyingToTweetId(null); }}
+            replyingToId={replyingToTweetId}
+            editingNote={editingTweet}
+            onStartReply={setReplyingToTweetId}
+            onCancelReply={() => setReplyingToTweetId(null)}
+            onSubmitReply={handleInlineReply}
+            onStartEdit={setEditingTweet}
+            onCancelEdit={() => setEditingTweet(null)}
+            onSubmitEdit={handleEditSubmit}
             searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            activeDays={activeDays}
-            allTags={allTags}
             selectedTags={selectedTags}
-            toggleTag={toggleTag}
+            selectedDate={selectedDate}
+            statusFilter={dashboardStatusFilter}
           />
         </div>
       </div>
+
+      {/* Right sidebar — sibling of main-content so it can be independently shown on mobile */}
+      <RightSidebar
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
+        activeDays={activeDays}
+        allTags={allTags}
+        selectedTags={selectedTags}
+        toggleTag={toggleTag}
+      />
 
       {fullscreenDraft && (
         <TweetEditor

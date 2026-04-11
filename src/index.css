@@ -450,8 +450,7 @@ body {
   }
 
   /* ── FEEDS TAB ── */
-  [data-mobile-tab="feeds"] .app-header { display: none !important; }
-  [data-mobile-tab="feeds"] .feed-area { display: none !important; }
+  [data-mobile-tab="feeds"] .main-content { display: none !important; }
   [data-mobile-tab="feeds"] .feeds-sidebar {
     display: flex !important;
     position: fixed !important;
@@ -497,8 +496,7 @@ body {
   }
 
   /* ── CALENDAR TAB ── */
-  [data-mobile-tab="calendar"] .app-header { display: none !important; }
-  [data-mobile-tab="calendar"] .feed-area { display: none !important; }
+  [data-mobile-tab="calendar"] .main-content { display: none !important; }
   [data-mobile-tab="calendar"] .right-sidebar {
     display: flex !important;
     position: fixed !important;
@@ -632,6 +630,8 @@ body {
 
 @media (max-width: 640px) {
   .mobile-drag-handle { display: flex; }
+  /* Make room for drag handle */
+  .note-card-inner .note-content { padding-right: 28px; }
 }
 
 /* ── Swipe-to-reply hint ──────────────────────────────────────────── */
