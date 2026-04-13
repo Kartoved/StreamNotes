@@ -193,9 +193,18 @@ export default function SeedSetup({ onComplete, onRecover }: Props) {
     <div style={containerStyle}>
       <div style={cardStyle}>
         <h2 style={{ margin: '0 0 0.5rem', fontSize: '20px' }}>Пароль (опционально)</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '1.5rem' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '1rem' }}>
           Установите пароль для быстрого входа. Без пароля вход будет автоматическим.
         </p>
+        {!password && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)',
+            borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem',
+            fontSize: '12px', lineHeight: 1.5, color: 'var(--text-sub)',
+          }}>
+            Без пароля seed-фраза хранится в браузере в открытом виде. Любое расширение браузера или физический доступ к устройству позволит прочитать её. Рекомендуем установить пароль.
+          </div>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
           <input
             style={inputStyle}

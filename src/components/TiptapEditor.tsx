@@ -426,20 +426,6 @@ export const TweetEditor = ({
     ],
     content: initialContent,
     autofocus: autoFocus ? 'end' : false,
-    onUpdate: ({ editor: ed }) => {
-      const { $head } = ed.state.selection;
-      const textBefore = $head.parent.textContent.slice(0, $head.parentOffset);
-      const match = /\[\[([^\]]*)$/.exec(textBefore);
-      if (match) {
-        setBlQuery(match[1]);
-        setBlActive(true);
-        const coords = ed.view.coordsAtPos(ed.state.selection.head);
-        setBlPos({ top: coords.bottom + 6, left: coords.left });
-      } else {
-        setBlActive(false);
-        setBlQuery(null);
-      }
-    },
     editorProps: {
       attributes: {
         class: 'tiptap-editor',
@@ -474,6 +460,32 @@ export const TweetEditor = ({
       },
     },
     }, [editorKey, initialAst]);
+
+  // ── Backlink: detect [[ trigger via editor event (more reliable in TipTap 3) ──
+  useEffect(() => {
+    if (!editor) return;
+    const handler = () => {
+      const { $head } = editor.state.selection;
+      const textBefore = $head.parent.textContent.slice(0, $head.parentOffset);
+      const match = /\[\[([^\]]*)$/.exec(textBefore);
+      if (match) {
+        setBlQuery(match[1]);
+        setBlActive(true);
+        try {
+          const coords = editor.view.coordsAtPos(editor.state.selection.head);
+          setBlPos({ top: coords.bottom + 6, left: coords.left });
+        } catch {
+          // fallback: position near center-top if coords fail
+          setBlPos({ top: 120, left: Math.max(60, window.innerWidth / 2 - 140) });
+        }
+      } else {
+        setBlActive(false);
+        setBlQuery(null);
+      }
+    };
+    editor.on('update', handler);
+    return () => { editor.off('update', handler); };
+  }, [editor]);
 
   const blUid = () => Math.random().toString(36).substring(2, 9);
 

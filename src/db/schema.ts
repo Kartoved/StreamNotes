@@ -42,7 +42,14 @@ export const schema = [
     last_db_version INTEGER NOT NULL DEFAULT 0,
     last_event_at INTEGER NOT NULL DEFAULT 0,
     added_at INTEGER NOT NULL DEFAULT 0
-  );`
+  );`,
+
+  // Per-user settings (synced via CRDT — nickname, preferences)
+  `CREATE TABLE IF NOT EXISTS user_settings (
+    key TEXT PRIMARY KEY NOT NULL,
+    value TEXT DEFAULT ''
+  );`,
+  `SELECT crsql_as_crr('user_settings');`,
 ];
 
 // Migrations for existing databases — run after schema creation
@@ -51,4 +58,6 @@ export const migrations = [
   `ALTER TABLE feeds ADD COLUMN encryption_key TEXT DEFAULT NULL;`,
   `ALTER TABLE feeds ADD COLUMN key_index INTEGER DEFAULT NULL;`,
   `ALTER TABLE feeds ADD COLUMN is_shared BOOLEAN DEFAULT 0;`,
+  // v3: Feed archiving
+  `ALTER TABLE feeds ADD COLUMN is_archived BOOLEAN DEFAULT 0;`,
 ];

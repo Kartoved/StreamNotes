@@ -26,7 +26,7 @@ const uid = () => Math.random().toString(36).substring(2, 9);
 function App() {
   const db = useDB();
   const crypto = useCrypto();
-  const { encrypt, decrypt, encryptForFeed, decryptForFeed, nostrPubKey, deriveNewFeedKey, encryptFeedKey } = crypto;
+  const { encrypt, decrypt, encryptForFeed, decryptForFeed, nostrPubKey, deriveNewFeedKey, encryptFeedKey, nickname, setNickname } = crypto;
   const useCryptoRef = useRef(crypto);
   useCryptoRef.current = crypto;
   const [showSettings, setShowSettings] = useState(false);
@@ -69,21 +69,28 @@ function App() {
     if (localStorage.getItem('sn_migration_done') === '1') { migrationDone.current = true; return; }
     migrationDone.current = true;
     (async () => {
-      const notes = await db.execO(`SELECT id, content, properties FROM notes`) as any[];
-      for (const n of notes) {
-        if (n.content && !isEncrypted(n.content)) {
-          await db.exec(`UPDATE notes SET content = ?, properties = ? WHERE id = ?`,
-            [encrypt(n.content), encrypt(n.properties || '{}'), n.id]);
+      await db.exec(`BEGIN`);
+      try {
+        const notes = await db.execO(`SELECT id, content, properties FROM notes`) as any[];
+        for (const n of notes) {
+          if (n.content && !isEncrypted(n.content)) {
+            await db.exec(`UPDATE notes SET content = ?, properties = ? WHERE id = ?`,
+              [encrypt(n.content), encrypt(n.properties || '{}'), n.id]);
+          }
         }
-      }
-      const feedRows = await db.execO(`SELECT id, name, avatar FROM feeds`) as any[];
-      for (const f of feedRows) {
-        if (f.name && !isEncrypted(f.name)) {
-          await db.exec(`UPDATE feeds SET name = ?, avatar = ? WHERE id = ?`,
-            [encrypt(f.name), f.avatar ? encrypt(f.avatar) : null, f.id]);
+        const feedRows = await db.execO(`SELECT id, name, avatar FROM feeds`) as any[];
+        for (const f of feedRows) {
+          if (f.name && !isEncrypted(f.name)) {
+            await db.exec(`UPDATE feeds SET name = ?, avatar = ? WHERE id = ?`,
+              [encrypt(f.name), f.avatar ? encrypt(f.avatar) : null, f.id]);
+          }
         }
+        await db.exec(`COMMIT`);
+        localStorage.setItem('sn_migration_done', '1');
+      } catch (err) {
+        await db.exec(`ROLLBACK`);
+        console.error('[migration] E2E encryption migration failed, will retry on next load:', err);
       }
-      localStorage.setItem('sn_migration_done', '1');
     })();
   }, [db, encrypt]);
 
@@ -277,6 +284,45 @@ function App() {
     }
   }, [db, activeFeedId, feeds]);
 
+  const handleArchiveFeed = useCallback(async (id: string, archived: boolean) => {
+    await db.exec(`UPDATE feeds SET is_archived = ? WHERE id = ?`, [archived ? 1 : 0, id]);
+    if (archived && activeFeedId === id) {
+      setActiveFeedId(feeds.find(f => f.id !== id && !f.is_archived)?.id ?? null);
+    }
+  }, [db, activeFeedId, feeds]);
+
+  // ── Nickname DB sync (cross-device via CRDT user_settings) ────────────
+  const handleSetNickname = useCallback(async (name: string) => {
+    setNickname(name);
+    try {
+      const enc = encrypt(name);
+      await db.exec(`INSERT OR REPLACE INTO user_settings (key, value) VALUES ('nickname', ?)`, [enc]);
+    } catch (err) {
+      console.error('[settings] failed to persist nickname to DB', err);
+    }
+  }, [setNickname, encrypt, db]);
+
+  useEffect(() => {
+    const syncNickname = async () => {
+      try {
+        const rows = await db.execO(`SELECT value FROM user_settings WHERE key = 'nickname'`) as any[];
+        if (rows.length > 0 && rows[0].value) {
+          const dbNickname = decrypt(rows[0].value);
+          if (dbNickname && dbNickname !== useCryptoRef.current.nickname) {
+            setNickname(dbNickname);
+          }
+        }
+      } catch { /* ignore decrypt errors */ }
+    };
+    syncNickname(); // load on startup
+    const cleanupUpdate = db.onUpdate((_: any, __: any, tblName: string) => {
+      if (tblName === 'user_settings') syncNickname();
+    });
+    const syncListener = () => syncNickname();
+    SyncEvents.addEventListener('sync', syncListener);
+    return () => { cleanupUpdate(); SyncEvents.removeEventListener('sync', syncListener); };
+  }, [db, decrypt]); // setNickname intentionally omitted to avoid loop
+
   // ── Theme ──────────────────────────────────────────────────────────
   // Force light theme for the new minimalist design (reset old localStorage)
   const DESIGN_VERSION = 'minimalist-v1';
@@ -404,6 +450,7 @@ function App() {
 
   // ── Export / Import ────────────────────────────────────────────────
   const handleExport = async () => {
+    if (!confirm('Экспорт создаст файл с расшифрованными данными. Любой, кто получит этот файл, сможет прочитать ваши заметки. Продолжить?')) return;
     const rows = await db.execO(`SELECT * FROM notes WHERE is_deleted = 0`) as any[];
     const decryptedRows = rows.map(r => {
       const dec = r.feed_id ? (s: string) => decryptForFeed(s, r.feed_id) : decrypt;
@@ -519,6 +566,7 @@ function App() {
             await (window as any).__syncEngine.resyncFeed(id);
           }
         }}
+        onArchiveFeed={handleArchiveFeed}
       />
 
       {/* ── Dashboard panel ── */}
@@ -587,6 +635,7 @@ function App() {
             fontOptions={Object.keys(FONT_FAMILIES)}
             theme={theme}
             setTheme={handleSetTheme}
+            onSetNickname={handleSetNickname}
           />
         )}
 
@@ -674,6 +723,7 @@ function App() {
                 await (window as any).__syncEngine.resyncFeed(id);
               }
             }}
+            onArchiveFeed={handleArchiveFeed}
           />
         </div>
       )}

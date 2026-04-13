@@ -14,10 +14,12 @@ interface Props {
   fontOptions: string[];
   theme: ThemeId;
   setTheme: (t: ThemeId) => void;
+  onSetNickname?: (name: string) => void;
 }
 
-export default function SettingsModal({ onClose, onExport, onImport, font, setFont, fontOptions, theme, setTheme }: Props) {
-  const { nostrPubKey, logout, nickname, setNickname } = useCrypto();
+export default function SettingsModal({ onClose, onExport, onImport, font, setFont, fontOptions, theme, setTheme, onSetNickname }: Props) {
+  const { nostrPubKey, logout, nickname, setNickname: setNicknameCrypto } = useCrypto();
+  const setNickname = onSetNickname ?? setNicknameCrypto;
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');

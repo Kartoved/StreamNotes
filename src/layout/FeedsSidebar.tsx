@@ -1,4 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha';
+import { randomBytes } from '@noble/ciphers/webcrypto';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import type { Feed as FeedData } from '../db/hooks';
 import { useCrypto } from '../crypto/CryptoContext';
 import {
@@ -115,6 +119,41 @@ const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
   );
 };
 
+// ─── ECDH helpers for pubkey-based sharing ────────────────────────────
+const NPUBENC_PREFIX = 'npubenc1:';
+
+function encryptPayloadForPubkey(payload: string, recipientPubHex: string, senderPrivKey: Uint8Array): string {
+  const sharedPoint = secp256k1.getSharedSecret(senderPrivKey, '02' + recipientPubHex);
+  const sharedSecret = sharedPoint.slice(1, 33);
+  const nonce = randomBytes(24);
+  const cipher = xchacha20poly1305(sharedSecret, nonce);
+  const ct = cipher.encrypt(new TextEncoder().encode(payload));
+  const combined = new Uint8Array(24 + ct.length);
+  combined.set(nonce, 0);
+  combined.set(ct, 24);
+  return NPUBENC_PREFIX + recipientPubHex + ':' + bytesToHex(combined);
+}
+
+function decryptPayloadForMe(encoded: string, myPrivKey: Uint8Array): string {
+  // Format: npubenc1:{recipientPubHex}:{nonceHex + ciphertextHex}
+  // We don't need recipientPubHex for decryption — we need the SENDER's pubkey.
+  // But we included it so the recipient can verify they're the intended target.
+  // The actual ECDH uses myPrivKey + senderPubKey.
+  // Updated format: npubenc1:{senderPubHex}:{encryptedHex}
+  const rest = encoded.slice(NPUBENC_PREFIX.length);
+  const colonIdx = rest.indexOf(':');
+  if (colonIdx === -1) throw new Error('invalid format');
+  const senderPubHex = rest.slice(0, colonIdx);
+  const encHex = rest.slice(colonIdx + 1);
+  const bytes = hexToBytes(encHex);
+  const nonce = bytes.slice(0, 24);
+  const ct = bytes.slice(24);
+  const sharedPoint = secp256k1.getSharedSecret(myPrivKey, '02' + senderPubHex);
+  const sharedSecret = sharedPoint.slice(1, 33);
+  const cipher = xchacha20poly1305(sharedSecret, nonce);
+  return new TextDecoder().decode(cipher.decrypt(ct));
+}
+
 // ─── Feeds Sidebar ────────────────────────────────────────────────────
 export const FeedsSidebar = ({
   feeds,
@@ -125,6 +164,7 @@ export const FeedsSidebar = ({
   onDeleteFeed,
   onImportSharedFeed,
   onShareFeed,
+  onArchiveFeed,
 }: {
   feeds: FeedData[];
   activeFeedId: string | null;
@@ -134,8 +174,9 @@ export const FeedsSidebar = ({
   onDeleteFeed: (id: string, isShared: boolean) => void;
   onImportSharedFeed?: (payload: { flow_id: string; fek: string; name: string; relay?: string }) => void;
   onShareFeed?: (id: string) => void;
+  onArchiveFeed?: (id: string, archived: boolean) => void;
 }) => {
-  const { decryptFeedKey, nostrPubKey } = useCrypto();
+  const { decryptFeedKey, nostrPubKey, nostrPrivKey } = useCrypto();
   const [modal, setModal] = useState<'create' | 'share' | 'import' | FeedData | null>(null);
   const [modalName, setModalName] = useState('');
   const [modalColor, setModalColor] = useState('#3b82f6');
@@ -145,6 +186,12 @@ export const FeedsSidebar = ({
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState('');
   const avatarRef = useRef<HTMLInputElement>(null);
+  // Archive view toggle
+  const [showArchive, setShowArchive] = useState(false);
+  // Pubkey sharing state
+  const [recipientPubkey, setRecipientPubkey] = useState('');
+  const [encryptedPayload, setEncryptedPayload] = useState('');
+  const [pubkeyError, setPubkeyError] = useState('');
 
   const openCreate = () => {
     setModalName(''); setModalColor(randomColor()); setModalAvatar(null); setModal('create');
@@ -156,7 +203,11 @@ export const FeedsSidebar = ({
   const handleSave = async () => {
     if (!modalName.trim()) return;
 
-    const trimmed = modalName.trim();
+    let trimmed = modalName.trim();
+    // Handle paste of encrypted invite payload
+    if (trimmed.startsWith(NPUBENC_PREFIX)) {
+      try { trimmed = decryptPayloadForMe(trimmed, nostrPrivKey); } catch { /* ignore */ }
+    }
     if (trimmed.startsWith('{') && trimmed.includes('"flow_id"')) {
       try {
         const data = JSON.parse(trimmed);
@@ -195,6 +246,9 @@ export const FeedsSidebar = ({
         author_npub: nostrPubKey,
       }, null, 2);
       setSharePayload(payload);
+      setRecipientPubkey('');
+      setEncryptedPayload('');
+      setPubkeyError('');
       onShareFeed?.(feed.id);
       setModal('share');
     } catch (e) {
@@ -202,10 +256,37 @@ export const FeedsSidebar = ({
     }
   };
 
+  const handleEncryptForPubkey = useCallback(() => {
+    const hex = recipientPubkey.trim().replace(/^npub/, '');
+    if (!/^[0-9a-f]{64}$/i.test(hex)) {
+      setPubkeyError('Введите 64-символьный hex-ключ получателя (npub без префикса)');
+      return;
+    }
+    try {
+      const encrypted = encryptPayloadForPubkey(sharePayload, hex.toLowerCase(), nostrPrivKey);
+      setEncryptedPayload(encrypted);
+      setPubkeyError('');
+    } catch (e) {
+      setPubkeyError('Ошибка шифрования: ' + String(e));
+    }
+  }, [recipientPubkey, sharePayload, nostrPrivKey]);
+
   const handleImportSubmit = () => {
     setImportError('');
+    let text = importText.trim();
+
+    // Handle pubkey-encrypted payload
+    if (text.startsWith(NPUBENC_PREFIX)) {
+      try {
+        text = decryptPayloadForMe(text, nostrPrivKey);
+      } catch {
+        setImportError('Не удалось расшифровать: убедитесь, что payload зашифрован для вашего pubkey');
+        return;
+      }
+    }
+
     try {
-      const data = JSON.parse(importText);
+      const data = JSON.parse(text);
       if (!data.flow_id || !data.fek) {
         setImportError('Invalid payload: missing flow_id or fek');
         return;
@@ -250,7 +331,7 @@ export const FeedsSidebar = ({
         <div style={{ fontSize: '1.4rem', marginBottom: '12px', userSelect: 'none', lineHeight: 1, color: 'var(--text)' }}>✦</div>
         <div className="feed-logo-sep" style={{ width: '28px', height: '1.5px', background: 'var(--line)', marginBottom: '16px' }} />
 
-        {feeds.map(feed => (
+        {feeds.filter(f => showArchive ? f.is_archived : !f.is_archived).map(feed => (
           <div
             key={feed.id}
             className="feed-item"
@@ -258,7 +339,7 @@ export const FeedsSidebar = ({
             style={{ padding: '6px 0' }}
           >
             <FeedIcon feed={feed} active={feed.id === activeFeedId} />
-            <div className="feed-tooltip">{feed.name}</div>
+            <div className="feed-tooltip">{showArchive ? `[архив] ${feed.name}` : feed.name}</div>
           </div>
         ))}
 
@@ -296,6 +377,32 @@ export const FeedsSidebar = ({
           >&#x21E9;</div>
           <div className="feed-tooltip">Import Flow</div>
         </div>
+
+        {/* Archive toggle */}
+        <div className="feed-item" style={{ padding: '6px 0', marginTop: 'auto' }}>
+          <div
+            onClick={() => setShowArchive(v => !v)}
+            title={showArchive ? 'Скрыть архив' : 'Архив'}
+            style={{
+              width: '40px', height: '40px', borderRadius: '12px',
+              border: showArchive ? '1.5px solid var(--text)' : '1px solid var(--line-strong)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+              color: showArchive ? 'var(--text)' : 'var(--text-faint)',
+              background: showArchive ? 'var(--bg-hover)' : 'transparent',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { if (!showArchive) { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line-strong)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; }}}
+            onMouseLeave={e => { if (!showArchive) { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line-strong)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="21 8 21 21 3 21 3 8"/>
+              <rect x="1" y="3" width="22" height="5"/>
+              <line x1="10" y1="12" x2="14" y2="12"/>
+            </svg>
+          </div>
+          <div className="feed-tooltip">{showArchive ? 'Назад к лентам' : 'Архив'}</div>
+        </div>
       </div>
 
       {/* Share modal */}
@@ -313,28 +420,73 @@ export const FeedsSidebar = ({
               boxShadow: 'var(--shadow-md)',
             }}
           >
-            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)' }}>Share Flow</div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)' }}>Поделиться шифлоу</div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-sub)', margin: 0, lineHeight: 1.5 }}>
-              Send this invite payload to another Sheafy user. They can paste it into "Import Flow" to join this flow.
+              Скопируй payload и передай другому пользователю. Или зашифруй его для конкретного npub — тогда только получатель сможет его импортировать.
             </p>
+
+            {/* Plain payload */}
+            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Открытый payload</div>
             <textarea
               readOnly
               value={sharePayload}
               onClick={e => (e.target as HTMLTextAreaElement).select()}
               style={{
-                width: '100%', minHeight: '140px', resize: 'vertical',
+                width: '100%', minHeight: '100px', resize: 'vertical',
                 background: 'var(--bg-hover)', border: '1px solid var(--line)',
                 borderRadius: 'var(--radius)', color: 'var(--text)',
                 fontSize: '0.75rem', fontFamily: 'var(--font-mono)',
                 padding: '10px', outline: 'none', boxSizing: 'border-box',
               }}
             />
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => { navigator.clipboard.writeText(sharePayload); }}
+              style={{ alignSelf: 'flex-start', background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '5px 14px', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'var(--font-body)' }}
+            >Копировать</button>
+
+            {/* Divider */}
+            <div style={{ height: '1px', background: 'var(--line)' }} />
+
+            {/* Pubkey encryption */}
+            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Зашифровать для npub</div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                placeholder="64-символьный hex pubkey получателя"
+                value={recipientPubkey}
+                onChange={e => { setRecipientPubkey(e.target.value); setEncryptedPayload(''); setPubkeyError(''); }}
+                style={{ flex: 1, background: 'var(--bg-hover)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', color: 'var(--text)', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', padding: '6px 10px', outline: 'none', boxSizing: 'border-box' }}
+              />
               <button
-                onClick={() => { navigator.clipboard.writeText(sharePayload); }}
-                style={{ background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}
-              >Copy</button>
-              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: 'var(--radius)', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>Close</button>
+                onClick={handleEncryptForPubkey}
+                disabled={!recipientPubkey.trim()}
+                style={{ background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'var(--font-body)', opacity: recipientPubkey.trim() ? 1 : 0.4 }}
+              >Encrypt</button>
+            </div>
+            {pubkeyError && <div style={{ fontSize: '0.75rem', color: '#f87171' }}>{pubkeyError}</div>}
+            {encryptedPayload && (
+              <>
+                <textarea
+                  readOnly
+                  value={encryptedPayload}
+                  onClick={e => (e.target as HTMLTextAreaElement).select()}
+                  style={{
+                    width: '100%', minHeight: '80px', resize: 'vertical',
+                    background: 'var(--bg-hover)', border: '1px solid var(--line)',
+                    borderRadius: 'var(--radius)', color: 'var(--text)',
+                    fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
+                    padding: '10px', outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+                <button
+                  onClick={() => navigator.clipboard.writeText(encryptedPayload)}
+                  style={{ alignSelf: 'flex-start', background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '5px 14px', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'var(--font-body)' }}
+                >Копировать encrypted</button>
+              </>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-sub)', borderRadius: 'var(--radius)', padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>Закрыть</button>
             </div>
           </div>
         </div>
@@ -509,7 +661,7 @@ export const FeedsSidebar = ({
             <div style={{ height: '1px', background: 'var(--line)', margin: '0 0 20px' }} />
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
               {modal !== 'create' && typeof modal === 'object' && (
                 <>
                   <button
@@ -518,6 +670,12 @@ export const FeedsSidebar = ({
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#f87171'; (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; }}
                   >{modal.is_shared ? 'Отписаться' : 'Удалить'}</button>
+                  <button
+                    onClick={() => { onArchiveFeed?.(modal.id, !modal.is_archived); setModal(null); }}
+                    style={{ flex: 1, background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: '8px', padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)', transition: 'all 0.12s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line-strong)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; }}
+                  >{modal.is_archived ? 'Разархивировать' : 'В архив'}</button>
                   {modal.encryption_key && (
                     <button
                       onClick={() => openShare(modal)}

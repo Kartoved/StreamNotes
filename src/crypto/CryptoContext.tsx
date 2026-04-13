@@ -183,7 +183,10 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
 
       encryptForFeed: (plaintext: string, feedId: string) => {
         const fek = feedKeysRef.current.get(feedId);
-        if (!fek) return rawEncrypt(plaintext, keys.contentKey); // fallback to master
+        if (!fek) {
+          console.warn(`[crypto] encryptForFeed: FEK not found for feed ${feedId}, falling back to master key. Other shared feed members will not be able to decrypt this data.`);
+          return rawEncrypt(plaintext, keys.contentKey);
+        }
         return rawEncrypt(plaintext, fek);
       },
 

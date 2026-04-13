@@ -26,6 +26,7 @@ export interface Feed {
   encryption_key: string | null;
   key_index: number | null;
   is_shared: number;
+  is_archived: number;
   created_at: number;
 }
 

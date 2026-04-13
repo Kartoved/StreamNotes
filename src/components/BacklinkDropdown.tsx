@@ -23,9 +23,9 @@ function extractText(node: any): string {
 
 export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, onCreateNew, onClose }) => {
   const db = useDB();
-  const { decrypt } = useCrypto();
-  const decryptRef = useRef(decrypt);
-  useEffect(() => { decryptRef.current = decrypt; }, [decrypt]);
+  const { decrypt, decryptForFeed } = useCrypto();
+  const cryptoRef = useRef({ decrypt, decryptForFeed });
+  useEffect(() => { cryptoRef.current = { decrypt, decryptForFeed }; }, [decrypt, decryptForFeed]);
 
   const [results, setResults] = useState<NoteOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,14 +35,15 @@ export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, o
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    db.execO(`SELECT id, content FROM notes WHERE is_deleted = 0 LIMIT 200`, [])
+    db.execO(`SELECT id, content, feed_id FROM notes WHERE is_deleted = 0 LIMIT 200`, [])
       .then((rows: any[]) => {
         if (cancelled) return;
-        const dec = decryptRef.current;
+        const { decrypt: dec, decryptForFeed: decFeed } = cryptoRef.current;
         const mapped = (rows as any[]).map(r => {
           let title = '';
           try {
-            const doc = JSON.parse(dec(r.content));
+            const plaintext = r.feed_id ? decFeed(r.content, r.feed_id) : dec(r.content);
+            const doc = JSON.parse(plaintext);
             title = extractText(doc).trim();
           } catch {
             title = r.id;

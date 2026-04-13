@@ -33,7 +33,7 @@ export const AppDBProvider: React.FC<{children: React.ReactNode}> = ({ children 
                 }
 
                 // Ремонт: чиним триггеры после прошлых сбоев ALTER (решает проблему "expected 19 values got 17")
-                for (const table of ['feeds', 'notes', 'links']) {
+                for (const table of ['feeds', 'notes', 'links', 'user_settings']) {
                   try {
                     await database.exec(`SELECT crsql_alter_begin('${table}')`);
                     await database.exec(`SELECT crsql_alter_commit('${table}')`);
@@ -67,7 +67,7 @@ export const AppDBProvider: React.FC<{children: React.ReactNode}> = ({ children 
                 }
                 
                 // Финальная регистрация CRR
-                for (const table of ['feeds', 'notes', 'links']) {
+                for (const table of ['feeds', 'notes', 'links', 'user_settings']) {
                   try { 
                     await database.exec(`SELECT crsql_as_crr('${table}')`); 
                   } catch (e) { /* ignore already CRR */ }
