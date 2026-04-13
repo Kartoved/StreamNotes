@@ -32,52 +32,54 @@ export const AppDBProvider: React.FC<{children: React.ReactNode}> = ({ children 
                    await database.exec(query);
                 }
 
-                // Ремонт: чиним триггеры после прошлых сбоев ALTER (решает проблему "expected 19 values got 17")
-                for (const table of ['feeds', 'notes', 'links', 'user_settings', 'feed_members']) {
-                  try {
-                    await database.exec(`SELECT crsql_alter_begin('${table}')`);
-                    await database.exec(`SELECT crsql_alter_commit('${table}')`);
-                    console.log(`Ремонт ${table} завершен успешно`);
-                  } catch (e) {
-                    console.error(`Ошибка при ремонте ${table}:`, e);
-                  }
-                }
+                // Helper: add a column through CR-SQLite's alter API so triggers stay in sync.
+                // crsql_alter_begin/commit update the CRDT metadata; if the table isn't CRR yet
+                // those calls throw and are ignored — the column is still added correctly.
+                const safeAddColumnCRR = async (table: string, col: string, type: string) => {
+                  try { await database.exec(`SELECT crsql_alter_begin('${table}')`); } catch { /* not yet CRR or already in alter */ }
+                  try { await database.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`); } catch { /* already exists */ }
+                  try { await database.exec(`SELECT crsql_alter_commit('${table}')`); } catch { /* ignore */ }
+                };
 
-                // Проверяем существующие колонки
+                // Migrations: add missing columns (wrapped with crsql_alter so triggers update)
                 const feedsInfo = await database.execO<{name: string}>('PRAGMA table_info(feeds)');
                 const existingFeedsColumns = feedsInfo.map(row => row.name);
 
-                // Запускаем миграции максимально безопасно
                 for (const mig of migrations) {
                   const match = mig.match(/ALTER TABLE (\w+) ADD COLUMN\s+([A-Za-z0-9_]+)/i);
                   const tblName = match ? match[1].toLowerCase() : null;
                   const colName = match ? match[2] : null;
 
                   if (tblName === 'feeds' && colName && existingFeedsColumns.includes(colName)) {
-                    continue; // Пропускаем, если колонка уже есть
+                    continue; // already present
                   }
-                  
-                  try {
-                    if (tblName) { try { await database.exec(`SELECT crsql_alter_begin('${tblName}')`); } catch(e) {} }
-                    await database.exec(mig);
-                    if (tblName) { try { await database.exec(`SELECT crsql_alter_commit('${tblName}')`); } catch(e) {} }
-                  } catch (e) {
-                    // Если упало (например, колонка уже есть), просто идем дальше
-                  }
-                }
-                
-                // Safety: add columns that may be missing on older DBs
-                // (plain ALTER TABLE is idempotent — throws if column exists, which we ignore)
-                const safeAddColumn = async (table: string, col: string, type: string) => {
-                  try { await database.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`); } catch { /* already exists */ }
-                };
-                await safeAddColumn('feeds', 'is_archived', 'BOOLEAN DEFAULT 0');
 
-                // Финальная регистрация CRR
+                  try {
+                    if (tblName) { try { await database.exec(`SELECT crsql_alter_begin('${tblName}')`); } catch { } }
+                    await database.exec(mig);
+                    if (tblName) { try { await database.exec(`SELECT crsql_alter_commit('${tblName}')`); } catch { } }
+                  } catch { /* column already exists — skip */ }
+                }
+
+                // Safety: ensure is_archived exists on older DBs (uses crsql_alter so triggers stay valid)
+                await safeAddColumnCRR('feeds', 'is_archived', 'BOOLEAN DEFAULT 0');
+
+                // Register / repair CRR for all tables.
+                // Nuclear repair: drop ALL triggers on each table first, then recreate via crsql_as_crr.
+                // This fixes "expected N values, got M" errors caused by ALTER TABLE without crsql wrappers.
                 for (const table of ['feeds', 'notes', 'links', 'user_settings', 'feed_members']) {
                   try {
+                    // Drop every trigger on this table (they're all crsql-managed)
+                    const triggers = await database.execO<{name: string}>(
+                      `SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name=?`,
+                      [table]
+                    );
+                    for (const t of triggers) {
+                      try { await database.exec(`DROP TRIGGER IF EXISTS "${t.name}"`); } catch { }
+                    }
+                    // Recreate CRR triggers for current schema
                     await database.exec(`SELECT crsql_as_crr('${table}')`);
-                  } catch (e) { /* ignore already CRR */ }
+                  } catch (e) { console.warn(`[db] CRR rebuild ${table}:`, e); }
                 }
                 
                 if (isMounted) {

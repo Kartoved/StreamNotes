@@ -126,6 +126,24 @@ function App() {
     }
   }, [feeds, activeFeedId]);
 
+  // ── Re-register FEKs for all shared feeds on startup ──────────────
+  // feedKeysRef starts empty on every page load. Without this, decryptForFeed
+  // falls back to the master key and fails to decrypt notes encrypted with a FEK.
+  const fekLoadDone = useRef(false);
+  useEffect(() => {
+    if (fekLoadDone.current || feeds.length === 0) return;
+    fekLoadDone.current = true;
+    const { registerFeedKey, decryptFeedKey: dfk } = useCryptoRef.current;
+    for (const feed of feeds) {
+      if (feed.encryption_key) {
+        try {
+          const fekHex = dfk(feed.encryption_key);
+          registerFeedKey(feed.id, fekHex);
+        } catch { /* ignore malformed keys */ }
+      }
+    }
+  }, [feeds]);
+
   // ── navigateToNote: find or create note, switch feed, focus ────────
   useEffect(() => {
     (window as any).navigateToNote = async (noteId: string) => {
@@ -237,7 +255,7 @@ function App() {
     );
   }, [db, encrypt]);
 
-  const handleImportSharedFeed = useCallback(async (payload: { flow_id: string; fek: string; name: string; relay?: string; role?: string; author_npub?: string }) => {
+  const handleImportSharedFeed = useCallback(async (payload: { flow_id: string; fek: string; name: string; relay?: string; role?: string; author_npub?: string; notes?: any[]; links?: any[] }) => {
     const { flow_id, fek, name, role = 'participant', author_npub } = payload;
     // Check if feed already exists
     const existing = await db.execO(`SELECT id FROM feeds WHERE id = ?`, [flow_id]) as any[];
@@ -249,25 +267,62 @@ function App() {
     // Register the FEK immediately so encrypt/decrypt work
     useCryptoRef.current.registerFeedKey(flow_id, fek);
     const now = Date.now();
-    await db.exec(
-      `INSERT INTO feeds (id, name, color, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?)`,
-      [flow_id, encrypt(name || 'Shared Flow'), '#6095ed', encryptedFek, null, 1, now]
-    );
-    // Record our own role in this shared feed
-    await db.exec(
-      `INSERT OR REPLACE INTO feed_members (feed_id, pubkey, role, added_at) VALUES (?,?,?,?)`,
-      [flow_id, nostrPubKey, role, now]
-    );
-    // Record the author as admin (if provided)
-    if (author_npub && author_npub !== nostrPubKey) {
+
+    if (existing.length === 0) {
+      // Fresh import: create the feed row
       await db.exec(
-        `INSERT OR IGNORE INTO feed_members (feed_id, pubkey, role, added_at) VALUES (?,?,?,?)`,
-        [flow_id, author_npub, 'admin', now]
+        `INSERT INTO feeds (id, name, color, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?)`,
+        [flow_id, encrypt(name || 'Shared Flow'), '#6095ed', encryptedFek, null, 1, now]
       );
+      // Record our own role in this shared feed
+      await db.exec(
+        `INSERT OR REPLACE INTO feed_members (feed_id, pubkey, role, added_at) VALUES (?,?,?,?)`,
+        [flow_id, nostrPubKey, role, now]
+      );
+      // Record the author as admin (if provided)
+      if (author_npub && author_npub !== nostrPubKey) {
+        await db.exec(
+          `INSERT OR IGNORE INTO feed_members (feed_id, pubkey, role, added_at) VALUES (?,?,?,?)`,
+          [flow_id, author_npub, 'admin', now]
+        );
+      }
     }
+    // Feed already existed — still fall through to insert snapshot notes below
+
+    // Import notes snapshot if included in payload — this ensures notes appear immediately
+    // without relying on relay sync (which may be slow or unavailable).
+    // Works whether this is a fresh import or a re-import of an existing feed.
+    let notesInserted = 0;
+    if (payload.notes?.length) {
+      for (const n of payload.notes) {
+        try {
+          await db.exec(
+            `INSERT OR IGNORE INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+            [n.id, n.parent_id ?? null, n.author_id ?? null, n.content, n.sort_key, n.properties, n.feed_id, n.created_at, n.updated_at]
+          );
+          notesInserted++;
+        } catch { /* ignore individual row errors */ }
+      }
+    }
+    if (payload.links?.length) {
+      for (const l of payload.links) {
+        try {
+          await db.exec(
+            `INSERT OR IGNORE INTO links (source_id, target_id, feed_id) VALUES (?,?,?)`,
+            [l.source_id, l.target_id, l.feed_id]
+          );
+        } catch { /* ignore individual row errors */ }
+      }
+    }
+
+    if (existing.length > 0) {
+      // Feed already existed — show a message indicating how many notes were synced
+      alert(`Лента уже существует. Добавлено заметок из снапшота: ${notesInserted}.`);
+    }
+
     setActiveFeedId(flow_id);
 
-    // Tell SyncEngine to subscribe to the new shared feed immediately
+    // Tell SyncEngine to subscribe to the new shared feed immediately (for future updates)
     if ((window as any).__syncEngine) {
       await (window as any).__syncEngine.refreshRelays();
       // Retry after 3s in case relay connection wasn't ready on first subscribe
@@ -301,7 +356,7 @@ function App() {
     }
   }, [db, activeFeedId, feeds]);
 
-  const handleShareFeed = useCallback(async (id: string) => {
+  const handleShareFeed = useCallback(async (id: string): Promise<{ notes: any[]; links: any[] } | null> => {
     await db.exec(`UPDATE feeds SET is_shared = 1 WHERE id = ?`, [id]);
     // Push all existing notes to the feed channel (FEK-encrypted) so remote readers can decrypt them
     const doSync = async () => {
@@ -313,6 +368,20 @@ function App() {
     // Try immediately, then retry after 3s in case relay wasn't connected yet
     doSync().catch(e => console.warn('[sync] initial resync failed:', e));
     setTimeout(() => doSync().catch(e => console.warn('[sync] retry resync failed:', e)), 3000);
+
+    // Collect snapshot of all notes in the feed — embedded in the share payload so
+    // the recipient gets them immediately without waiting for relay sync
+    const notes = await db.execO(
+      `SELECT id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at
+       FROM notes WHERE feed_id = ? AND (is_deleted IS NULL OR is_deleted = 0)`,
+      [id]
+    );
+    const links = await db.execO(
+      `SELECT source_id, target_id, feed_id FROM links WHERE feed_id = ?`,
+      [id]
+    );
+    console.log('[share] snapshot:', (notes as any[]).length, 'notes,', (links as any[]).length, 'links');
+    return { notes: notes as any[], links: links as any[] };
   }, [db]);
 
   const handleArchiveFeed = useCallback(async (id: string, archived: boolean) => {
@@ -750,7 +819,7 @@ function App() {
             onImportSharedFeed={handleImportSharedFeed}
             onShareFeed={handleShareFeed}
             onArchiveFeed={handleArchiveFeed}
-          />
+              />
         </div>
       )}
 

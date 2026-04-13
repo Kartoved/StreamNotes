@@ -172,8 +172,8 @@ export const FeedsSidebar = ({
   onCreateFeed: (name: string, color: string, avatar: string | null) => void;
   onUpdateFeed: (id: string, name: string, color: string, avatar: string | null) => void;
   onDeleteFeed: (id: string, isShared: boolean) => void;
-  onImportSharedFeed?: (payload: { flow_id: string; fek: string; name: string; relay?: string }) => void;
-  onShareFeed?: (id: string) => void;
+  onImportSharedFeed?: (payload: { flow_id: string; fek: string; name: string; relay?: string; role?: string; author_npub?: string; notes?: any[]; links?: any[] }) => void;
+  onShareFeed?: (id: string) => Promise<{ notes: any[]; links: any[] } | null>;
   onArchiveFeed?: (id: string, archived: boolean) => void;
 }) => {
   const { decryptFeedKey, nostrPubKey, nostrPrivKey } = useCrypto();
@@ -194,6 +194,7 @@ export const FeedsSidebar = ({
   const [pubkeyError, setPubkeyError] = useState('');
   const [shareRole, setShareRole] = useState<'reader' | 'participant' | 'admin'>('participant');
   const [shareFeedId, setShareFeedId] = useState<string | null>(null);
+  const [shareSnapshot, setShareSnapshot] = useState<{ notes: any[]; links: any[] } | null>(null);
 
   const openCreate = () => {
     setModalName(''); setModalColor(randomColor()); setModalAvatar(null); setModal('create');
@@ -237,7 +238,7 @@ export const FeedsSidebar = ({
     e.target.value = '';
   };
 
-  const buildSharePayload = (feed: FeedData, role: 'reader' | 'participant' | 'admin') => {
+  const buildSharePayload = (feed: FeedData, role: 'reader' | 'participant' | 'admin', snapshot?: { notes: any[]; links: any[] } | null) => {
     const fekHex = decryptFeedKey(feed.encryption_key!);
     return JSON.stringify({
       flow_id: feed.id,
@@ -245,21 +246,29 @@ export const FeedsSidebar = ({
       name: feed.name,
       author_npub: nostrPubKey,
       role,
+      ...(snapshot?.notes?.length ? { notes: snapshot.notes } : {}),
+      ...(snapshot?.links?.length ? { links: snapshot.links } : {}),
     }, null, 2);
   };
 
-  const openShare = (feed: FeedData) => {
+  const openShare = async (feed: FeedData) => {
     if (!feed.encryption_key) return;
     try {
       setShareFeedId(feed.id);
-      setSharePayload(buildSharePayload(feed, shareRole));
       setRecipientPubkey('');
       setEncryptedPayload('');
       setPubkeyError('');
-      onShareFeed?.(feed.id);
+      setShareSnapshot(null);
+      setSharePayload('Загружаю...');
       setModal('share');
+
+      // onShareFeed marks the feed as shared AND returns a notes snapshot
+      const snapshot = onShareFeed ? await onShareFeed(feed.id) : null;
+      setShareSnapshot(snapshot);
+      setSharePayload(buildSharePayload(feed, shareRole, snapshot));
     } catch (e) {
-      console.error('Failed to generate share payload', e);
+      console.error('[share] Failed to generate share payload:', e);
+      setSharePayload('Ошибка при генерации payload');
     }
   };
 
@@ -286,9 +295,9 @@ export const FeedsSidebar = ({
     if (!shareFeedId) return;
     const feed = feeds.find(f => f.id === shareFeedId);
     if (!feed?.encryption_key) return;
-    try { setSharePayload(buildSharePayload(feed, newRole)); } catch { /* ignore */ }
+    try { setSharePayload(buildSharePayload(feed, newRole, shareSnapshot)); } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shareFeedId, feeds]);
+  }, [shareFeedId, feeds, shareSnapshot]);
 
   const handleImportSubmit = () => {
     setImportError('');
