@@ -161,16 +161,17 @@ export class SyncEngine {
   private subscribeAll(): void {
     // Personal channel: events authored by us
     const personalUnsub = this.relay.subscribe(
-      { kinds: [SYNC_EVENT_KIND], authors: [this.crypto.nostrPubKey] },
+      { kinds: [SYNC_EVENT_KIND], authors: [this.crypto.nostrPubKey], since: 0 },
       (event) => { void this.handleIncoming(event); },
     );
     this.cleanupSubs.push(personalUnsub);
 
     // Feed channel: any shared feed whose FEK we hold
+    // since: 0 explicitly requests full history (some relays omit history without it)
     const sharedIds = Array.from(this.sharedFeedIds);
     if (sharedIds.length) {
       const feedUnsub = this.relay.subscribe(
-        { kinds: [SYNC_EVENT_KIND], '#t': sharedIds },
+        { kinds: [SYNC_EVENT_KIND], '#t': sharedIds, since: 0 },
         (event) => { void this.handleIncoming(event); },
       );
       this.cleanupSubs.push(feedUnsub);
@@ -342,14 +343,24 @@ export class SyncEngine {
   }
 
   public async resyncFeed(feedId: string): Promise<void> {
-    if (!this.started || !this.sharedFeedIds.has(feedId)) return;
+    if (!this.started) return;
+
+    // If sharedFeedIds doesn't yet contain this feed, reload feeds first
+    if (!this.sharedFeedIds.has(feedId)) {
+      await this.loadFeeds();
+      if (!this.sharedFeedIds.has(feedId)) {
+        console.warn(`[sync] resyncFeed: feed ${feedId} is not shared, skipping`);
+        return;
+      }
+    }
+
     try {
       const { changeset } = await captureChanges(this.db, -1); // -1 fetches everything
-      if (!changeset.rows.length) return;
+      console.log(`[sync] resyncFeed: captured ${changeset.rows.length} total rows`);
 
       const rowsDb = await this.db.execO(`SELECT id, feed_id FROM notes`);
       const notesMap = new Map<string, string>();
-      for (const r of rowsDb as any[]) if (r.feed_id) notesMap.set(r.id, r.feed_id);
+      for (const r of rowsDb as any[]) if ((r as any).feed_id) notesMap.set((r as any).id, (r as any).feed_id);
 
       function getFeedId(pkBase64: string): string | null {
         try {
@@ -363,22 +374,31 @@ export class SyncEngine {
       }
 
       const feedRows = changeset.rows.filter(row => {
-        if (row.table === 'notes') return getFeedId(row.pk) === feedId;
+        if (row.table === 'notes' || row.table === 'links') return getFeedId(row.pk) === feedId;
         return false;
       });
 
-      if (feedRows.length === 0) return;
+      console.log(`[sync] resyncFeed: ${feedRows.length} rows belong to feed ${feedId}`);
+      if (feedRows.length === 0) {
+        console.log('[sync] resyncFeed: nothing to publish (no local notes in this feed)');
+        return;
+      }
 
-      const ev = encodeEvent({
-        changeset: { v: changeset.v, rows: feedRows },
-        channel: 'feed',
-        feedId,
-        encrypt: (pt) => this.crypto.encryptForFeed(pt, feedId),
-        secretKey: this.crypto.nostrPrivKey,
-      });
-      this.markSeen(ev.id);
-      await this.relay.publish(ev);
-      console.log(`[sync] resync published ${feedRows.length} rows for feed ${feedId}`);
+      // Split into chunks of 200 rows to stay under relay size limits
+      const CHUNK = 200;
+      for (let i = 0; i < feedRows.length; i += CHUNK) {
+        const chunk = feedRows.slice(i, i + CHUNK);
+        const ev = encodeEvent({
+          changeset: { v: changeset.v, rows: chunk },
+          channel: 'feed',
+          feedId,
+          encrypt: (pt) => this.crypto.encryptForFeed(pt, feedId),
+          secretKey: this.crypto.nostrPrivKey,
+        });
+        this.markSeen(ev.id);
+        await this.relay.publish(ev);
+        console.log(`[sync] resync published chunk ${Math.floor(i / CHUNK) + 1} (${chunk.length} rows) for feed ${feedId}`);
+      }
     } catch (e) {
       console.error('[sync] failed to resync feed', e);
     }

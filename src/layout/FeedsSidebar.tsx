@@ -192,6 +192,8 @@ export const FeedsSidebar = ({
   const [recipientPubkey, setRecipientPubkey] = useState('');
   const [encryptedPayload, setEncryptedPayload] = useState('');
   const [pubkeyError, setPubkeyError] = useState('');
+  const [shareRole, setShareRole] = useState<'reader' | 'participant' | 'admin'>('participant');
+  const [shareFeedId, setShareFeedId] = useState<string | null>(null);
 
   const openCreate = () => {
     setModalName(''); setModalColor(randomColor()); setModalAvatar(null); setModal('create');
@@ -235,17 +237,22 @@ export const FeedsSidebar = ({
     e.target.value = '';
   };
 
+  const buildSharePayload = (feed: FeedData, role: 'reader' | 'participant' | 'admin') => {
+    const fekHex = decryptFeedKey(feed.encryption_key!);
+    return JSON.stringify({
+      flow_id: feed.id,
+      fek: fekHex,
+      name: feed.name,
+      author_npub: nostrPubKey,
+      role,
+    }, null, 2);
+  };
+
   const openShare = (feed: FeedData) => {
     if (!feed.encryption_key) return;
     try {
-      const fekHex = decryptFeedKey(feed.encryption_key);
-      const payload = JSON.stringify({
-        flow_id: feed.id,
-        fek: fekHex,
-        name: feed.name,
-        author_npub: nostrPubKey,
-      }, null, 2);
-      setSharePayload(payload);
+      setShareFeedId(feed.id);
+      setSharePayload(buildSharePayload(feed, shareRole));
       setRecipientPubkey('');
       setEncryptedPayload('');
       setPubkeyError('');
@@ -270,6 +277,18 @@ export const FeedsSidebar = ({
       setPubkeyError('Ошибка шифрования: ' + String(e));
     }
   }, [recipientPubkey, sharePayload, nostrPrivKey]);
+
+  // Regenerate share payload when role changes (while share modal is open)
+  const handleRoleChange = useCallback((newRole: 'reader' | 'participant' | 'admin') => {
+    setShareRole(newRole);
+    setEncryptedPayload('');
+    // Rebuild payload with new role — find the feed from shareFeedId
+    if (!shareFeedId) return;
+    const feed = feeds.find(f => f.id === shareFeedId);
+    if (!feed?.encryption_key) return;
+    try { setSharePayload(buildSharePayload(feed, newRole)); } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareFeedId, feeds]);
 
   const handleImportSubmit = () => {
     setImportError('');
@@ -421,8 +440,33 @@ export const FeedsSidebar = ({
             }}
           >
             <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)' }}>Поделиться шифлоу</div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-sub)', margin: 0, lineHeight: 1.5 }}>
-              Скопируй payload и передай другому пользователю. Или зашифруй его для конкретного npub — тогда только получатель сможет его импортировать.
+
+            {/* Role picker */}
+            <div>
+              <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '8px' }}>Права доступа</div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {(['reader', 'participant', 'admin'] as const).map(r => {
+                  const labels = { reader: 'Читатель', participant: 'Участник', admin: 'Админ' };
+                  const descs = { reader: 'только чтение', participant: 'читать + писать свои', admin: 'полный доступ' };
+                  const active = shareRole === r;
+                  return (
+                    <button key={r} onClick={() => handleRoleChange(r)} style={{
+                      flex: 1, border: active ? '1.5px solid var(--text)' : '1px solid var(--line)',
+                      background: active ? 'var(--bg-hover)' : 'transparent',
+                      borderRadius: 'var(--radius)', padding: '6px 4px', cursor: 'pointer',
+                      color: active ? 'var(--text)' : 'var(--text-faint)', fontFamily: 'var(--font-body)',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
+                    }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>{labels[r]}</span>
+                      <span style={{ fontSize: '0.62rem', opacity: 0.7 }}>{descs[r]}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-sub)', margin: 0, lineHeight: 1.5 }}>
+              Скопируй payload или зашифруй для конкретного npub — только получатель сможет его импортировать.
             </p>
 
             {/* Plain payload */}

@@ -30,6 +30,15 @@ export interface Feed {
   created_at: number;
 }
 
+export type FeedRole = 'owner' | 'admin' | 'participant' | 'reader';
+
+export interface FeedMember {
+  feed_id: string;
+  pubkey: string;
+  role: FeedRole;
+  added_at: number;
+}
+
 // Защита целостности графа
 export async function rescueOrphans(db: any) {
   const all = await db.execO(`SELECT id, parent_id FROM notes WHERE parent_id IS NOT NULL`);
@@ -175,6 +184,39 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
   }, [db, parentId, feedId]);
 
   return notes;
+}
+
+/** Returns the effective role for myPubKey in a given feed.
+ *  Returns 'owner' if myPubKey matches the feed's author (is_shared=0 personal feed),
+ *  otherwise looks up feed_members. Falls back to 'admin' for shared feeds with no member row (backwards compat). */
+export function useFeedRole(feedId: string | null, myPubKey: string): FeedRole {
+  const db = useDB();
+  const [role, setRole] = useState<FeedRole>('owner');
+
+  useEffect(() => {
+    if (!feedId || !myPubKey) { setRole('owner'); return; }
+    let isMounted = true;
+    const fetchRole = async () => {
+      const rows = await db.execO(
+        `SELECT role FROM feed_members WHERE feed_id = ? AND pubkey = ?`,
+        [feedId, myPubKey]
+      ) as any[];
+      if (!isMounted) return;
+      if (rows.length > 0) {
+        setRole(rows[0].role as FeedRole);
+      } else {
+        // No member row — treat as owner (personal feed or legacy shared feed)
+        setRole('owner');
+      }
+    };
+    fetchRole();
+    const cleanup = db.onUpdate((_: any, __: any, tbl: string) => {
+      if (tbl === 'feed_members') fetchRole();
+    });
+    return () => { isMounted = false; cleanup(); };
+  }, [db, feedId, myPubKey]);
+
+  return role;
 }
 
 export function useFeeds() {

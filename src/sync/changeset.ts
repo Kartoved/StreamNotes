@@ -149,7 +149,7 @@ export async function applyChanges(db: DB, changeset: Changeset): Promise<void> 
   // Whitelist of tables we are willing to accept changes for. Anything else
   // (e.g. sync_relays — device-local) is dropped silently to avoid pulling in
   // junk from a malicious or buggy peer.
-  const ALLOWED = new Set(['notes', 'feeds', 'links']);
+  const ALLOWED = new Set(['notes', 'feeds', 'links', 'feed_members', 'user_settings']);
 
   for (const r of changeset.rows) {
     if (!ALLOWED.has(r.table)) continue;

@@ -14,6 +14,7 @@ interface FeedProps {
   feedId?: string | null;
   isSharedFeed?: boolean;
   localNpub?: string;
+  myRole?: 'owner' | 'admin' | 'participant' | 'reader';
   onNoteClick?: (id: string) => void;
   replyingToId?: string | null;
   editingNote?: any | null;
@@ -65,6 +66,7 @@ export const Feed = ({
   feedId = null,
   isSharedFeed = false,
   localNpub = '',
+  myRole = 'owner',
   onNoteClick,
   replyingToId,
   editingNote,
@@ -80,6 +82,9 @@ export const Feed = ({
   statusFilter = null,
   onStartPomodoro,
 }: FeedProps) => {
+  const canWrite = myRole !== 'reader';
+  const canEditOwn = myRole !== 'reader';
+  const canEditAll = myRole === 'owner' || myRole === 'admin';
   const db = useDB();
   const { encrypt, decrypt, encryptForFeed, decryptForFeed } = useCrypto();
 
@@ -498,16 +503,23 @@ export const Feed = ({
               zIndex: 4001,
             }}
           >
-            {[
-              { label: 'Ответить', action: () => { onStartReply?.(contextMenu.noteId); closeContextMenu(); } },
-              { label: 'Редактировать', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); if (note) onStartEdit?.(note); closeContextMenu(); } },
-              { label: 'Открыть', action: () => { setExpandedNoteId(contextMenu.noteId); closeContextMenu(); } },
-              { label: collapsedIds.has(contextMenu.noteId) ? 'Развернуть' : 'Свернуть', action: () => { setCollapsedIds(prev => { const next = new Set(prev); next.has(contextMenu.noteId) ? next.delete(contextMenu.noteId) : next.add(contextMenu.noteId); return next; }); closeContextMenu(); } },
-              { label: '🔗 Перейти в ветку', action: () => { onNoteClick?.(contextMenu.noteId); closeContextMenu(); } },
-              ...(onStartPomodoro ? [null as null, { label: '🍅 Запустить помидор', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
-              null, // separator
-              { label: '🗑 Удалить', action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true },
-            ].map((item, i) =>
+            {(() => {
+              const ctxNote = notes.find(n => n.id === contextMenu.noteId);
+              const isOwn = !ctxNote || ctxNote.author_id === localNpub;
+              const userCanEdit = canEditAll || (canEditOwn && isOwn);
+              const userCanDelete = canEditAll || (canEditOwn && isOwn);
+              // Build items: true-null = separator, false = omitted
+              const raw: (false | null | { label: string; action: () => void; danger?: boolean })[] = [
+                canWrite && { label: 'Ответить', action: () => { onStartReply?.(contextMenu.noteId); closeContextMenu(); } },
+                userCanEdit && { label: 'Редактировать', action: () => { if (ctxNote) onStartEdit?.(ctxNote); closeContextMenu(); } },
+                { label: 'Открыть', action: () => { setExpandedNoteId(contextMenu.noteId); closeContextMenu(); } },
+                { label: collapsedIds.has(contextMenu.noteId) ? 'Развернуть' : 'Свернуть', action: () => { setCollapsedIds(prev => { const next = new Set(prev); next.has(contextMenu.noteId) ? next.delete(contextMenu.noteId) : next.add(contextMenu.noteId); return next; }); closeContextMenu(); } },
+                { label: '🔗 Перейти в ветку', action: () => { onNoteClick?.(contextMenu.noteId); closeContextMenu(); } },
+                ...(onStartPomodoro ? [null as null, { label: '🍅 Запустить помидор', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
+                ...(userCanDelete ? [null as null, { label: '🗑 Удалить', action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true }] : []),
+              ];
+              return raw.filter(x => x !== false);
+            })().map((item, i) =>
               item === null ? (
                 <div key={i} style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
               ) : (

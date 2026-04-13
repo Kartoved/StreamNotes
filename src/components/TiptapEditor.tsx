@@ -466,7 +466,8 @@ export const TweetEditor = ({
     if (!editor) return;
     const handler = () => {
       const { $head } = editor.state.selection;
-      const textBefore = $head.parent.textContent.slice(0, $head.parentOffset);
+      // textBetween(start, end) gives exact text from block start to cursor
+      const textBefore = editor.state.doc.textBetween($head.start(), $head.pos, '\n', '\0');
       const match = /\[\[([^\]]*)$/.exec(textBefore);
       if (match) {
         setBlQuery(match[1]);
@@ -493,7 +494,7 @@ export const TweetEditor = ({
   const handleBacklinkSelect = useCallback((id: string, title: string) => {
     if (!editor) return;
     const { $head } = editor.state.selection;
-    const textBefore = $head.parent.textContent.slice(0, $head.parentOffset);
+    const textBefore = editor.state.doc.textBetween($head.start(), $head.pos, '\n', '\0');
     const match = /\[\[([^\]]*)$/.exec(textBefore);
     if (match) {
       const from = $head.pos - match[0].length;

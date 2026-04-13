@@ -7,6 +7,7 @@ export const schema = [
     encryption_key TEXT DEFAULT NULL,
     key_index INTEGER DEFAULT NULL,
     is_shared BOOLEAN DEFAULT 0,
+    is_archived BOOLEAN DEFAULT 0,
     created_at INTEGER DEFAULT 0
   );`,
   `SELECT crsql_as_crr('feeds');`,
@@ -50,6 +51,16 @@ export const schema = [
     value TEXT DEFAULT ''
   );`,
   `SELECT crsql_as_crr('user_settings');`,
+
+  // Feed membership / roles for shared feeds
+  `CREATE TABLE IF NOT EXISTS feed_members (
+    feed_id TEXT NOT NULL DEFAULT '',
+    pubkey TEXT NOT NULL DEFAULT '',
+    role TEXT NOT NULL DEFAULT 'reader',
+    added_at INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (feed_id, pubkey)
+  );`,
+  `SELECT crsql_as_crr('feed_members');`,
 ];
 
 // Migrations for existing databases — run after schema creation

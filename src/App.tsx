@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDB } from './db/DBContext';
 import { Feed, extractTags } from './components/Feed';
 import { TweetEditor } from './components/TiptapEditor';
-import { useNotes, useFeeds, rescueOrphans } from './db/hooks';
+import { useNotes, useFeeds, useFeedRole, rescueOrphans } from './db/hooks';
 import type { Feed as FeedData } from './db/hooks';
 import { useCrypto } from './crypto/CryptoContext';
 import { isEncrypted } from './crypto/cipher';
@@ -237,8 +237,8 @@ function App() {
     );
   }, [db, encrypt]);
 
-  const handleImportSharedFeed = useCallback(async (payload: { flow_id: string; fek: string; name: string; relay?: string }) => {
-    const { flow_id, fek, name } = payload;
+  const handleImportSharedFeed = useCallback(async (payload: { flow_id: string; fek: string; name: string; relay?: string; role?: string; author_npub?: string }) => {
+    const { flow_id, fek, name, role = 'participant', author_npub } = payload;
     // Check if feed already exists
     const existing = await db.execO(`SELECT id FROM feeds WHERE id = ?`, [flow_id]) as any[];
     if (existing.length > 0) {
@@ -248,17 +248,34 @@ function App() {
     const encryptedFek = encryptFeedKey(fek);
     // Register the FEK immediately so encrypt/decrypt work
     useCryptoRef.current.registerFeedKey(flow_id, fek);
+    const now = Date.now();
     await db.exec(
       `INSERT INTO feeds (id, name, color, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?)`,
-      [flow_id, encrypt(name || 'Shared Flow'), '#6095ed', encryptedFek, null, 1, Date.now()]
+      [flow_id, encrypt(name || 'Shared Flow'), '#6095ed', encryptedFek, null, 1, now]
     );
+    // Record our own role in this shared feed
+    await db.exec(
+      `INSERT OR REPLACE INTO feed_members (feed_id, pubkey, role, added_at) VALUES (?,?,?,?)`,
+      [flow_id, nostrPubKey, role, now]
+    );
+    // Record the author as admin (if provided)
+    if (author_npub && author_npub !== nostrPubKey) {
+      await db.exec(
+        `INSERT OR IGNORE INTO feed_members (feed_id, pubkey, role, added_at) VALUES (?,?,?,?)`,
+        [flow_id, author_npub, 'admin', now]
+      );
+    }
     setActiveFeedId(flow_id);
-    
+
     // Tell SyncEngine to subscribe to the new shared feed immediately
     if ((window as any).__syncEngine) {
       await (window as any).__syncEngine.refreshRelays();
+      // Retry after 3s in case relay connection wasn't ready on first subscribe
+      setTimeout(async () => {
+        try { await (window as any).__syncEngine?.refreshRelays(); } catch { /* ignore */ }
+      }, 3000);
     }
-  }, [db, encrypt, encryptFeedKey]);
+  }, [db, encrypt, encryptFeedKey, nostrPubKey]);
 
   const handleDeleteFeed = useCallback(async (id: string, isShared: boolean) => {
     if (!isShared) {
@@ -283,6 +300,20 @@ function App() {
       setActiveFeedId(feeds.find(f => f.id !== id)?.id ?? null);
     }
   }, [db, activeFeedId, feeds]);
+
+  const handleShareFeed = useCallback(async (id: string) => {
+    await db.exec(`UPDATE feeds SET is_shared = 1 WHERE id = ?`, [id]);
+    // Push all existing notes to the feed channel (FEK-encrypted) so remote readers can decrypt them
+    const doSync = async () => {
+      const engine = (window as any).__syncEngine;
+      if (!engine) return;
+      await engine.refreshRelays();
+      await engine.resyncFeed(id);
+    };
+    // Try immediately, then retry after 3s in case relay wasn't connected yet
+    doSync().catch(e => console.warn('[sync] initial resync failed:', e));
+    setTimeout(() => doSync().catch(e => console.warn('[sync] retry resync failed:', e)), 3000);
+  }, [db]);
 
   const handleArchiveFeed = useCallback(async (id: string, archived: boolean) => {
     await db.exec(`UPDATE feeds SET is_archived = ? WHERE id = ?`, [archived ? 1 : 0, id]);
@@ -510,6 +541,7 @@ function App() {
   };
 
   const activeFeed = feeds.find(f => f.id === activeFeedId);
+  const myFeedRole = useFeedRole(activeFeedId, nostrPubKey);
 
   const iconBtn: React.CSSProperties = {
     background: 'transparent',
@@ -557,15 +589,7 @@ function App() {
         onUpdateFeed={handleUpdateFeed}
         onDeleteFeed={handleDeleteFeed}
         onImportSharedFeed={handleImportSharedFeed}
-        onShareFeed={async (id) => {
-          await db.exec(`UPDATE feeds SET is_shared = 1 WHERE id = ?`, [id]);
-          // Tell SyncEngine it's a shared feed now
-          if ((window as any).__syncEngine) {
-            await (window as any).__syncEngine.refreshRelays();
-            // Publish entire history to the feed channel immediately
-            await (window as any).__syncEngine.resyncFeed(id);
-          }
-        }}
+        onShareFeed={handleShareFeed}
         onArchiveFeed={handleArchiveFeed}
       />
 
@@ -641,22 +665,30 @@ function App() {
 
         {/* Editor + Feed */}
         <div className="feed-area" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '760px' }}>
-          <div style={{ flexShrink: 0 }}>
-            <TweetEditor
-              placeholder={focusedTweetId ? 'Оставить ответ в ветке...' : 'Что происходит?'}
-              buttonText="Шифнуть"
-              onSubmit={insertRootNote}
-              autoFocus
-              onExpand={(ast, pj) => {
-                setFullscreenDraft({ ast, propsJson: pj, onSubmit: insertRootNote });
-              }}
-            />
-          </div>
+          {myFeedRole !== 'reader' && (
+            <div style={{ flexShrink: 0 }}>
+              <TweetEditor
+                placeholder={focusedTweetId ? 'Оставить ответ в ветке...' : 'Что происходит?'}
+                buttonText="Шифнуть"
+                onSubmit={insertRootNote}
+                autoFocus
+                onExpand={(ast, pj) => {
+                  setFullscreenDraft({ ast, propsJson: pj, onSubmit: insertRootNote });
+                }}
+              />
+            </div>
+          )}
+          {myFeedRole === 'reader' && (
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-faint)', padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 'var(--radius)', background: 'var(--bg-hover)', textAlign: 'center' }}>
+              Только чтение — вы добавлены как читатель этой ленты
+            </div>
+          )}
           <Feed
             parentId={focusedTweetId}
             feedId={activeFeedId}
             isSharedFeed={!!activeFeed?.is_shared}
             localNpub={nostrPubKey}
+            myRole={myFeedRole}
             onNoteClick={(id) => { setFocusedTweetId(id); setReplyingToTweetId(null); }}
             replyingToId={replyingToTweetId}
             editingNote={editingTweet}
@@ -716,13 +748,7 @@ function App() {
             onUpdateFeed={handleUpdateFeed}
             onDeleteFeed={handleDeleteFeed}
             onImportSharedFeed={handleImportSharedFeed}
-            onShareFeed={async (id) => {
-              await db.exec(`UPDATE feeds SET is_shared = 1 WHERE id = ?`, [id]);
-              if ((window as any).__syncEngine) {
-                await (window as any).__syncEngine.refreshRelays();
-                await (window as any).__syncEngine.resyncFeed(id);
-              }
-            }}
+            onShareFeed={handleShareFeed}
             onArchiveFeed={handleArchiveFeed}
           />
         </div>
