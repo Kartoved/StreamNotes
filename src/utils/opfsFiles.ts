@@ -38,18 +38,44 @@ export async function saveToOpfs(file: File): Promise<string> {
   return `attachment://${filename}`;
 }
 
-// Object URL cache — revoked on page unload
+// LRU Object URL cache — evicted URLs are revoked to free memory.
+// This is critical on mobile Safari where blob URLs pin file blobs in RAM.
+const LRU_MAX = 30;
 const urlCache = new Map<string, string>();
+const lruOrder: string[] = []; // oldest → newest
+
+function lruTouch(key: string) {
+  const idx = lruOrder.indexOf(key);
+  if (idx !== -1) lruOrder.splice(idx, 1);
+  lruOrder.push(key);
+}
+
+function lruEvict() {
+  while (lruOrder.length > LRU_MAX) {
+    const oldest = lruOrder.shift()!;
+    const url = urlCache.get(oldest);
+    if (url) { URL.revokeObjectURL(url); urlCache.delete(oldest); }
+  }
+}
+
+/** Revoke all cached blob URLs (call on visibilitychange → hidden). */
+export function revokeAllUrls() {
+  for (const url of urlCache.values()) URL.revokeObjectURL(url);
+  urlCache.clear();
+  lruOrder.length = 0;
+}
 
 export async function resolveUrl(src: string): Promise<string> {
   if (!src.startsWith('attachment://')) return src;
-  if (urlCache.has(src)) return urlCache.get(src)!;
+  if (urlCache.has(src)) { lruTouch(src); return urlCache.get(src)!; }
   const filename = src.replace('attachment://', '');
   const dir = await getAttachmentsDir();
   const handle = await dir.getFileHandle(filename);
   const file = await (handle as any).getFile();
   const url = URL.createObjectURL(file);
   urlCache.set(src, url);
+  lruTouch(src);
+  lruEvict();
   return url;
 }
 

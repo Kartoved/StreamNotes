@@ -15,6 +15,7 @@ import { FeedsSidebar, parseLucideAvatar } from './layout/FeedsSidebar';
 import { RightSidebar } from './layout/RightSidebar';
 import { DashboardPanel } from './layout/DashboardPanel';
 import { usePomodoro } from './hooks/usePomodoro';
+import { revokeAllUrls } from './utils/opfsFiles';
 import './index.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -257,6 +258,20 @@ function App() {
       delete (window as any).__syncEngine;
     };
   }, [db]);
+
+  // ── Visibility cleanup: free memory when backgrounded (prevents Safari tab kill) ──
+  useEffect(() => {
+    const onVisChange = () => {
+      if (document.visibilityState === 'hidden') {
+        revokeAllUrls();
+        try { (window as any).__syncEngine?.stop(); } catch { /* ignore */ }
+      } else {
+        try { (window as any).__syncEngine?.start(); } catch { /* ignore */ }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisChange);
+    return () => document.removeEventListener('visibilitychange', onVisChange);
+  }, []);
 
   // Auto-create default feed on very first load (wait for sync to try first)
   const defaultFeedCreated = useRef(false);
@@ -539,6 +554,8 @@ function App() {
     openFullscreenDraft({ ast, propsJson, onSubmit });
   };
 
+  const isMobile = () => window.innerWidth <= 640;
+
   // ── Sidebar filters ────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
@@ -691,7 +708,7 @@ function App() {
   return (
     <div
       className="app-root"
-      style={{ display: 'flex', height: '100vh', background: 'var(--bg-page)' }}
+      style={{ display: 'flex', background: 'var(--bg-page)' }}
       data-mobile-tab={mobileTab}
       onTouchStart={(e) => {
         touchStartX.current = e.touches[0].clientX;
@@ -870,10 +887,22 @@ function App() {
             onNoteClick={(id) => { setFocusedTweetId(id); setReplyingToTweetId(null); }}
             replyingToId={replyingToTweetId}
             editingNote={editingTweet}
-            onStartReply={setReplyingToTweetId}
+            onStartReply={(id) => {
+              if (isMobile()) {
+                openFullscreenDraft({ ast: '', propsJson: '{}', onSubmit: (ast, pj) => handleInlineReply(id, ast, pj) });
+              } else {
+                setReplyingToTweetId(id);
+              }
+            }}
             onCancelReply={() => setReplyingToTweetId(null)}
             onSubmitReply={handleInlineReply}
-            onStartEdit={setEditingTweet}
+            onStartEdit={(note) => {
+              if (isMobile()) {
+                openFullscreenDraft({ ast: note.content, propsJson: note.properties, onSubmit: (ast, pj) => handleEditSubmit(note.id, ast, pj) });
+              } else {
+                setEditingTweet(note);
+              }
+            }}
             onCancelEdit={() => setEditingTweet(null)}
             onSubmitEdit={handleEditSubmit}
             searchQuery={searchQuery}

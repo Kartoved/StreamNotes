@@ -53,7 +53,7 @@ export default function UnlockScreen({ onUnlock, onBiometricUnlock, onRecover }:
 
   const containerStyle: React.CSSProperties = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    minHeight: '100vh', padding: '2rem',
+    padding: '2rem',
     background: 'var(--bg)',
     fontFamily: 'var(--font-body)', color: 'var(--text)',
   };
@@ -94,7 +94,7 @@ export default function UnlockScreen({ onUnlock, onBiometricUnlock, onRecover }:
   };
 
   return (
-    <div style={containerStyle}>
+    <div className="auth-screen" style={containerStyle}>
       <div style={cardStyle}>
         <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)' }}>
           Sheafy

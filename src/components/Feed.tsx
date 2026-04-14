@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotes } from '../db/hooks';
@@ -166,16 +166,28 @@ export const Feed = ({
       }
     };
 
-    const onEnd = (ev: TouchEvent) => {
+    const cleanup = () => {
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onEnd);
+      window.removeEventListener('touchcancel', onTouchCancel);
+      touchDragId.current = null;
+      setTouchDragActive(false);
+      setDraggedIdBoth(null);
+      setDragOverInfo(null);
+    };
+
+    const onTouchCancel = () => cleanup();
+
+    const onEnd = (ev: TouchEvent) => {
+      // Remove all listeners first
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+      window.removeEventListener('touchcancel', onTouchCancel);
 
       const currentDragOverInfo = dragOverInfoRef.current;
       const currentDraggedId = draggedIdRef.current;
       if (currentDragOverInfo && currentDraggedId) {
-        // Use a snapshot of draggedId for the drop since state may update
         const dropDraggedId = currentDraggedId;
-        // Run drop logic directly to avoid stale closure on handleDrop
         (async () => {
           const targetId = currentDragOverInfo.id;
           const zone = currentDragOverInfo.zone;
@@ -217,6 +229,7 @@ export const Feed = ({
 
     window.addEventListener('touchmove', onMove, { passive: false });
     window.addEventListener('touchend', onEnd, { once: true });
+    window.addEventListener('touchcancel', onTouchCancel, { once: true });
   };
 
   // Keep refs for access inside touch event closures (avoid stale captures)
@@ -248,17 +261,28 @@ export const Feed = ({
     setBulkAction(null);
   };
 
-  const openContextMenu = (e: React.MouseEvent, noteId: string) => {
+  const openContextMenu = useCallback((e: React.MouseEvent, noteId: string) => {
     e.preventDefault();
     e.stopPropagation();
     setContextMenu({ x: e.clientX, y: e.clientY, noteId });
-  };
+  }, []);
 
-  const openContextMenuAt = (x: number, y: number, noteId: string) => {
+  const openContextMenuAt = useCallback((x: number, y: number, noteId: string) => {
     setContextMenu({ x, y, noteId });
-  };
+  }, []);
 
   const closeContextMenu = () => setContextMenu(null);
+
+  // ── Pre-parse properties + plain text once (reused by filter & sort) ──
+  const parsedCache = React.useMemo(() => {
+    const m = new Map<string, { props: any; text: string }>();
+    for (const note of notes) {
+      let props: any = {};
+      try { props = JSON.parse(note.properties || '{}'); } catch { /* */ }
+      m.set(note.id, { props, text: extractPlainText(note.content).toLocaleLowerCase() });
+    }
+    return m;
+  }, [notes]);
 
   // ── Filter by search + tags + date + status ───────────────────────
   const filteredNotes = React.useMemo(() => {
@@ -271,47 +295,42 @@ export const Feed = ({
 
     const matchingIds = new Set<string>();
     for (const note of notes) {
-      const text = extractPlainText(note.content).toLocaleLowerCase();
+      const cached = parsedCache.get(note.id);
+      const text = cached?.text ?? '';
       const searchOk = !hasSearch || text.includes(q);
       const tagOk = !hasTags || [...selectedTags].every(tag => text.includes(tag));
       let dateOk = true;
       if (hasDate) {
-        try {
-          const props = JSON.parse(note.properties || '{}');
-          const propsDate = props.date ? props.date.slice(0, 10) : null;
-          const createdDate = new Date(note.created_at).toISOString().slice(0, 10);
-          dateOk = propsDate === selectedDate || (!propsDate && createdDate === selectedDate);
-        } catch {
-          dateOk = new Date(note.created_at).toISOString().slice(0, 10) === selectedDate;
-        }
+        const props = cached?.props ?? {};
+        const propsDate = props.date ? props.date.slice(0, 10) : null;
+        const createdDate = new Date(note.created_at).toISOString().slice(0, 10);
+        dateOk = propsDate === selectedDate || (!propsDate && createdDate === selectedDate);
       }
       let statusOk = true;
       if (hasStatus) {
-        try {
-          const props = JSON.parse(note.properties || '{}');
-          if (statusFilter === 'todo') {
-            const today = new Date();
-            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-            const noteDate = props.date ? props.date.slice(0, 10) : null;
-            statusOk = props.status === 'todo' && (!noteDate || noteDate <= todayStr);
-          } else if (statusFilter === 'todo-no-date') {
-            statusOk = props.status === 'todo' && !props.date;
-          } else if (statusFilter === 'todo-future') {
-            const today = new Date();
-            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-            const noteDate = props.date ? props.date.slice(0, 10) : null;
-            statusOk = props.status === 'todo' && noteDate && noteDate > todayStr;
-          } else if (statusFilter === 'doing') {
-            statusOk = props.status === 'doing';
-          } else if (statusFilter === 'done') {
-            const today = new Date();
-            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-            const completedAt = props.completed_at ? props.completed_at.slice(0, 10) : null;
-            statusOk = props.status === 'done' && completedAt === todayStr;
-          } else {
-            statusOk = props.status === statusFilter;
-          }
-        } catch { statusOk = false; }
+        const props = cached?.props ?? {};
+        if (statusFilter === 'todo') {
+          const today = new Date();
+          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          const noteDate = props.date ? props.date.slice(0, 10) : null;
+          statusOk = props.status === 'todo' && (!noteDate || noteDate <= todayStr);
+        } else if (statusFilter === 'todo-no-date') {
+          statusOk = props.status === 'todo' && !props.date;
+        } else if (statusFilter === 'todo-future') {
+          const today = new Date();
+          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          const noteDate = props.date ? props.date.slice(0, 10) : null;
+          statusOk = props.status === 'todo' && noteDate && noteDate > todayStr;
+        } else if (statusFilter === 'doing') {
+          statusOk = props.status === 'doing';
+        } else if (statusFilter === 'done') {
+          const today = new Date();
+          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          const completedAt = props.completed_at ? props.completed_at.slice(0, 10) : null;
+          statusOk = props.status === 'done' && completedAt === todayStr;
+        } else {
+          statusOk = props.status === statusFilter;
+        }
       }
       if (searchOk && tagOk && dateOk && statusOk) matchingIds.add(note.id);
 
@@ -328,7 +347,7 @@ export const Feed = ({
     }
 
     return notes.filter(n => toKeep.has(n.id));
-  }, [notes, searchQuery, selectedTags, selectedDate, statusFilter]);
+  }, [notes, parsedCache, searchQuery, selectedTags, selectedDate, statusFilter]);
 
   const visibleNotes = React.useMemo(() => {
     let base = [...filteredNotes];
@@ -337,17 +356,15 @@ export const Feed = ({
     if (isFlat) {
       if (sortMode === 'date') {
         base.sort((a, b) => {
-          const pa = JSON.parse(a.properties || '{}');
-          const pb = JSON.parse(b.properties || '{}');
-          const da = pa.date || '9999-12-31';
-          const db = pb.date || '9999-12-31';
-          return da.localeCompare(db) || b.created_at - a.created_at;
+          const da = (parsedCache.get(a.id)?.props.date) || '9999-12-31';
+          const db_ = (parsedCache.get(b.id)?.props.date) || '9999-12-31';
+          return da.localeCompare(db_) || b.created_at - a.created_at;
         });
       } else if (sortMode === 'status') {
         const order: any = { 'doing': 0, 'todo': 1, 'none': 2, 'done': 3, 'archived': 4 };
         base.sort((a, b) => {
-          const sa = JSON.parse(a.properties || '{}').status || 'none';
-          const sb = JSON.parse(b.properties || '{}').status || 'none';
+          const sa = (parsedCache.get(a.id)?.props.status) || 'none';
+          const sb = (parsedCache.get(b.id)?.props.status) || 'none';
           return (order[sa] ?? 2) - (order[sb] ?? 2) || b.created_at - a.created_at;
         });
       } else if (sortMode === 'created') {
@@ -360,7 +377,7 @@ export const Feed = ({
       const groups: any = { 'doing': [], 'todo': [], 'todo-no-date': [], 'none': [], 'done': [], 'archived': [] };
       const labels: any = { 'doing': 'В процессе', 'todo': 'Нужно сделать', 'todo-no-date': 'Неразобранные', 'none': 'Заметки', 'done': 'Выполнено', 'archived': 'Архив' };
       base.forEach(n => {
-        const p = JSON.parse(n.properties || '{}');
+        const p = parsedCache.get(n.id)?.props ?? {};
         const s = p.status || 'none';
         if (s === 'todo' && !p.date) {
           groups['todo-no-date'].push(n);
@@ -379,7 +396,7 @@ export const Feed = ({
     } else if (groupMode === 'date' && isFlat) {
       const groups: Map<string, any[]> = new Map();
       base.forEach(n => {
-        const d = JSON.parse(n.properties || '{}').date || 'Неразобранные';
+        const d = (parsedCache.get(n.id)?.props.date) || 'Неразобранные';
         if (!groups.has(d)) groups.set(d, []);
         groups.get(d)!.push(n);
       });
@@ -404,13 +421,13 @@ export const Feed = ({
       }
     }
     return result;
-  }, [filteredNotes, collapsedIds, sortMode, groupMode]);
+  }, [filteredNotes, parsedCache, collapsedIds, sortMode, groupMode]);
 
   const virtualizer = useVirtualizer({
     count: visibleNotes.length,
     getScrollElement: () => document.querySelector('.main-content'),
     estimateSize: (i) => visibleNotes[i]?.type === 'header' ? 32 : 100,
-    overscan: 5,
+    overscan: window.innerWidth <= 640 ? 3 : 5,
   });
 
   // Reset scroll to top whenever a filter changes so the virtualizer
@@ -479,6 +496,20 @@ export const Feed = ({
     }
     setDraggedId(null); setDragOverInfo(null);
   };
+
+  // Stable callbacks for NoteCard (avoids re-render from new function refs)
+  const handleNcDragStart = useCallback((e: React.DragEvent, id: string) => {
+    setDraggedIdBoth(id); e.dataTransfer.effectAllowed = 'move';
+  }, []);
+  const handleNcDragOver = useCallback((e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const zone: 'sibling' | 'child' = (e.clientX - rect.left) < rect.width / 2 ? 'sibling' : 'child';
+    setDragOverInfo(prev => prev?.id === id && prev?.zone === zone ? prev : { id, zone });
+  }, []);
+  const handleNcDragLeave = useCallback(() => setDragOverInfo(null), []);
+  const handleNcDragEnd = useCallback(() => { setDraggedIdBoth(null); setDragOverInfo(null); }, []);
+  const handleNcExpandNote = useCallback((id: string) => setExpandedNoteId(id), []);
 
   if (notes.length === 0) {
     return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Пусто. Напиши что-нибудь первым!</div>;
@@ -736,21 +767,16 @@ export const Feed = ({
                   openContextMenu={openContextMenu}
                   openContextMenuAt={openContextMenuAt}
                   onStartReply={onStartReply}
-                  onDragStart={(e, id) => { setDraggedIdBoth(id); e.dataTransfer.effectAllowed = 'move'; }}
-                  onDragOver={(e, id) => {
-                    e.preventDefault();
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const zone = (e.clientX - rect.left) < rect.width / 2 ? 'sibling' : 'child';
-                    if (dragOverInfo?.id !== id || dragOverInfo?.zone !== zone) setDragOverInfo({ id, zone });
-                  }}
-                  onDragLeave={() => setDragOverInfo(null)}
+                  onDragStart={handleNcDragStart}
+                  onDragOver={handleNcDragOver}
+                  onDragLeave={handleNcDragLeave}
                   onDrop={(e, id) => { e.preventDefault(); if (dragOverInfo) handleDrop(id, dragOverInfo.zone); }}
-                  onDragEnd={() => { setDraggedIdBoth(null); setDragOverInfo(null); }}
+                  onDragEnd={handleNcDragEnd}
                   onCancelEdit={onCancelEdit}
                   onSubmitEdit={onSubmitEdit}
                   onCancelReply={onCancelReply}
                   onSubmitReply={onSubmitReply}
-                  onExpandNote={(id) => setExpandedNoteId(id)}
+                  onExpandNote={handleNcExpandNote}
                   setDragOverInfo={setDragOverInfo}
                   encrypt={feedEncrypt}
                   decrypt={feedDecrypt}

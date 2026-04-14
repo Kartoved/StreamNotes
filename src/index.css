@@ -252,6 +252,18 @@ html, body, #root {
   overflow: hidden;
 }
 
+/* dvh fallback: 100vh doesn't account for Safari's collapsing address bar */
+.app-root {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Auth screens also need dvh */
+.auth-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 body {
   font-family: var(--font-body);
   background: var(--bg-page);
@@ -406,7 +418,7 @@ body {
   /* ── Main content (feed tab — default) ── */
   .main-content {
     padding: 0.5rem 0.75rem !important;
-    padding-bottom: 72px !important;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   /* ── App header compact ── */
@@ -464,7 +476,7 @@ body {
   .mobile-fab {
     display: none;
     position: fixed;
-    bottom: 80px;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
     right: 20px;
     width: 52px;
     height: 52px;
@@ -491,14 +503,14 @@ body {
   [data-mobile-tab="dashboard"] .dashboard-panel {
     display: flex !important;
     position: fixed !important;
-    top: 0; left: 0; right: 0;
-    bottom: 56px;
+    top: env(safe-area-inset-top, 0px); left: 0; right: 0;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
     width: 100% !important;
     height: auto !important;
     flex-direction: column !important;
     border-right: none !important;
     overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
+
     z-index: 10;
     padding: 20px 20px 16px !important;
     gap: 16px !important;
@@ -506,68 +518,62 @@ body {
 
   /* ── FEEDS OVERLAY ── */
   .mobile-feeds-overlay {
-    display: none;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: env(safe-area-inset-top, 0px); left: 0; right: 0;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg);
+    z-index: 200;
+    overflow-y: auto;
   }
-  @media (max-width: 640px) {
-    .mobile-feeds-overlay {
-      display: flex;
-      flex-direction: column;
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      bottom: 56px;
-      background: var(--bg);
-      z-index: 200;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    .mobile-feeds-overlay .feeds-sidebar {
-      display: flex !important;
-      position: static !important;
-      width: 100% !important;
-      flex: 1 !important;
-      border-right: none !important;
-      padding: 12px 16px 16px !important;
-      gap: 2px !important;
-      flex-direction: column !important;
-      align-items: stretch !important;
-    }
-    .mobile-feeds-overlay .feed-logo-sep { display: none !important; }
-    .mobile-feeds-overlay .feed-item {
-      display: flex !important;
-      flex-direction: row !important;
-      align-items: center !important;
-      gap: 14px !important;
-      padding: 13px 14px !important;
-      border-radius: var(--radius) !important;
-    }
-    .mobile-feeds-overlay .feed-item:active { background: var(--bg-hover) !important; }
-    .mobile-feeds-overlay .feed-tooltip {
-      position: static !important;
-      opacity: 1 !important;
-      transform: none !important;
-      background: transparent !important;
-      color: var(--text) !important;
-      font-size: 0.92rem !important;
-      font-weight: 500 !important;
-      box-shadow: none !important;
-      padding: 0 !important;
-      pointer-events: none;
-      letter-spacing: 0.01em !important;
-    }
-    .mobile-feeds-btn { display: flex !important; }
+  .mobile-feeds-overlay .feeds-sidebar {
+    display: flex !important;
+    position: static !important;
+    width: 100% !important;
+    flex: 1 !important;
+    border-right: none !important;
+    padding: 12px 16px 16px !important;
+    gap: 2px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
   }
+  .mobile-feeds-overlay .feed-logo-sep { display: none !important; }
+  .mobile-feeds-overlay .feed-item {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 14px !important;
+    padding: 13px 14px !important;
+    border-radius: var(--radius) !important;
+  }
+  .mobile-feeds-overlay .feed-item:active { background: var(--bg-hover) !important; }
+  .mobile-feeds-overlay .feed-tooltip {
+    position: static !important;
+    opacity: 1 !important;
+    transform: none !important;
+    background: transparent !important;
+    color: var(--text) !important;
+    font-size: 0.92rem !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    pointer-events: none;
+    letter-spacing: 0.01em !important;
+  }
+  .mobile-feeds-btn { display: flex !important; }
 
   /* ── CALENDAR TAB ── */
   [data-mobile-tab="calendar"] .main-content { display: none !important; }
   [data-mobile-tab="calendar"] .right-sidebar {
     display: flex !important;
     position: fixed !important;
-    top: 0; left: 0; right: 0;
-    bottom: 56px;
+    top: env(safe-area-inset-top, 0px); left: 0; right: 0;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
     width: 100% !important;
     padding: 20px 20px 16px !important;
     overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
+
     border: none !important;
     z-index: 10;
   }
@@ -584,13 +590,12 @@ body {
   display: none;
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  height: 56px;
+  height: calc(56px + env(safe-area-inset-bottom, 0px));
   background: var(--bg);
   border-top: 1px solid var(--line);
   z-index: 200;
-  /* iOS safe area */
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  box-sizing: content-box;
+  box-sizing: border-box;
 }
 
 .mobile-tab-btn {
@@ -651,7 +656,6 @@ body {
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
   animation: sheet-panel-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
-  -webkit-overflow-scrolling: touch;
 }
 
 .mobile-filter-sheet-handle {
@@ -786,4 +790,31 @@ input[type="password"] ~ iframe { display: none !important; }
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* ── Mobile: disable heavy backdrop-filter for glass themes ─────── */
+/* Safari GPU composites each blur across the full area behind the   */
+/* element. On iPhone this causes memory pressure and page kills.    */
+@media (max-width: 640px) {
+  [data-theme="aurora"] .feeds-sidebar,
+  [data-theme="aurora"] .app-header,
+  [data-theme="aurora"] .note-card-inner,
+  [data-theme="aurora"] .settings-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(228, 233, 252, 0.92) !important;
+  }
+  [data-theme="calopteryx"] .feeds-sidebar,
+  [data-theme="calopteryx"] .app-header,
+  [data-theme="calopteryx"] .note-card-inner,
+  [data-theme="calopteryx"] .settings-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  [data-theme="calopteryx"] .note-card-inner {
+    background: rgba(20, 40, 70, 0.92) !important;
+  }
+  [data-theme="calopteryx"] .app-header {
+    background: rgba(8, 15, 36, 0.95) !important;
+  }
 }

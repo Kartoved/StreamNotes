@@ -175,7 +175,7 @@ interface NoteCardProps {
   onTouchDragStart?: (id: string, touch: { clientX: number; clientY: number }) => void;
 }
 
-export const NoteCard = ({
+export const NoteCard = React.memo(function NoteCard({
   note,
   virtualItem,
   virtualizer,
@@ -205,7 +205,7 @@ export const NoteCard = ({
   isSharedFeed = false,
   localNpub = '',
   onTouchDragStart,
-}: NoteCardProps) => {
+}: NoteCardProps) {
   const { nickname } = useCrypto();
   let props: any = {};
   try { 
@@ -255,6 +255,11 @@ export const NoteCard = ({
   const [swipeOffset, setSwipeOffset] = useState(0);
   const isSwiping = useRef(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // Cleanup long-press timer if component unmounts mid-touch
+  React.useEffect(() => {
+    return () => clearTimeout(longPressTimer.current);
+  }, []);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -346,6 +351,7 @@ export const NoteCard = ({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={() => { clearTimeout(longPressTimer.current); isSwiping.current = false; setSwipeOffset(0); }}
         style={{
           background: finalBg !== 'transparent' ? finalBg : 'var(--card-bg)',
           border: (isDragOverSibling || isDragOverChild)
@@ -479,4 +485,21 @@ export const NoteCard = ({
 
     </div>
   );
-};
+}, (prev, next) => {
+  // Custom comparator: skip re-render if key data hasn't changed.
+  // Function props (callbacks) are intentionally excluded — they should
+  // be stabilized with useCallback in Feed.tsx.
+  return (
+    prev.note.id === next.note.id &&
+    prev.note.updated_at === next.note.updated_at &&
+    prev.note.properties === next.note.properties &&
+    prev.note.content === next.note.content &&
+    prev.indent === next.indent &&
+    prev.isReplying === next.isReplying &&
+    prev.editingNoteId === next.editingNoteId &&
+    prev.draggedId === next.draggedId &&
+    prev.dragOverInfo === next.dragOverInfo &&
+    prev.virtualItem.index === next.virtualItem.index &&
+    prev.virtualItem.start === next.virtualItem.start
+  );
+});
