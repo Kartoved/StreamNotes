@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 
@@ -14,6 +13,7 @@ interface Props {
   onSelect: (note: NoteOption) => void;
   onCreateNew: (title: string) => void;
   onClose: () => void;
+  keyHandlerRef?: React.MutableRefObject<((e: KeyboardEvent) => boolean) | null>;
 }
 
 function extractText(node: any): string {
@@ -21,7 +21,7 @@ function extractText(node: any): string {
   return (node.content || []).map((c: any) => extractText(c)).join(' ');
 }
 
-export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, onCreateNew, onClose }) => {
+export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, onCreateNew, onClose, keyHandlerRef }) => {
   const db = useDB();
   const { decrypt, decryptForFeed } = useCrypto();
   const cryptoRef = useRef({ decrypt, decryptForFeed });
@@ -64,15 +64,17 @@ export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, o
   const showCreate = query.length > 0 && !results.some(r => r.title.toLowerCase() === query.toLowerCase());
   const totalItems = results.length + (showCreate ? 1 : 0);
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+  // Keyboard navigation — handler forwarded via ref to the Suggestion plugin's onKeyDown
+  if (keyHandlerRef) {
+    keyHandlerRef.current = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSelectedIdx(i => Math.min(i + 1, totalItems - 1));
+        return true;
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedIdx(i => Math.max(i - 1, 0));
+        return true;
       } else if (e.key === 'Enter') {
         e.preventDefault();
         if (showCreate && selectedIdx === results.length) {
@@ -80,14 +82,19 @@ export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, o
         } else if (results[selectedIdx]) {
           onSelect(results[selectedIdx]);
         }
+        return true;
       } else if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
+        return true;
       }
+      return false;
     };
-    document.addEventListener('keydown', handleKeyDown, { capture: true });
-    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [results, selectedIdx, showCreate, query, onSelect, onCreateNew, onClose, totalItems]);
+  }
+
+  useEffect(() => {
+    return () => { if (keyHandlerRef) keyHandlerRef.current = null; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const itemStyle = (active: boolean): React.CSSProperties => ({
     padding: '10px 14px',
@@ -97,7 +104,7 @@ export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, o
     transition: '0.1s background',
   });
 
-  return createPortal(
+  return (
     <div
       style={{
         position: 'fixed',
@@ -147,7 +154,6 @@ export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, o
           )}
         </>
       )}
-    </div>,
-    document.body
+    </div>
   );
 };

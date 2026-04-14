@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
@@ -11,8 +11,8 @@ import '../editorTheme.css';
 
 import { ThreeStateTaskItem } from '../editor/extensions/ThreeStateTaskItem';
 import { AttachmentExtension } from '../editor/extensions/Attachment';
-// BacklinkPlugin kept for keyboard-interception if needed in future
 import { BacklinkDropdown } from './BacklinkDropdown';
+import { createBacklinkExtension, BacklinkSuggestionCallbacks } from '../editor/extensions/BacklinkExtension';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 
@@ -301,6 +301,38 @@ export const TweetEditor = ({
   const [blQuery, setBlQuery] = useState<string | null>(null);
   const [blPos, setBlPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
+  // Ref holding current suggestion command (set by BacklinkExtension on open)
+  const blCommandRef = useRef<((item: { id: string; title: string }) => void) | null>(null);
+  // Ref holding BacklinkDropdown's key handler (updated each render by the dropdown)
+  const blDropdownKeyRef = useRef<((e: KeyboardEvent) => boolean) | null>(null);
+  // Stable ref passed to the extension — updated every render so extension always gets fresh callbacks
+  const blCallbacksRef = useRef<BacklinkSuggestionCallbacks>({
+    onOpen: () => {}, onUpdate: () => {}, onClose: () => {}, onKeyDown: () => false,
+  });
+  blCallbacksRef.current = {
+    onOpen: ({ query, clientRect, command }) => {
+      blCommandRef.current = command;
+      setBlActive(true);
+      setBlQuery(query);
+      const rect = clientRect?.();
+      if (rect) setBlPos({ top: rect.bottom + 6, left: rect.left });
+    },
+    onUpdate: ({ query, clientRect }) => {
+      setBlQuery(query);
+      const rect = clientRect?.();
+      if (rect) setBlPos({ top: rect.bottom + 6, left: rect.left });
+    },
+    onClose: () => {
+      setBlActive(false);
+      setBlQuery(null);
+      blCommandRef.current = null;
+    },
+    onKeyDown: (event) => blDropdownKeyRef.current?.(event) ?? false,
+  };
+
+  // Extension created once; reads callbacks via stable ref
+  const backlinkExt = useMemo(() => createBacklinkExtension(blCallbacksRef), []);
+
 
 
   // Upload ref — stable callback for editorProps (avoids stale closure)
@@ -329,6 +361,7 @@ export const TweetEditor = ({
       Link.configure({
         openOnClick: false,
         HTMLAttributes: { class: 'editor-link' },
+        protocols: ['note'],
       }),
       CodeBlock.configure({
         HTMLAttributes: { class: 'editor-code-block' },
@@ -340,6 +373,7 @@ export const TweetEditor = ({
         nested: true,
       }),
       AttachmentExtension,
+      backlinkExt,
       Placeholder.configure({
         placeholder,
       }),
@@ -381,58 +415,14 @@ export const TweetEditor = ({
     },
     }, [editorKey, initialAst]);
 
-  // ── Backlink: detect [[ trigger via editor event (more reliable in TipTap 3) ──
-  useEffect(() => {
-    if (!editor) return;
-    const handler = () => {
-      const { $head } = editor.state.selection;
-      // textBetween(start, end) gives exact text from block start to cursor
-      const textBefore = editor.state.doc.textBetween($head.start(), $head.pos, '\n', '\0');
-      const match = /\[\[([^\]]*)$/.exec(textBefore);
-      if (match) {
-        setBlQuery(match[1]);
-        setBlActive(true);
-        try {
-          const coords = editor.view.coordsAtPos(editor.state.selection.head);
-          setBlPos({ top: coords.bottom + 6, left: coords.left });
-        } catch {
-          // fallback: position near center-top if coords fail
-          setBlPos({ top: 120, left: Math.max(60, window.innerWidth / 2 - 140) });
-        }
-      } else {
-        setBlActive(false);
-        setBlQuery(null);
-      }
-    };
-    editor.on('update', handler);
-    return () => { editor.off('update', handler); };
-  }, [editor]);
-
   const blUid = () => Math.random().toString(36).substring(2, 9);
 
-  // ── Backlink: insert link replacing [[query ──
+  // ── Backlink: insert link via Suggestion command ──
   const handleBacklinkSelect = useCallback((id: string, title: string) => {
-    if (!editor) return;
-    const { $head } = editor.state.selection;
-    const textBefore = editor.state.doc.textBetween($head.start(), $head.pos, '\n', '\0');
-    const match = /\[\[([^\]]*)$/.exec(textBefore);
-    if (match) {
-      const from = $head.pos - match[0].length;
-      const to = $head.pos;
-      editor.chain()
-        .focus()
-        .deleteRange({ from, to })
-        .insertContent({
-          type: 'text',
-          marks: [{ type: 'link', attrs: { href: `note://${id}` } }],
-          text: title,
-        })
-        .insertContent(' ')
-        .run();
-    }
+    blCommandRef.current?.({ id, title });
     setBlActive(false);
     setBlQuery(null);
-  }, [editor]);
+  }, []);
 
   // ── Backlink: create new note and insert link ──
   const handleBacklinkCreate = useCallback(async (title: string) => {
@@ -453,10 +443,6 @@ export const TweetEditor = ({
   const handleInsertBacklink = useCallback(() => {
     if (!editor) return;
     editor.chain().focus().insertContent('[[').run();
-    const coords = editor.view.coordsAtPos(editor.state.selection.head);
-    setBlPos({ top: coords.bottom + 6, left: coords.left });
-    setBlQuery('');
-    setBlActive(true);
   }, [editor]);
 
   const uploadFiles = useCallback(async (files: FileList | File[]) => {
@@ -584,6 +570,7 @@ export const TweetEditor = ({
           onSelect={(note) => handleBacklinkSelect(note.id, note.title)}
           onCreateNew={handleBacklinkCreate}
           onClose={() => { setBlActive(false); setBlQuery(null); }}
+          keyHandlerRef={blDropdownKeyRef}
         />
       )}
 

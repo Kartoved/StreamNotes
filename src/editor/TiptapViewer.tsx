@@ -152,11 +152,20 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
               (window as any).navigateToNote?.(noteId) ?? (window as any).scrollToNote?.(noteId);
             }
           }}
-          style={{
+          style={isInternal ? {
+            display: 'inline',
+            background: 'var(--accent-bg)',
+            border: '1px solid var(--line-strong)',
+            borderRadius: '4px',
+            padding: '1px 6px 2px',
+            textDecoration: 'none',
+            color: 'var(--text)',
+            cursor: 'pointer',
+            fontSize: '0.92em',
+          } : {
             color: 'var(--text)',
             textDecoration: 'underline',
-            textDecorationColor: isInternal ? 'var(--text-faint)' : 'var(--line-strong)',
-            textDecorationStyle: isInternal ? 'dashed' : 'solid',
+            textDecorationColor: 'var(--line-strong)',
             cursor: 'pointer',
           }}
         >
