@@ -37,6 +37,7 @@ function App() {
   const mobileTabRef = useRef<'dashboard' | 'feed' | 'calendar'>('feed');
   mobileTabRef.current = mobileTab;
   const [mobileFeedsOpen, setMobileFeedsOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
@@ -698,6 +699,17 @@ function App() {
             {focusedTweetId ? '/ ветка' : ''}
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Mobile search icon */}
+            <button
+              className="mobile-search-btn"
+              onClick={() => setMobileSearchOpen(v => !v)}
+              aria-label="Поиск"
+              style={{ background: 'none', border: 'none', color: mobileSearchOpen ? 'var(--text)' : 'var(--text-faint)', cursor: 'pointer', padding: '4px', display: 'none', alignItems: 'center' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </button>
             {nostrPubKey && (
               <span
                 className="header-npub"
@@ -735,26 +747,50 @@ function App() {
           />
         )}
 
-        {/* Editor + Feed */}
-        <div className="feed-area" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '760px' }}>
-          {myFeedRole !== 'reader' && (
-            <div style={{ flexShrink: 0 }}>
-              <TweetEditor
-                placeholder={focusedTweetId ? 'Оставить ответ в ветке...' : 'Что происходит?'}
-                buttonText="Шифнуть"
-                onSubmit={insertRootNote}
+        {/* Mobile search bar */}
+        {mobileSearchOpen && (
+          <div className="mobile-search-bar">
+            <div style={{ position: 'relative' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                type="search"
+                className="search-bar"
+                placeholder="Поиск..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
                 autoFocus
-                onExpand={(ast, pj) => {
-                  setFullscreenDraft({ ast, propsJson: pj, onSubmit: insertRootNote });
-                }}
+                data-lpignore="true"
+                style={{ paddingLeft: '30px', width: '100%', boxSizing: 'border-box' }}
               />
             </div>
-          )}
-          {myFeedRole === 'reader' && (
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-faint)', padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 'var(--radius)', background: 'var(--bg-hover)', textAlign: 'center' }}>
-              Только чтение — вы добавлены как читатель этой ленты
-            </div>
-          )}
+          </div>
+        )}
+
+        {/* Editor + Feed */}
+        <div className="feed-area" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '760px' }}>
+          <div className="mobile-editor-hide">
+            {myFeedRole !== 'reader' && (
+              <div style={{ flexShrink: 0 }}>
+                <TweetEditor
+                  placeholder={focusedTweetId ? 'Оставить ответ в ветке...' : 'Что происходит?'}
+                  buttonText="Шифнуть"
+                  onSubmit={insertRootNote}
+                  autoFocus
+                  onExpand={(ast, pj) => {
+                    setFullscreenDraft({ ast, propsJson: pj, onSubmit: insertRootNote });
+                  }}
+                />
+              </div>
+            )}
+            {myFeedRole === 'reader' && (
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-faint)', padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 'var(--radius)', background: 'var(--bg-hover)', textAlign: 'center' }}>
+                Только чтение — вы добавлены как читатель этой ленты
+              </div>
+            )}
+          </div>
           <Feed
             parentId={focusedTweetId}
             feedId={activeFeedId}
@@ -801,6 +837,19 @@ function App() {
           autoFocus
           zenMode={true}
         />
+      )}
+
+      {/* ── Mobile FAB ── */}
+      {myFeedRole !== 'reader' && (
+        <button
+          className="mobile-fab"
+          onClick={() => setFullscreenDraft({ ast: '', propsJson: '{}', onSubmit: insertRootNote })}
+          aria-label="Новая заметка"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
       )}
 
       {/* ── Mobile feeds overlay ── */}

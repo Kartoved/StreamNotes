@@ -444,6 +444,43 @@ body {
     font-size: 1rem !important;
   }
 
+  /* ── Mobile: hide desktop editor, show search btn ── */
+  .mobile-editor-hide { display: none !important; }
+  .mobile-search-btn { display: flex !important; }
+  .sidebar-search-wrapper { display: none !important; }
+
+  /* ── Mobile search bar (below header) ── */
+  .mobile-search-bar {
+    width: 100%;
+    padding: 0 0 10px;
+    flex-shrink: 0;
+  }
+  .mobile-search-bar .search-bar {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* ── FAB (floating action button) ── */
+  .mobile-fab {
+    display: none;
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    transition: opacity 0.15s;
+  }
+  [data-mobile-tab="feed"] .mobile-fab { display: flex; }
+
   /* ── Note cards ── */
   .note-card-inner {
     padding: 11px 14px !important;

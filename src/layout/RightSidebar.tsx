@@ -31,7 +31,7 @@ export const RightSidebar = ({
       padding: '14px 12px',
       background: 'var(--bg)',
     }}>
-      <div style={{ marginBottom: '8px', position: 'relative' }}>
+      <div className="sidebar-search-wrapper" style={{ marginBottom: '8px', position: 'relative' }}>
         <svg
           width="14" height="14" viewBox="0 0 24 24" fill="none"
           stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
