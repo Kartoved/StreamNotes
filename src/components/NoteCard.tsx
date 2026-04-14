@@ -123,6 +123,23 @@ export function DateChip({ value, onChange }: { value: string; onChange: (v: str
   );
 }
 
+// ── Completion date chip (read-only) ────────────────────────────────
+export function CompletionDateChip({ value }: { value: string }) {
+  return (
+    <span
+      style={{
+        background: 'var(--bg-hover)', color: 'var(--text-faint)',
+        borderRadius: '4px', padding: '1px 7px',
+        fontSize: '0.7rem', border: '1px solid var(--line)',
+        fontFamily: 'var(--font-mono)', userSelect: 'none',
+        display: 'inline-block',
+      }}
+    >
+      ✓ {value}
+    </span>
+  );
+}
+
 interface NoteCardProps {
   note: any;
   virtualItem: any;
@@ -199,6 +216,7 @@ export const NoteCard = ({
   const [status, setStatus]     = useState<string>(props.status || 'none');
   const [type, setType]         = useState<string>(props.type || 'sheaf');
   const [targetDate, setDate]   = useState<string>(props.date || '');
+  const [completedAt, setCompletedAt] = useState<string>(props.completed_at || '');
 
   // Synchronize state with props when data changes
   React.useEffect(() => {
@@ -208,6 +226,7 @@ export const NoteCard = ({
       setStatus(p.status || 'none');
       setType(p.type || 'sheaf');
       setDate(p.date || '');
+      setCompletedAt(p.completed_at || '');
     } catch { /* */ }
   }, [note.properties, decrypt]);
 
@@ -427,6 +446,9 @@ export const NoteCard = ({
                   )}
                   {targetDate && (
                     <DateChip value={targetDate} onChange={handleDate} />
+                  )}
+                  {status === 'done' && completedAt && (
+                    <CompletionDateChip value={completedAt} />
                   )}
                 </div>
               )}
