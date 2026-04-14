@@ -48,6 +48,15 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
   const [sessionCount, setSessionCount] = useState(0);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Tracks the wall-clock time when the current phase should end (for background sync)
+  const endTimeRef = useRef<number | null>(null);
+  const phaseRef = useRef<PomodoroPhase>('idle');
+  const sessionCountRef = useRef(0);
+  const isRunningRef = useRef(false);
+
+  phaseRef.current = phase;
+  sessionCountRef.current = sessionCount;
+  isRunningRef.current = isRunning;
 
   const notify = useCallback((msg: string) => {
     if ('Notification' in window && Notification.permission === 'granted') {
@@ -60,6 +69,7 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+    endTimeRef.current = null;
   }, []);
 
   // When timer hits zero
@@ -91,22 +101,48 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
     }
   }, [stop, notify]);
 
-  // Tick
+  // Tick — also updates endTimeRef when starting
   useEffect(() => {
     if (!isRunning) return;
     const currentPhase = phase;
     const currentSessions = sessionCount;
+
+    // Set end time when timer starts/resumes
+    if (endTimeRef.current === null) {
+      endTimeRef.current = Date.now() + secondsLeft * 1000;
+    }
+
     intervalRef.current = setInterval(() => {
-      setSecondsLeft(prev => {
-        if (prev <= 1) {
-          handleFinish(currentPhase, currentSessions);
-          return 0;
-        }
-        return prev - 1;
-      });
+      const remaining = Math.round((endTimeRef.current! - Date.now()) / 1000);
+      if (remaining <= 0) {
+        handleFinish(currentPhase, currentSessions);
+        setSecondsLeft(0);
+      } else {
+        setSecondsLeft(remaining);
+      }
     }, 1000);
     return () => stop();
-  }, [isRunning, phase, sessionCount, handleFinish, stop]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunning, phase, sessionCount]);
+
+  // Sync timer after tab returns from background (mobile browsers throttle timers)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!isRunningRef.current || endTimeRef.current === null) return;
+
+      const remaining = Math.round((endTimeRef.current - Date.now()) / 1000);
+      if (remaining <= 0) {
+        handleFinish(phaseRef.current, sessionCountRef.current);
+        setSecondsLeft(0);
+      } else {
+        setSecondsLeft(remaining);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [handleFinish]);
 
   // Request notification permission on first use
   const requestNotificationPermission = useCallback(() => {
@@ -118,6 +154,7 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
   const actions: PomodoroActions = {
     start: useCallback((tid?: string | null, title?: string | null) => {
       requestNotificationPermission();
+      endTimeRef.current = null; // will be set in tick effect
       setTaskId(tid ?? null);
       setTaskTitle(title ?? null);
       setPhase('work');
@@ -126,10 +163,17 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
     }, [requestNotificationPermission]),
 
     pause: useCallback(() => {
+      // Capture remaining time so resume restarts from correct position
+      if (endTimeRef.current !== null) {
+        const remaining = Math.round((endTimeRef.current - Date.now()) / 1000);
+        setSecondsLeft(Math.max(0, remaining));
+      }
+      endTimeRef.current = null;
       setIsRunning(false);
     }, []),
 
     resume: useCallback(() => {
+      endTimeRef.current = null; // will be recalculated from current secondsLeft in tick effect
       setIsRunning(true);
     }, []),
 

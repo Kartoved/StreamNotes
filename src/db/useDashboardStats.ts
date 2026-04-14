@@ -70,11 +70,6 @@ export function useDashboardStats(feedId: string | null): DashboardStats {
             const noteDate = props.date ? props.date.slice(0, 10) : null;
             if (!noteDate) {
               somedayCount++;
-              // Also include in todoToday? 
-              // Usually "Today" view includes tasks without date as they are "available" to do.
-              // But the user asked for a separate filter for "tasks without a date".
-              // Let's keep todoToday as "available tasks" (no date or date <= today)
-              todoToday++;
             } else if (noteDate <= today) {
               todoToday++;
             } else {
