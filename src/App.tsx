@@ -11,7 +11,7 @@ import { RelayClient } from './sync/relayClient';
 import SettingsModal from './components/SettingsModal';
 import { Lightbox } from './editor/components/Lightbox';
 import { THEMES, type ThemeId } from './themes';
-import { FeedsSidebar } from './layout/FeedsSidebar';
+import { FeedsSidebar, parseLucideAvatar } from './layout/FeedsSidebar';
 import { RightSidebar } from './layout/RightSidebar';
 import { DashboardPanel } from './layout/DashboardPanel';
 import { usePomodoro } from './hooks/usePomodoro';
@@ -684,11 +684,14 @@ function App() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
             Ленты
           </button>
-          <h1 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)', flexShrink: 0, letterSpacing: '-0.01em' }}>
-            {activeFeed?.avatar
-              ? <img src={activeFeed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '1.2rem', height: '1.2rem', objectFit: 'cover', borderRadius: '50%', marginRight: '6px', verticalAlign: 'middle' }} />
-              : null
-            }
+          <h1 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)', flexShrink: 0, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center' }}>
+            {(() => {
+              const avatar = activeFeed?.avatar ?? null;
+              if (!avatar) return null;
+              const LIcon = parseLucideAvatar(avatar);
+              if (LIcon) return <LIcon size={16} style={{ marginRight: '6px', flexShrink: 0, color: 'var(--text)' }} />;
+              return <img src={avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '1.2rem', height: '1.2rem', objectFit: 'cover', borderRadius: '50%', marginRight: '6px', flexShrink: 0 }} />;
+            })()}
             {activeFeed?.name || 'Sheafy'}
           </h1>
           <span style={{ color: 'var(--text-faint)', fontSize: '0.8rem', flexShrink: 0 }}>
