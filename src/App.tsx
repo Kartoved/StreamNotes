@@ -66,8 +66,14 @@ function App() {
 
     const onPop = (e: PopStateEvent) => {
       if (window.innerWidth > 640) return;
-      const tab = e.state?.mobileTab as 'dashboard' | 'feed' | 'calendar' | undefined;
       handlingPopState.current = true;
+      // Fullscreen editor: back gesture closes it, stays on current tab
+      if (fullscreenDraftRef.current) {
+        setFullscreenDraft(null);
+        handlingPopState.current = false;
+        return;
+      }
+      const tab = e.state?.mobileTab as 'dashboard' | 'feed' | 'calendar' | undefined;
       setMobileFeedsOpen(false);
       setMobileSearchOpen(false);
       if (tab && ['dashboard', 'feed', 'calendar'].includes(tab)) {
@@ -515,9 +521,22 @@ function App() {
   const [replyingToTweetId, setReplyingToTweetId] = useState<string | null>(null);
   const [editingTweet, setEditingTweet] = useState<any>(null);
   const [fullscreenDraft, setFullscreenDraft] = useState<{ ast: string; propsJson: string; onSubmit: (ast: string, pj: string) => void } | null>(null);
+  const fullscreenDraftRef = useRef(fullscreenDraft);
+  fullscreenDraftRef.current = fullscreenDraft;
+
+  const openFullscreenDraft = useCallback((draft: { ast: string; propsJson: string; onSubmit: (ast: string, pj: string) => void }) => {
+    setFullscreenDraft(draft);
+    if (window.innerWidth <= 640) {
+      try { history.pushState({ mobileTab: mobileTabRef.current, fullscreenDraft: true, sheafy: true }, ''); } catch {}
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const closeFullscreenDraft = useCallback(() => {
+    setFullscreenDraft(null);
+  }, []);
 
   const handleExpandEditor = (ast: string, propsJson: string, onSubmit: (ast: string, pj: string) => void) => {
-    setFullscreenDraft({ ast, propsJson, onSubmit });
+    openFullscreenDraft({ ast, propsJson, onSubmit });
   };
 
   // ── Sidebar filters ────────────────────────────────────────────────
@@ -687,6 +706,11 @@ function App() {
         // Skip edge swipes (< 20px from edge) — let Android system back gesture handle those
         if (touchStartX.current < 20 || touchStartX.current > window.innerWidth - 20) return;
         if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          // Fullscreen editor open: right→left swipe closes it
+          if (fullscreenDraftRef.current) {
+            if (dx < 0) closeFullscreenDraft();
+            return;
+          }
           const tabs = ['dashboard', 'feed', 'calendar'] as const;
           const idx = tabs.indexOf(mobileTabRef.current);
           // right→left (dx < 0) = "back" = lower index (Dashboard direction)
@@ -826,7 +850,7 @@ function App() {
                   onSubmit={insertRootNote}
                   autoFocus
                   onExpand={(ast, pj) => {
-                    setFullscreenDraft({ ast, propsJson: pj, onSubmit: insertRootNote });
+                    openFullscreenDraft({ ast, propsJson: pj, onSubmit: insertRootNote });
                   }}
                 />
               </div>
@@ -878,8 +902,8 @@ function App() {
           placeholder="Что происходит?"
           initialAst={fullscreenDraft.ast}
           initialPropsStr={fullscreenDraft.propsJson}
-          onSubmit={(ast, pj) => { fullscreenDraft.onSubmit(ast, pj); setFullscreenDraft(null); }}
-          onCancel={() => setFullscreenDraft(null)}
+          onSubmit={(ast, pj) => { fullscreenDraft.onSubmit(ast, pj); closeFullscreenDraft(); }}
+          onCancel={closeFullscreenDraft}
           autoFocus
           zenMode={true}
         />
@@ -889,7 +913,7 @@ function App() {
       {myFeedRole !== 'reader' && (
         <button
           className="mobile-fab"
-          onClick={() => setFullscreenDraft({ ast: '', propsJson: '{}', onSubmit: insertRootNote })}
+          onClick={() => openFullscreenDraft({ ast: '', propsJson: '{}', onSubmit: insertRootNote })}
           aria-label="Новая заметка"
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
