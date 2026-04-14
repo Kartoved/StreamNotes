@@ -10,6 +10,21 @@ import { TiptapRender } from '../editor/TiptapViewer';
 import { BacklinksSection } from './BacklinksSection';
 import { NoteModal } from './NoteModal';
 import { NoteCard } from './NoteCard';
+
+/**
+ * Returns a sort_key lexicographically between `after` and `before`.
+ * Appends a single digit ('5' first, then lower) to `after` until a value
+ * strictly between the two bounds is found. Recurses with '0' appended when
+ * all single digits are exhausted (handles tightly-packed keys).
+ */
+function sortKeyBetween(after: string, before: string | null): string {
+  if (!before) return after + '5';
+  for (const d of ['5', '4', '3', '2', '1', '0']) {
+    const candidate = after + d;
+    if (candidate > after && candidate < before) return candidate;
+  }
+  return sortKeyBetween(after + '0', before);
+}
 interface FeedProps {
   parentId?: string | null;
   feedId?: string | null;
@@ -181,7 +196,14 @@ export const Feed = ({
             const rows2: any[] = await db.execA(`SELECT parent_id, sort_key FROM notes WHERE id = ?`, [targetId]);
             const targetRow = rows2[0];
             if (targetRow) {
-              await db.exec(`UPDATE notes SET parent_id = ?, sort_key = ? WHERE id = ?`, [targetRow[0], (targetRow[1] ?? '') + '9', dropDraggedId]);
+              const parentId = targetRow[0];
+              const targetKey = targetRow[1] ?? '';
+              const nextRows: any[] = await db.execA(
+                `SELECT sort_key FROM notes WHERE parent_id IS ? AND sort_key > ? AND is_deleted = 0 ORDER BY sort_key ASC LIMIT 1`,
+                [parentId, targetKey]
+              );
+              const newKey = sortKeyBetween(targetKey, nextRows[0]?.[0] ?? null);
+              await db.exec(`UPDATE notes SET parent_id = ?, sort_key = ? WHERE id = ?`, [parentId, newKey, dropDraggedId]);
             }
           }
           if (navigator.vibrate) navigator.vibrate(30);
@@ -445,7 +467,14 @@ export const Feed = ({
     } else {
       const [targetRow] = await db.execA(`SELECT parent_id, sort_key FROM notes WHERE id = ?`, [targetId]);
       if (targetRow) {
-        await db.exec(`UPDATE notes SET parent_id = ?, sort_key = ? WHERE id = ?`, [targetRow[0], targetRow[1] + '9', draggedId]);
+        const parentId = targetRow[0];
+        const targetKey = targetRow[1] ?? '';
+        const [nextRow] = await db.execA(
+          `SELECT sort_key FROM notes WHERE parent_id IS ? AND sort_key > ? AND is_deleted = 0 ORDER BY sort_key ASC LIMIT 1`,
+          [parentId, targetKey]
+        );
+        const newKey = sortKeyBetween(targetKey, nextRow?.[0] ?? null);
+        await db.exec(`UPDATE notes SET parent_id = ?, sort_key = ? WHERE id = ?`, [parentId, newKey, draggedId]);
       }
     }
     setDraggedId(null); setDragOverInfo(null);
@@ -740,8 +769,8 @@ export const Feed = ({
       {touchDragActive && createPortal(
         <div style={{
           position: 'fixed',
-          left: touchGhostPos.x + 12,
-          top: touchGhostPos.y - 20,
+          left: touchGhostPos.x - 110,
+          top: touchGhostPos.y - 36,
           zIndex: 9999,
           background: 'var(--card-bg)',
           border: '1px solid var(--accent)',

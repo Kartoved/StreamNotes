@@ -363,6 +363,11 @@ export const NoteCard = ({
         {onTouchDragStart && editingNoteId !== note.id && (
           <div
             className="mobile-drag-handle"
+            style={{
+              opacity: draggedId === note.id ? 1 : undefined,
+              color: draggedId === note.id ? 'var(--accent)' : undefined,
+              transform: `translateY(-50%)${draggedId === note.id ? ' scale(1.15)' : ''}`,
+            }}
             onTouchStart={(e) => {
               e.stopPropagation();
               onTouchDragStart(note.id, e.touches[0]);
