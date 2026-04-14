@@ -13,7 +13,6 @@ import { ThreeStateTaskItem } from '../editor/extensions/ThreeStateTaskItem';
 import { AttachmentExtension } from '../editor/extensions/Attachment';
 // BacklinkPlugin kept for keyboard-interception if needed in future
 import { BacklinkDropdown } from './BacklinkDropdown';
-import { useVoiceRecorder, audioBlobToFloat32Array } from '../hooks/useVoiceRecorder';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 
@@ -29,12 +28,10 @@ const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
 // ─── Toolbar Component ────────────────────────────────────────────────
 function Toolbar({
     editor, onUpload, onExpand, zenMode, onCancel,
-    onStartVoice, isRecording, recordingTime, isTranscribing,
     onInsertBacklink,
 }: {
     editor: any; onUpload: (files: FileList | File[]) => void; onExpand?: (ast: string) => void;
     zenMode?: boolean; onCancel?: () => void;
-    onStartVoice: () => void; isRecording: boolean; recordingTime: number; isTranscribing: boolean;
     onInsertBacklink?: () => void;
 }) {
   if (!editor) return null;
@@ -189,22 +186,6 @@ function Toolbar({
           <Ic d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
         </button>
 
-        <button type="button"
-          title={isRecording ? 'Остановить запись' : isTranscribing ? 'Распознавание...' : 'Записать аудио'}
-          disabled={isTranscribing}
-          style={isRecording
-            ? { ...btn, color: '#ef4444', background: 'rgba(239,68,68,0.08)', cursor: 'pointer' }
-            : isTranscribing
-              ? { ...btn, opacity: 0.35, cursor: 'not-allowed' }
-              : btn}
-          onMouseEnter={e => !isTranscribing && btnHover(e, true)}
-          onMouseLeave={e => !isTranscribing && btnHover(e, false)}
-          onClick={onStartVoice}>
-          {isRecording
-            ? <Ic d="M8 8h8v8H8z" />
-            : <Ic d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z M19 10v2a7 7 0 01-14 0v-2 M12 19v4 M8 23h8" />}
-        </button>
-
         <button type="button" title={zenMode ? "Свернуть заметку (Esc)" : "Раскрыть заметку"}
           style={btn}
           onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
@@ -244,9 +225,6 @@ function Toolbar({
 
 // ─── Properties Selectors ─────────────────────────────────────────────
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
-
-// ─── Helpers ─────────────────────────────────────────────────────────
-const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 // ─── hasTextContent helper ────────────────────────────────────────────
 const hasTextContent = (json: any): boolean => {
@@ -331,64 +309,6 @@ export const TweetEditor = ({
   const handleSubmitRef = useRef<() => void>(() => {});
   // Upload progress: { done, total } | null
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
-
-  // Voice & Transcription state
-  const { isRecording, recordingTime, startRecording, stopRecording } = useVoiceRecorder();
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [transcriptionProgress, setTranscriptionProgress] = useState(0);
-  const workerRef = useRef<Worker | null>(null);
-
-  useEffect(() => {
-    return () => { workerRef.current?.terminate(); };
-  }, []);
-
-  const handleVoiceNote = async () => {
-    if (isRecording) {
-      const blob = await stopRecording();
-      if (!blob) return;
-
-      setIsTranscribing(true);
-      setTranscriptionProgress(0);
-
-      // Initialize worker if needed
-      if (!workerRef.current) {
-        workerRef.current = new Worker(new URL('../workers/whisper.worker.ts', import.meta.url), { type: 'module' });
-      }
-
-      const worker = workerRef.current;
-      
-      const onMessage = (e: MessageEvent) => {
-        const { type, data } = e.data;
-        if (type === 'progress') {
-            if (data.status === 'progress') {
-                setTranscriptionProgress(data.progress);
-            }
-        } else if (type === 'result') {
-            const text = data.text.trim();
-            if (text && editor) {
-                editor.chain().focus().insertContent(text + ' ').run();
-            }
-            setIsTranscribing(false);
-            worker.removeEventListener('message', onMessage);
-            // Also attach the original audio file
-            const file = new File([blob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
-            uploadFiles([file]);
-        } else if (type === 'error') {
-            alert('Ошибка транскрибации: ' + data);
-            setIsTranscribing(false);
-            worker.removeEventListener('message', onMessage);
-        }
-      };
-
-      worker.addEventListener('message', onMessage);
-
-      const float32 = await audioBlobToFloat32Array(blob);
-      worker.postMessage({ audio: float32, language: 'russian' });
-
-    } else {
-      startRecording();
-    }
-  };
 
   const initialContent = React.useMemo(() => {
     if (!initialAst) return undefined;
@@ -649,47 +569,9 @@ export const TweetEditor = ({
             onExpand={onExpand ? (ast) => onExpand(ast, JSON.stringify({ type, status, date })) : undefined}
             zenMode={zenMode}
             onCancel={onCancel}
-            onStartVoice={handleVoiceNote}
-            isRecording={isRecording}
-            recordingTime={recordingTime}
-            isTranscribing={isTranscribing}
             onInsertBacklink={handleInsertBacklink}
         />
       </div>
-
-      {(isRecording || isTranscribing) && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '8px',
-          padding: zenMode ? '8px 0 0' : '6px 4px 8px',
-          fontSize: '0.78rem', fontFamily: 'var(--font-mono)',
-          color: 'var(--text-sub)',
-        }}>
-          {isRecording ? (
-            <>
-              <span className="rec-pulse" style={{
-                width: '7px', height: '7px', borderRadius: '50%',
-                background: '#ef4444', display: 'inline-block', flexShrink: 0,
-              }} />
-              <span>{formatTime(recordingTime)}</span>
-              <span style={{ color: 'var(--text-faint)' }}>· нажми ещё раз чтобы остановить</span>
-            </>
-          ) : (
-            <>
-              <svg style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }}
-                width="12" height="12" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M21 12a9 9 0 11-6.219-8.56" />
-              </svg>
-              <span>распознавание</span>
-              {transcriptionProgress > 0 && transcriptionProgress < 100 && (
-                <div style={{ width: '60px', height: '2px', background: 'var(--line)', borderRadius: '1px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${transcriptionProgress}%`, background: 'var(--text-sub)', transition: 'width 0.2s' }} />
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
 
       <div style={zenMode ? { flex: 1, overflowY: 'auto', padding: '60px 40px', maxWidth: '840px', margin: '0 auto', width: '100%', boxSizing: 'border-box' } : { position: 'relative' }}>
         <EditorContent editor={editor} />
