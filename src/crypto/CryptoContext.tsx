@@ -9,6 +9,12 @@ import type { DerivedKeys } from './keys';
 import SeedSetup from '../components/SeedSetup';
 import UnlockScreen from '../components/UnlockScreen';
 import SeedRecover from '../components/SeedRecover';
+import {
+  isBiometricEnrolled,
+  registerBiometric,
+  unlockWithBiometric,
+  clearBiometric,
+} from './biometric';
 
 interface CryptoContextValue {
   /** Encrypt with the master content key (for personal/legacy data) */
@@ -33,6 +39,12 @@ interface CryptoContextValue {
   nostrPrivKey: Uint8Array;
   /** Log out and clear keys from memory/storage */
   logout: () => void;
+  /** Enable biometric unlock for this device (registers fingerprint/Face ID) */
+  enableBiometric: () => Promise<void>;
+  /** Disable biometric unlock and remove stored credential */
+  disableBiometric: () => Promise<void>;
+  /** Whether a biometric credential is currently enrolled on this device */
+  biometricEnrolled: boolean;
   nickname: string;
   setNickname: (name: string) => void;
 }
@@ -86,6 +98,7 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
   });
   const [keys, setKeys] = useState<DerivedKeys | null>(null);
   const [nickname, setNicknameState] = useState(() => localStorage.getItem('sn_nickname') || 'you');
+  const [biometricEnrolled, setBiometricEnrolled] = useState(() => isBiometricEnrolled());
 
   const setNickname = useCallback((name: string) => {
     const cleanName = name.trim() || 'you';
@@ -95,8 +108,11 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
 
   // In-memory cache: feedId -> FEK (Uint8Array)
   const feedKeysRef = useRef<Map<string, Uint8Array>>(new Map());
+  // Keep mnemonic in memory while unlocked so biometric can be enabled without re-entering password
+  const mnemonicRef = useRef<string | null>(null);
 
   const initializeKeys = useCallback((mnemonic: string) => {
+    mnemonicRef.current = mnemonic;
     const seed = mnemonicToSeed(mnemonic);
     const derived = deriveKeys(seed);
     setKeys(derived);
@@ -138,6 +154,13 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
     return false;
   }, [initializeKeys]);
 
+  const handleBiometricUnlock = useCallback(async (): Promise<boolean> => {
+    const mnemonic = await unlockWithBiometric();
+    if (!mnemonic) return false;
+    initializeKeys(mnemonic);
+    return true;
+  }, [initializeKeys]);
+
   const handleRecover = useCallback((mnemonic: string, password: string | null) => {
     if (password) {
       localStorage.setItem('sn_seed_encrypted', encryptSeedWithPassword(mnemonic, password));
@@ -166,6 +189,7 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
       return (
         <UnlockScreen
           onUnlock={handleUnlock}
+          onBiometricUnlock={handleBiometricUnlock}
           onRecover={() => setScreen('recover')}
         />
       );
@@ -234,10 +258,23 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('sn_npub');
         // We don't delete the database (OPFS) by default to avoid accidental data loss,
         // but without the keys, the data is unreadable.
+        clearBiometric().catch(() => {});
+        mnemonicRef.current = null;
         setKeys(null);
+        setBiometricEnrolled(false);
         setScreen('setup');
         feedKeysRef.current.clear();
       },
+      enableBiometric: async () => {
+        if (!mnemonicRef.current) throw new Error('Session expired');
+        await registerBiometric(mnemonicRef.current);
+        setBiometricEnrolled(true);
+      },
+      disableBiometric: async () => {
+        await clearBiometric();
+        setBiometricEnrolled(false);
+      },
+      biometricEnrolled,
       nickname,
       setNickname,
     };

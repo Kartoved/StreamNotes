@@ -278,10 +278,11 @@ export const NoteCard = ({
     }
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
     clearTimeout(longPressTimer.current);
-    if (swipeOffset < -48) {
-      onStartReply?.(note.id);
+    if (isSwiping.current) {
+      e.stopPropagation(); // prevent App's tab-swipe handler from firing
+      if (swipeOffset < -48) onStartReply?.(note.id);
     }
     isSwiping.current = false;
     setSwipeOffset(0);

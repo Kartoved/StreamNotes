@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCrypto } from '../crypto/CryptoContext';
 import { decryptSeedWithPassword } from '../crypto/CryptoContext';
 import { validateMnemonic } from '../crypto';
+import { isBiometricSupported } from '../crypto/biometric';
 import SyncRelaysPanel from './SyncRelaysPanel';
 import { THEMES, type ThemeId } from '../themes';
 
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export default function SettingsModal({ onClose, onExport, onImport, font, setFont, fontOptions, theme, setTheme, onSetNickname }: Props) {
-  const { nostrPubKey, logout, nickname, setNickname: setNicknameCrypto } = useCrypto();
+  const { nostrPubKey, logout, nickname, setNickname: setNicknameCrypto, enableBiometric, disableBiometric, biometricEnrolled } = useCrypto();
   const setNickname = onSetNickname ?? setNicknameCrypto;
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -26,6 +27,35 @@ export default function SettingsModal({ onClose, onExport, onImport, font, setFo
   const [passwordHint, setPasswordHint] = useState('');
   const [seedRevealed, setSeedRevealed] = useState('');
   const [copied, setCopied] = useState(false);
+  const [bioSupported, setBioSupported] = useState(false);
+  const [bioLoading, setBioLoading] = useState(false);
+  const [bioError, setBioError] = useState('');
+
+  useEffect(() => {
+    isBiometricSupported().then(setBioSupported);
+  }, []);
+
+  const handleEnableBiometric = async () => {
+    setBioLoading(true);
+    setBioError('');
+    try {
+      await enableBiometric();
+    } catch (e: any) {
+      setBioError(e?.message || 'Ошибка регистрации');
+    } finally {
+      setBioLoading(false);
+    }
+  };
+
+  const handleDisableBiometric = async () => {
+    setBioLoading(true);
+    setBioError('');
+    try {
+      await disableBiometric();
+    } finally {
+      setBioLoading(false);
+    }
+  };
 
   const shortNpub = nostrPubKey
     ? nostrPubKey.slice(0, 8) + '...' + nostrPubKey.slice(-8)
@@ -288,6 +318,38 @@ export default function SettingsModal({ onClose, onExport, onImport, font, setFo
         <div style={sectionDivider}>
           <SyncRelaysPanel />
         </div>
+
+        {/* Biometric unlock */}
+        {bioSupported && (
+          <div style={sectionDivider}>
+            <span style={labelStyle}>Безопасность</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+              <div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text)', fontWeight: 500 }}>
+                  Вход по отпечатку пальца
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: '2px' }}>
+                  {biometricEnrolled ? 'Включён — Touch ID / Face ID / Fingerprint' : 'Быстрый вход без пароля'}
+                </div>
+              </div>
+              <button
+                onClick={biometricEnrolled ? handleDisableBiometric : handleEnableBiometric}
+                disabled={bioLoading}
+                style={{
+                  ...btn,
+                  flexShrink: 0,
+                  opacity: bioLoading ? 0.5 : 1,
+                  ...(biometricEnrolled ? { color: '#f87171', borderColor: '#f87171' } : {}),
+                }}
+              >
+                {bioLoading ? '...' : biometricEnrolled ? 'Отключить' : 'Включить'}
+              </button>
+            </div>
+            {bioError && (
+              <p style={{ fontSize: '0.72rem', color: '#f87171', margin: '8px 0 0' }}>{bioError}</p>
+            )}
+          </div>
+        )}
 
         {/* Data management */}
         <div>

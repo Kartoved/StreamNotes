@@ -40,6 +40,41 @@ function App() {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
+  const handlingPopState = useRef(false);
+
+  // Push a history entry so Android's back gesture pops through tab history
+  // instead of navigating the browser backward (→ blank page).
+  const navigateTab = useCallback((tab: 'dashboard' | 'feed' | 'calendar') => {
+    setMobileTab(tab);
+    setMobileFeedsOpen(false);
+    setMobileSearchOpen(false);
+    if (window.innerWidth <= 640 && !handlingPopState.current) {
+      try { history.pushState({ mobileTab: tab }, ''); } catch {}
+    }
+  }, []);
+
+  // Seed initial history state + listen for back gesture
+  useEffect(() => {
+    if (window.innerWidth > 640) return;
+    try { history.replaceState({ mobileTab: 'feed' }, ''); } catch {}
+
+    const onPop = (e: PopStateEvent) => {
+      if (window.innerWidth > 640) return;
+      const tab = e.state?.mobileTab as 'dashboard' | 'feed' | 'calendar' | undefined;
+      handlingPopState.current = true;
+      if (tab && ['dashboard', 'feed', 'calendar'].includes(tab)) {
+        setMobileTab(tab);
+        setMobileFeedsOpen(false);
+        setMobileSearchOpen(false);
+      } else {
+        // No more app history — let browser/OS handle it naturally
+        history.back();
+      }
+      handlingPopState.current = false;
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── One-time graph integrity check ────────────────────────────────
   const rescueDone = useRef(false);
@@ -158,7 +193,7 @@ function App() {
           setActiveFeedId(existing[0].feed_id);
         }
         setFocusedTweetId(noteId);
-        if (window.innerWidth <= 640) setMobileTab('feed');
+        if (window.innerWidth <= 640) navigateTab('feed');
       } else {
         // Note doesn't exist — create it in the active feed
         const now = Date.now();
@@ -642,11 +677,13 @@ function App() {
         const dy = e.changedTouches[0].clientY - touchStartY.current;
         const target = e.target as Element;
         if (target.closest?.('.note-card-swipeable')) return;
+        // Skip edge swipes (< 20px from edge) — let Android system back gesture handle those
+        if (touchStartX.current < 20 || touchStartX.current > window.innerWidth - 20) return;
         if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
           const tabs = ['dashboard', 'feed', 'calendar'] as const;
           const idx = tabs.indexOf(mobileTabRef.current);
-          if (dx < 0 && idx < tabs.length - 1) setMobileTab(tabs[idx + 1]);
-          else if (dx > 0 && idx > 0) setMobileTab(tabs[idx - 1]);
+          if (dx < 0 && idx < tabs.length - 1) navigateTab(tabs[idx + 1]);
+          else if (dx > 0 && idx > 0) navigateTab(tabs[idx - 1]);
         }
       }}
     >
@@ -654,7 +691,7 @@ function App() {
       <FeedsSidebar
         feeds={feeds}
         activeFeedId={activeFeedId}
-        onSelect={id => { setActiveFeedId(id); setFocusedTweetId(null); setReplyingToTweetId(null); if (window.innerWidth <= 640) { setMobileFeedsOpen(false); setMobileTab('feed'); } }}
+        onSelect={id => { setActiveFeedId(id); setFocusedTweetId(null); setReplyingToTweetId(null); if (window.innerWidth <= 640) navigateTab('feed'); }}
         onCreateFeed={handleCreateFeed}
         onUpdateFeed={handleUpdateFeed}
         onDeleteFeed={handleDeleteFeed}
@@ -864,7 +901,7 @@ function App() {
           <FeedsSidebar
             feeds={feeds}
             activeFeedId={activeFeedId}
-            onSelect={id => { setActiveFeedId(id); setFocusedTweetId(null); setReplyingToTweetId(null); setMobileFeedsOpen(false); setMobileTab('feed'); }}
+            onSelect={id => { setActiveFeedId(id); setFocusedTweetId(null); setReplyingToTweetId(null); navigateTab('feed'); }}
             onCreateFeed={handleCreateFeed}
             onUpdateFeed={handleUpdateFeed}
             onDeleteFeed={handleDeleteFeed}
@@ -894,7 +931,7 @@ function App() {
           <button
             key={tab.id}
             className={`mobile-tab-btn${mobileTab === tab.id ? ' active' : ''}`}
-            onClick={() => setMobileTab(tab.id)}
+            onClick={() => navigateTab(tab.id)}
           >
             {tab.icon}
             <span>{tab.label}</span>
