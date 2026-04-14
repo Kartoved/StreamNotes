@@ -56,19 +56,26 @@ function App() {
   // Seed initial history state + listen for back gesture
   useEffect(() => {
     if (window.innerWidth > 640) return;
-    try { history.replaceState({ mobileTab: 'feed' }, ''); } catch {}
+    // Seed two entries so the first real back gesture doesn't fall out of the app.
+    // replaceState replaces the current entry; then we push one buffer entry on top
+    // so Android can fire one gratuitous popstate before reaching our app-managed state.
+    try {
+      history.replaceState({ mobileTab: 'feed', sheafy: true }, '');
+      history.pushState({ mobileTab: 'feed', sheafy: true }, '');
+    } catch {}
 
     const onPop = (e: PopStateEvent) => {
       if (window.innerWidth > 640) return;
       const tab = e.state?.mobileTab as 'dashboard' | 'feed' | 'calendar' | undefined;
       handlingPopState.current = true;
+      setMobileFeedsOpen(false);
+      setMobileSearchOpen(false);
       if (tab && ['dashboard', 'feed', 'calendar'].includes(tab)) {
         setMobileTab(tab);
-        setMobileFeedsOpen(false);
-        setMobileSearchOpen(false);
       } else {
-        // No more app history — let browser/OS handle it naturally
-        history.back();
+        // Fell past app history — re-anchor so next back gesture is also caught
+        setMobileTab('feed');
+        try { history.pushState({ mobileTab: 'feed', sheafy: true }, ''); } catch {}
       }
       handlingPopState.current = false;
     };
@@ -682,8 +689,10 @@ function App() {
         if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
           const tabs = ['dashboard', 'feed', 'calendar'] as const;
           const idx = tabs.indexOf(mobileTabRef.current);
-          if (dx < 0 && idx < tabs.length - 1) navigateTab(tabs[idx + 1]);
-          else if (dx > 0 && idx > 0) navigateTab(tabs[idx - 1]);
+          // right→left (dx < 0) = "back" = lower index (Dashboard direction)
+          // left→right (dx > 0) = "forward" = higher index (Calendar direction)
+          if (dx < 0 && idx > 0) navigateTab(tabs[idx - 1]);
+          else if (dx > 0 && idx < tabs.length - 1) navigateTab(tabs[idx + 1]);
         }
       }}
     >

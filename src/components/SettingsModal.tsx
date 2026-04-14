@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useCrypto } from '../crypto/CryptoContext';
 import { decryptSeedWithPassword } from '../crypto/CryptoContext';
 import { validateMnemonic } from '../crypto';
-import { isBiometricSupported } from '../crypto/biometric';
+import { biometricUnsupportedReason } from '../crypto/biometric';
 import SyncRelaysPanel from './SyncRelaysPanel';
 import { THEMES, type ThemeId } from '../themes';
 
@@ -27,13 +27,15 @@ export default function SettingsModal({ onClose, onExport, onImport, font, setFo
   const [passwordHint, setPasswordHint] = useState('');
   const [seedRevealed, setSeedRevealed] = useState('');
   const [copied, setCopied] = useState(false);
-  const [bioSupported, setBioSupported] = useState(false);
+  const [bioUnsupportedReason, setBioUnsupportedReason] = useState<string | null | 'loading'>('loading');
   const [bioLoading, setBioLoading] = useState(false);
   const [bioError, setBioError] = useState('');
 
   useEffect(() => {
-    isBiometricSupported().then(setBioSupported);
+    biometricUnsupportedReason().then(setBioUnsupportedReason);
   }, []);
+
+  const bioSupported = bioUnsupportedReason === null;
 
   const handleEnableBiometric = async () => {
     setBioLoading(true);
@@ -320,33 +322,46 @@ export default function SettingsModal({ onClose, onExport, onImport, font, setFo
         </div>
 
         {/* Biometric unlock */}
-        {bioSupported && (
+        {bioUnsupportedReason !== 'loading' && (
           <div style={sectionDivider}>
             <span style={labelStyle}>Безопасность</span>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+            {bioSupported ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                  <div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text)', fontWeight: 500 }}>
+                      Вход по отпечатку пальца
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: '2px' }}>
+                      {biometricEnrolled ? 'Включён — Touch ID / Face ID / Fingerprint' : 'Быстрый вход без пароля'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={biometricEnrolled ? handleDisableBiometric : handleEnableBiometric}
+                    disabled={bioLoading}
+                    style={{
+                      ...btn,
+                      flexShrink: 0,
+                      opacity: bioLoading ? 0.5 : 1,
+                      ...(biometricEnrolled ? { color: '#f87171', borderColor: '#f87171' } : {}),
+                    }}
+                  >
+                    {bioLoading ? '...' : biometricEnrolled ? 'Отключить' : 'Включить'}
+                  </button>
+                </div>
+                {bioError && (
+                  <p style={{ fontSize: '0.72rem', color: '#f87171', margin: '8px 0 0' }}>{bioError}</p>
+                )}
+              </>
+            ) : (
               <div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--text)', fontWeight: 500 }}>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text)', fontWeight: 500, marginBottom: '4px' }}>
                   Вход по отпечатку пальца
                 </div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: '2px' }}>
-                  {biometricEnrolled ? 'Включён — Touch ID / Face ID / Fingerprint' : 'Быстрый вход без пароля'}
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', lineHeight: 1.5 }}>
+                  {bioUnsupportedReason}
                 </div>
               </div>
-              <button
-                onClick={biometricEnrolled ? handleDisableBiometric : handleEnableBiometric}
-                disabled={bioLoading}
-                style={{
-                  ...btn,
-                  flexShrink: 0,
-                  opacity: bioLoading ? 0.5 : 1,
-                  ...(biometricEnrolled ? { color: '#f87171', borderColor: '#f87171' } : {}),
-                }}
-              >
-                {bioLoading ? '...' : biometricEnrolled ? 'Отключить' : 'Включить'}
-              </button>
-            </div>
-            {bioError && (
-              <p style={{ fontSize: '0.72rem', color: '#f87171', margin: '8px 0 0' }}>{bioError}</p>
             )}
           </div>
         )}

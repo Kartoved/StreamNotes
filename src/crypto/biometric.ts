@@ -16,13 +16,27 @@ const KEY_ID  = 'k1';
 
 // ── Platform authenticator availability ────────────────────────────────
 
-export async function isBiometricSupported(): Promise<boolean> {
-  if (!window.PublicKeyCredential) return false;
-  try {
-    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-  } catch {
-    return false;
+/** Returns a human-readable reason if biometric cannot be used, or null if supported. */
+export async function biometricUnsupportedReason(): Promise<string | null> {
+  if (!window.PublicKeyCredential || !navigator.credentials?.create) {
+    return 'Браузер не поддерживает WebAuthn';
   }
+  // Firefox for Android claims UVPA support but credentials.create fails in practice.
+  const ua = navigator.userAgent;
+  if (/Firefox\//.test(ua) && /Android/.test(ua)) {
+    return 'Firefox для Android не поддерживает биометрическую аутентификацию. Используйте Chrome или Samsung Internet.';
+  }
+  try {
+    const ok = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    if (!ok) return 'Устройство не поддерживает биометрическую аутентификацию';
+    return null; // supported
+  } catch {
+    return 'Биометрия недоступна на этом устройстве';
+  }
+}
+
+export async function isBiometricSupported(): Promise<boolean> {
+  return (await biometricUnsupportedReason()) === null;
 }
 
 export function isBiometricEnrolled(): boolean {
@@ -120,25 +134,33 @@ export async function registerBiometric(mnemonic: string): Promise<void> {
   const challenge = crypto.getRandomValues(new Uint8Array(32));
   const userId    = crypto.getRandomValues(new Uint8Array(16));
 
-  const credential = (await navigator.credentials.create({
-    publicKey: {
-      rp: { id: rpId, name: 'Sheafy' },
-      user: { id: userId, name: 'user', displayName: 'Sheafy User' },
-      challenge,
-      pubKeyCredParams: [
-        { type: 'public-key', alg: -7   },  // ES256
-        { type: 'public-key', alg: -257 },  // RS256
-      ],
-      authenticatorSelection: {
-        authenticatorAttachment: 'platform',
-        userVerification: 'required',
-        residentKey: 'preferred',
+  let credential: PublicKeyCredential | null = null;
+  try {
+    credential = (await navigator.credentials.create({
+      publicKey: {
+        rp: { id: rpId, name: 'Sheafy' },
+        user: { id: userId, name: 'user', displayName: 'Sheafy User' },
+        challenge,
+        pubKeyCredParams: [
+          { type: 'public-key', alg: -7   },  // ES256
+          { type: 'public-key', alg: -257 },  // RS256
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+          residentKey: 'preferred',
+        },
+        timeout: 60_000,
       },
-      timeout: 60_000,
-    },
-  })) as PublicKeyCredential | null;
+    })) as PublicKeyCredential | null;
+  } catch (err: any) {
+    // NotAllowedError = user cancelled or denied
+    if (err?.name === 'NotAllowedError') throw new Error('Отменено пользователем');
+    // Anything else (browser incompatibility, extension interference, etc.)
+    throw new Error('Биометрия не поддерживается в этом браузере');
+  }
 
-  if (!credential) throw new Error('Biometric registration cancelled');
+  if (!credential) throw new Error('Отменено пользователем');
 
   const wrapKey = randomBytes(32);
   await saveWrapKey(wrapKey);
