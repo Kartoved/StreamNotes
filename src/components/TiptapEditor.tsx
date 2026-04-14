@@ -7,6 +7,7 @@ import CodeBlock from '@tiptap/extension-code-block';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import { saveToOpfs, getFileType } from '../utils/opfsFiles';
+import { consumePendingBacklink } from '../utils/backlinkClipboard';
 import '../editorTheme.css';
 
 import { ThreeStateTaskItem } from '../editor/extensions/ThreeStateTaskItem';
@@ -341,6 +342,7 @@ export const TweetEditor = ({
   const handleSubmitRef = useRef<() => void>(() => {});
   // Upload progress: { done, total } | null
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const editorRef = useRef<any>(null);
 
   const initialContent = React.useMemo(() => {
     if (!initialAst) return undefined;
@@ -400,8 +402,27 @@ export const TweetEditor = ({
         return false;
       },
       handlePaste: (_view, event) => {
-        const files = (event as ClipboardEvent).clipboardData?.files;
+        const clipboardEvent = event as ClipboardEvent;
+        const files = clipboardEvent.clipboardData?.files;
         if (files?.length) { event.preventDefault(); uploadFilesRef.current(files); return true; }
+
+        // Backlink paste: if clipboard text matches a pending backlink → insert chip directly
+        const text = clipboardEvent.clipboardData?.getData('text/plain') ?? '';
+        const backlink = consumePendingBacklink(text);
+        if (backlink) {
+          event.preventDefault();
+          const { state, dispatch } = _view;
+          const schema = state.schema;
+          const linkMark = schema.marks.link.create({ href: `note://${backlink.id}` });
+          const textNode = schema.text(backlink.title, [linkMark]);
+          const spaceNode = schema.text(' ');
+          const from = state.selection.from;
+          const tr = state.tr
+            .insert(from, [textNode, spaceNode])
+            .removeStoredMark(schema.marks.link);
+          dispatch(tr);
+          return true;
+        }
         return false;
       },
       handleKeyDown: (_view, event) => {
@@ -414,6 +435,7 @@ export const TweetEditor = ({
       },
     },
     }, [editorKey, initialAst]);
+  editorRef.current = editor;
 
   const blUid = () => Math.random().toString(36).substring(2, 9);
 
