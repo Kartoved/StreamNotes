@@ -116,9 +116,10 @@ a.note-link:hover {
 .editor-h3 { font-size: 1.1rem;  font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
 
 /* ─── 3-State Task List ────────────────────────────────────────────── */
+.tiptap-editor .editor-task-list,
 .editor-task-list {
-  list-style: none;
-  padding-left: 0;
+  list-style: none !important;
+  padding-left: 0 !important;
   margin: 0.5em 0;
 }
 

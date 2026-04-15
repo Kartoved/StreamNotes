@@ -314,8 +314,6 @@ export const NoteCard = React.memo(function NoteCard({
       data-index={virtualItem.index}
       data-note-id={note.id}
       ref={virtualizer.measureElement}
-      draggable={editingNoteId !== note.id}
-      onDragStart={(e) => editingNoteId !== note.id && onDragStart(e, note.id)}
       onDragOver={(e) => onDragOver(e, note.id)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, note.id)}
@@ -364,6 +362,25 @@ export const NoteCard = React.memo(function NoteCard({
           transition: swipeOffset !== 0 ? 'none' : 'border-color 0.12s, background 0.12s, transform 0.2s cubic-bezier(0.32, 0.72, 0, 1)',
           transform: swipeOffset !== 0 ? `translateX(${swipeOffset}px)` : 'none',
         }}>
+
+        {/* Desktop drag handle (shown on card hover, hidden on mobile) */}
+        {editingNoteId !== note.id && (
+          <div
+            className="desktop-drag-handle"
+            draggable
+            onDragStart={(e) => onDragStart(e, note.id)}
+            style={{
+              opacity: draggedId === note.id ? 1 : undefined,
+              color: draggedId === note.id ? 'var(--accent)' : undefined,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+              <circle cx="4" cy="3" r="1.2"/><circle cx="10" cy="3" r="1.2"/>
+              <circle cx="4" cy="7" r="1.2"/><circle cx="10" cy="7" r="1.2"/>
+              <circle cx="4" cy="11" r="1.2"/><circle cx="10" cy="11" r="1.2"/>
+            </svg>
+          </div>
+        )}
 
         {/* Mobile drag handle */}
         {onTouchDragStart && editingNoteId !== note.id && (

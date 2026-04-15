@@ -313,7 +313,7 @@ export const Feed = ({
           const today = new Date();
           const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
           const noteDate = props.date ? props.date.slice(0, 10) : null;
-          statusOk = props.status === 'todo' && (!noteDate || noteDate <= todayStr);
+          statusOk = props.status === 'todo' && !!noteDate && noteDate <= todayStr;
         } else if (statusFilter === 'todo-no-date') {
           statusOk = props.status === 'todo' && !props.date;
         } else if (statusFilter === 'todo-future') {
@@ -509,7 +509,13 @@ export const Feed = ({
   }, []);
   const handleNcDragLeave = useCallback(() => setDragOverInfo(null), []);
   const handleNcDragEnd = useCallback(() => { setDraggedIdBoth(null); setDragOverInfo(null); }, []);
-  const handleNcExpandNote = useCallback((id: string) => setExpandedNoteId(id), []);
+  const handleNcExpandNote = useCallback((id: string) => {
+    if (window.innerWidth <= 640) {
+      const n = notes.find(nn => nn.id === id);
+      if (n && onStartEdit) { onStartEdit(n); return; }
+    }
+    setExpandedNoteId(id);
+  }, [notes, onStartEdit]);
 
   if (notes.length === 0) {
     return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Пусто. Напиши что-нибудь первым!</div>;
@@ -573,7 +579,7 @@ export const Feed = ({
               const raw: (false | null | { label: string; action: () => void; danger?: boolean })[] = [
                 canWrite && { label: 'Ответить', action: () => { onStartReply?.(contextMenu.noteId); closeContextMenu(); } },
                 userCanEdit && { label: 'Редактировать', action: () => { if (ctxNote) onStartEdit?.(ctxNote); closeContextMenu(); } },
-                { label: 'Открыть', action: () => { setExpandedNoteId(contextMenu.noteId); closeContextMenu(); } },
+                { label: 'Открыть', action: () => { handleNcExpandNote(contextMenu.noteId); closeContextMenu(); } },
                 { label: collapsedIds.has(contextMenu.noteId) ? 'Развернуть' : 'Свернуть', action: () => { setCollapsedIds(prev => { const next = new Set(prev); next.has(contextMenu.noteId) ? next.delete(contextMenu.noteId) : next.add(contextMenu.noteId); return next; }); closeContextMenu(); } },
                 { label: '🔗 Перейти в ветку', action: () => { onNoteClick?.(contextMenu.noteId); closeContextMenu(); } },
                 { label: '⎘ Скопировать как ссылку', action: () => {

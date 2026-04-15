@@ -323,6 +323,7 @@ body {
   font-size: 1.05rem;
   line-height: 1.85;
   letter-spacing: 0.01em;
+  user-select: text;
 }
 
 .note-content p { margin: 0; }
@@ -674,6 +675,31 @@ body {
 @keyframes sheet-panel-in {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }
+}
+
+/* ── Desktop drag handle (shown on card hover, hidden on mobile) ──── */
+.desktop-drag-handle {
+  display: none;
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  cursor: grab;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.desktop-drag-handle:active { cursor: grabbing; }
+.note-card-inner:hover .desktop-drag-handle { opacity: 0.5; }
+
+@media (min-width: 641px) {
+  .desktop-drag-handle { display: flex; }
+  .note-card-inner .note-content { padding-left: 4px; }
 }
 
 /* ── Mobile drag handle (hidden on desktop) ──────────────────────── */
