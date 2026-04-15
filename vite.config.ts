@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.svg'],
       manifest: {
-        name: 'StreamNotes',
-        short_name: 'StreamNotes',
+        name: 'Sheafy',
+        short_name: 'Sheafy',
         description: 'Local-first заметки в формате ленты',
         theme_color: '#0f172a',
         background_color: '#0f172a',
