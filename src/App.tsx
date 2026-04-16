@@ -109,7 +109,14 @@ function App() {
   // ── Global lightbox (image zoom) ───────────────────────────────────
   useEffect(() => {
     (window as any).openLightbox = (url: string, name: string) => setLightboxEntry({ url, name });
-    return () => { delete (window as any).openLightbox; };
+    (window as any).onHashtagClick = (tag: string) => {
+      setSearchQuery(tag);
+      if (window.innerWidth <= 640) setMobileSearchOpen(true);
+    };
+    return () => { 
+      delete (window as any).openLightbox;
+      delete (window as any).onHashtagClick;
+    };
   }, []);
 
   // ── E2E Migration: encrypt existing unencrypted data ──────────────
@@ -845,15 +852,29 @@ function App() {
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
               <input
-                type="search"
+                type="text"
                 className="search-bar"
                 placeholder="Поиск..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 autoFocus
                 data-lpignore="true"
-                style={{ paddingLeft: '30px', width: '100%', boxSizing: 'border-box' }}
+                style={{ paddingLeft: '30px', paddingRight: '30px', width: '100%', boxSizing: 'border-box' }}
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px'
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              )}
             </div>
             {allTags.length > 0 && (
               <div style={{ marginTop: '10px' }}>

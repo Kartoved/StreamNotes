@@ -17,6 +17,7 @@ import { RecurrenceChip } from './NoteCard';
 import { createBacklinkExtension, BacklinkSuggestionCallbacks } from '../editor/extensions/BacklinkExtension';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
+import { HashtagHighlighter } from '../editor/extensions/HashtagHighlighter';
 
 // ─── SVG Icon primitives ──────────────────────────────────────────────
 const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
@@ -381,6 +382,7 @@ export const TweetEditor = ({
       Placeholder.configure({
         placeholder,
       }),
+      HashtagHighlighter,
     ],
     content: initialContent,
     autofocus: autoFocus ? 'end' : false,

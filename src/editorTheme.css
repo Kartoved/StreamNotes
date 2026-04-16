@@ -82,6 +82,23 @@ a.note-link:hover {
   border-color: var(--accent);
 }
 
+/* ─── Hashtags ─────────────────────────────────────────────────────── */
+.hashtag-decorator {
+  color: var(--accent);
+  background: var(--accent-bg);
+  padding: 0 4px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  display: inline;
+}
+
+.hashtag-decorator:hover {
+  background: var(--bg-active);
+  text-decoration: underline;
+}
+
 /* ─── Placeholder ──────────────────────────────────────────────────── */
 .tiptap-editor p.is-editor-empty:first-child::before {
   color: var(--text-faint);

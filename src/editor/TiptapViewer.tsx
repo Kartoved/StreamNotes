@@ -131,11 +131,10 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
     const marks: string[] = (node.marks || []).map((m: any) => m.type);
     const linkMark = (node.marks || []).find((m: any) => m.type === 'link');
     let el: React.ReactNode = node.text;
-    if (marks.includes('bold')) el = <strong>{el}</strong>;
-    if (marks.includes('italic')) el = <em>{el}</em>;
-    if (marks.includes('strike')) el = <s style={{ textDecoration: 'line-through' }}>{el}</s>;
-    if (marks.includes('underline')) el = <u>{el}</u>;
-    if (marks.includes('code')) el = <code style={{ background: 'var(--bg-hover)', padding: '1px 5px', borderRadius: '3px', fontSize: '0.88em', fontFamily: 'var(--font-mono)', border: '1px solid var(--line)' }}>{el}</code>;
+
+    const isCode = marks.includes('code');
+    const hashtagRegex = /#[\w\u0400-\u04FF][\w\u0400-\u04FF0-9_]*/gi;
+
     if (linkMark) {
       const href: string = linkMark.attrs?.href || '';
       const isInternal = href.startsWith('note://');
@@ -172,7 +171,42 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
           {node.text}
         </a>
       );
+    } else if (!isCode && node.text?.match(hashtagRegex)) {
+      // Process hashtags in non-link, non-code text
+      const parts = node.text.split(hashtagRegex);
+      const matches = node.text.match(hashtagRegex) || [];
+      const combined: React.ReactNode[] = [];
+      parts.forEach((part, i) => {
+        combined.push(part);
+        if (matches[i]) {
+          combined.push(
+            <span
+              key={i}
+              className="hashtag-decorator"
+              onClick={(e) => {
+                e.stopPropagation();
+                (window as any).onHashtagClick?.(matches[i]);
+              }}
+              style={{
+                color: 'var(--accent)',
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              {matches[i]}
+            </span>
+          );
+        }
+      });
+      el = <>{combined}</>;
     }
+
+    if (marks.includes('bold')) el = <strong>{el}</strong>;
+    if (marks.includes('italic')) el = <em>{el}</em>;
+    if (marks.includes('strike')) el = <s style={{ textDecoration: 'line-through' }}>{el}</s>;
+    if (marks.includes('underline')) el = <u>{el}</u>;
+    if (marks.includes('code')) el = <code style={{ background: 'var(--bg-hover)', padding: '1px 5px', borderRadius: '3px', fontSize: '0.88em', fontFamily: 'var(--font-mono)', border: '1px solid var(--line)' }}>{el}</code>;
+
     return <React.Fragment key={index}>{el}</React.Fragment>;
   }
 
