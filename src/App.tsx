@@ -667,10 +667,11 @@ function App() {
 
   const handleExportFeedMD = async (feedId: string, feedName: string) => {
     const { formatNotesAsMarkdown } = await import('./utils/markdownExport');
-    const rows = await db.execO(`SELECT id, parent_id, content, sort_key, created_at, feed_id FROM notes WHERE feed_id = ? AND is_deleted = 0`, [feedId]) as any[];
+    const rows = await db.execO(`SELECT id, parent_id, content, sort_key, created_at, properties, author_id, feed_id FROM notes WHERE feed_id = ? AND is_deleted = 0`, [feedId]) as any[];
     const decryptedRows = rows.map(r => ({
       ...r,
       content: decryptForFeed(r.content, r.feed_id),
+      properties: r.properties ? decryptForFeed(r.properties, r.feed_id) : null,
     }));
     
     // Sort slightly different than UI maybe, but formatNotesAsMarkdown handles the tree building
@@ -693,16 +694,28 @@ function App() {
     
     // Get all non-deleted feeds
     const feedRows = await db.execO(`SELECT id, name FROM feeds`) as any[];
+    const usedNames = new Set<string>();
+
     for (const f of feedRows) {
       const feedName = decrypt(f.name) || 'Unnamed';
-      const safeName = feedName.replace(/[^a-z0-9а-яё \-_]/gi, '_').trim() || f.id;
+      let safeName = feedName.replace(/[^a-z0-9а-яё \-_]/gi, '_').trim() || f.id;
       
-      const rows = await db.execO(`SELECT id, parent_id, content, sort_key, created_at FROM notes WHERE feed_id = ? AND is_deleted = 0`, [f.id]) as any[];
+      // Ensure unique filename
+      let originalSafeName = safeName;
+      let counter = 1;
+      while (usedNames.has(safeName.toLowerCase())) {
+        safeName = `${originalSafeName}_${counter}`;
+        counter++;
+      }
+      usedNames.add(safeName.toLowerCase());
+      
+      const rows = await db.execO(`SELECT id, parent_id, content, sort_key, created_at, properties, author_id FROM notes WHERE feed_id = ? AND is_deleted = 0`, [f.id]) as any[];
       if (rows.length === 0) continue;
 
       const decryptedRows = rows.map(r => ({
         ...r,
         content: f.id ? decryptForFeed(r.content, f.id) : decrypt(r.content), // Fallback
+        properties: r.properties ? (f.id ? decryptForFeed(r.properties, f.id) : decrypt(r.properties)) : null,
       }));
 
       const markdown = formatNotesAsMarkdown(decryptedRows);

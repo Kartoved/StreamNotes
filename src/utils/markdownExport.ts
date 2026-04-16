@@ -5,6 +5,7 @@ export interface NoteObj {
   created_at?: number;
   properties?: string;
   sort_key?: string;
+  author_id?: string;
 }
 
 export function tiptapToMarkdown(node: any): string {
@@ -93,22 +94,62 @@ export function formatNotesAsMarkdown(notes: NoteObj[], rootId: string | null = 
   // Sort children by sort_key, or fall back to created_at
   const children = notes.filter(n => n.parent_id === rootId).sort((a, b) => {
     if (a.sort_key && b.sort_key) {
+      // Root level (indentLevel === 0) is usually newest first (reverse chronological)
+      // Children (indentLevel > 0) are usually oldest first (chronological)
+      if (indentLevel === 0) {
+        return b.sort_key.localeCompare(a.sort_key);
+      }
       return a.sort_key.localeCompare(b.sort_key);
     }
-    return (a.created_at || 0) - (b.created_at || 0);
+    return indentLevel === 0 
+      ? (b.created_at || 0) - (a.created_at || 0)
+      : (a.created_at || 0) - (b.created_at || 0);
   });
 
   if (children.length === 0) return '';
 
   let markdown = '';
-  const indent = '    '.repeat(indentLevel); // 4 spaces for Python-like indent
+  // We use 4 spaces for child indentation, but if we format as lists (Logseq style), 
+  // typical markdown indentation for nested lists is 2 or 4 spaces. 4 works well.
+  const indent = '    '.repeat(indentLevel);
 
   for (let i = 0; i < children.length; i++) {
     const note = children[i];
-    const textBlocks = tiptapToMarkdown(note.content).trim().split('\n');
     
-    // Apply indent to each line
-    const indentedText = textBlocks.map(line => line ? `${indent}${line}` : indent).join('\n');
+    // Parse metadata
+    let propsObj: any = {};
+    if (note.properties) {
+      try { propsObj = JSON.parse(note.properties); } catch {}
+    }
+
+    // Build standard properties block
+    const propertiesLines: string[] = [];
+    if (note.id) propertiesLines.push(`id:: ${note.id}`);
+    if (note.created_at) propertiesLines.push(`created_at:: ${new Date(note.created_at).toISOString()}`);
+    if (note.author_id) propertiesLines.push(`author:: ${note.author_id.substring(0, 10)}...`);
+    if (propsObj.status && propsObj.status !== 'none') propertiesLines.push(`status:: ${propsObj.status}`);
+    if (propsObj.date) propertiesLines.push(`due_date:: ${propsObj.date}`);
+
+    const textContent = tiptapToMarkdown(note.content).trim();
+    // Split into lines so we can prepend the Logseq-style bullet
+    const textBlocks = textContent.split('\n');
+    
+    // First line gets the bullet
+    let noteText = `- ${textBlocks[0] || ''}`;
+    // Subsequent lines are indented by 2 spaces to align with the bullet text
+    for (let j = 1; j < textBlocks.length; j++) {
+      noteText += `\n  ${textBlocks[j]}`;
+    }
+
+    // Add properties
+    for (const pLine of propertiesLines) {
+      noteText += `\n  ${pLine}`;
+    }
+    
+    // Apply the tree hierarchy indent to the entire block
+    const blockLines = noteText.split('\n');
+    const indentedText = blockLines.map(line => line.trimEnd() ? `${indent}${line}` : indent).join('\n');
+    
     markdown += indentedText + '\n\n';
 
     // Format descendants
@@ -117,7 +158,7 @@ export function formatNotesAsMarkdown(notes: NoteObj[], rootId: string | null = 
       markdown += descendantsMarkdown;
     }
 
-    // Siblings separator ONLY at root level (indentLevel === 0), unless it's the last element
+    // Root-level separator (optional, but requested by user for siblings)
     if (indentLevel === 0 && i < children.length - 1) {
       markdown += '---\n\n';
     }
