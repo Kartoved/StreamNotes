@@ -440,11 +440,13 @@ export const Feed = ({
     return () => el.removeEventListener('scroll', handler);
   }, [virtualizer.scrollElement]);
 
-  // Reset scroll to top whenever a filter changes so the virtualizer
-  // doesn't start mid-list with a stale offset
+  // Reset scroll + collapsed state whenever a filter activates
   React.useEffect(() => {
     document.querySelector('.main-content')?.scrollTo({ top: 0 });
     virtualizer.scrollToOffset(0);
+    if (searchQuery.trim() || selectedDate || statusFilter || selectedTags.size > 0) {
+      setCollapsedIds(new Set());
+    }
   }, [searchQuery, selectedDate, statusFilter, selectedTags]);
 
   const scrollToTop = () => {
