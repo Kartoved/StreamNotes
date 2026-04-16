@@ -423,11 +423,13 @@ export const Feed = ({
     return result;
   }, [filteredNotes, parsedCache, collapsedIds, sortMode, groupMode]);
 
+  const [scrollOffset, setScrollOffset] = React.useState(0);
   const virtualizer = useVirtualizer({
     count: visibleNotes.length,
     getScrollElement: () => document.querySelector('.main-content'),
     estimateSize: (i) => visibleNotes[i]?.type === 'header' ? 32 : 100,
     overscan: window.innerWidth <= 640 ? 3 : 5,
+    onChange: (instance) => setScrollOffset(instance.scrollOffset ?? 0),
   });
 
   // Reset scroll to top whenever a filter changes so the virtualizer
@@ -437,7 +439,7 @@ export const Feed = ({
     virtualizer.scrollToOffset(0);
   }, [searchQuery, selectedDate, statusFilter, selectedTags]);
 
-  const showScrollTop = (virtualizer.scrollOffset ?? 0) > 300;
+  const showScrollTop = scrollOffset > 300;
 
   const scrollToTop = () => {
     document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
