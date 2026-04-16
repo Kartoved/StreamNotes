@@ -10,6 +10,7 @@ interface RightSidebarProps {
   allTags: string[];
   selectedTags: Set<string>;
   toggleTag: (tag: string) => void;
+  clearTags: () => void;
 }
 
 export const RightSidebar = ({
@@ -21,6 +22,7 @@ export const RightSidebar = ({
   allTags,
   selectedTags,
   toggleTag,
+  clearTags,
 }: RightSidebarProps) => {
   return (
     <div className="right-sidebar" style={{
@@ -66,7 +68,15 @@ export const RightSidebar = ({
 
       {allTags.length > 0 && (
         <div style={{ padding: '0 4px', marginTop: '12px' }}>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '4px' }}>Теги</div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', gap: '8px' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '4px' }}>Теги</div>
+            {selectedTags.size > 0 && (
+              <button
+                onClick={clearTags}
+                style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: 'var(--radius)', padding: '2px 7px', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
+              >✕ Сбросить</button>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {allTags.map(tag => (
               <span

@@ -437,6 +437,21 @@ export const Feed = ({
     virtualizer.scrollToOffset(0);
   }, [searchQuery, selectedDate, statusFilter, selectedTags]);
 
+  // Track scroll position to show/hide "scroll to top" button
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  React.useEffect(() => {
+    const el = document.querySelector('.main-content');
+    if (!el) return;
+    const onScroll = () => setShowScrollTop(el.scrollTop > 300);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    virtualizer.scrollToOffset(0);
+  };
+
   React.useEffect(() => {
     (window as any).scrollToNote = (id: string) => {
       const index = visibleNotes.findIndex(n => n.type === 'note' && n.note.id === id);
@@ -795,6 +810,20 @@ export const Feed = ({
             })}
           </div>
         </div>
+      )}
+
+      {/* Scroll to top button */}
+      {showScrollTop && createPortal(
+        <button
+          onClick={scrollToTop}
+          aria-label="Наверх"
+          className="scroll-to-top-btn"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 15l-6-6-6 6"/>
+          </svg>
+        </button>,
+        document.body
       )}
 
       {/* Touch drag ghost */}

@@ -540,24 +540,22 @@ export const TweetEditor = ({
   };
   const optStyle: React.CSSProperties = { backgroundColor: 'var(--bg)', color: 'var(--text)' };
 
-  let zenBg = 'var(--bg)';
-  if (zenMode) {
-    if (status === 'done') zenBg = 'rgba(134, 239, 172, 0.08)';
-    else if (status === 'todo') zenBg = 'rgba(239, 68, 68, 0.08)';
-    else if (status === 'doing') zenBg = 'rgba(96, 165, 250, 0.08)';
-    else if (status === 'archived') zenBg = 'rgba(15, 23, 42, 0.08)';
-  }
+  const zenStatusTint: Record<string, string> = {
+    done:     'rgba(134, 239, 172, 0.08)',
+    todo:     'rgba(239, 68, 68, 0.08)',
+    doing:    'rgba(96, 165, 250, 0.08)',
+    archived: 'rgba(15, 23, 42, 0.08)',
+  };
 
   return (
     <div style={zenMode ? {
       position: 'fixed', inset: 0, zIndex: 3000,
-      background: zenBg,
+      background: 'var(--bg)',
       color: 'var(--text)',
       display: 'flex', flexDirection: 'column',
       fontFamily: 'var(--font-body)',
       fontSize: '1.1rem',
       lineHeight: 1.8,
-      transition: 'background 0.3s ease',
     } : {
       position: 'relative',
       border: '1px solid var(--line)',
@@ -570,6 +568,9 @@ export const TweetEditor = ({
       lineHeight: 1.85,
       letterSpacing: '0.01em',
     }}>
+      {zenMode && zenStatusTint[status] && (
+        <div style={{ position: 'absolute', inset: 0, background: zenStatusTint[status], pointerEvents: 'none', zIndex: 0, transition: 'background 0.3s ease' }} />
+      )}
       <div style={zenMode ? { padding: '12px 24px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'center', background: 'transparent' } : {}}>
         <Toolbar
             editor={editor}

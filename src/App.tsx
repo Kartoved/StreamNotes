@@ -176,19 +176,21 @@ function App() {
     }
   }, [feeds, activeFeedId]);
 
-  // ── Re-register FEKs for all shared feeds on startup ──────────────
-  // feedKeysRef starts empty on every page load. Without this, decryptForFeed
-  // falls back to the master key and fails to decrypt notes encrypted with a FEK.
-  const fekLoadDone = useRef(false);
+  // ── Re-register FEKs for all feeds whenever feeds list changes ────
+  // Use a Set to track which feed IDs have been registered so that:
+  // a) We don't skip re-registration after the first load (fixes new-device race
+  //    where sync pushes encryption_key after the initial feeds fetch), and
+  // b) We don't redundantly re-decrypt keys for already-registered feeds.
+  const fekRegisteredIds = useRef(new Set<string>());
   useEffect(() => {
-    if (fekLoadDone.current || feeds.length === 0) return;
-    fekLoadDone.current = true;
+    if (feeds.length === 0) return;
     const { registerFeedKey, decryptFeedKey: dfk } = useCryptoRef.current;
     for (const feed of feeds) {
-      if (feed.encryption_key) {
+      if (feed.encryption_key && !fekRegisteredIds.current.has(feed.id)) {
         try {
           const fekHex = dfk(feed.encryption_key);
           registerFeedKey(feed.id, fekHex);
+          fekRegisteredIds.current.add(feed.id);
         } catch { /* ignore malformed keys */ }
       }
     }
@@ -853,6 +855,25 @@ function App() {
                 style={{ paddingLeft: '30px', width: '100%', boxSizing: 'border-box' }}
               />
             </div>
+            {allTags.length > 0 && (
+              <div style={{ marginTop: '10px' }}>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {allTags.map(tag => (
+                    <span
+                      key={tag}
+                      className={`tag-pill${selectedTags.has(tag) ? ' active' : ''}`}
+                      onClick={() => toggleTag(tag)}
+                    >{tag}</span>
+                  ))}
+                  {selectedTags.size > 0 && (
+                    <button
+                      onClick={() => setSelectedTags(new Set())}
+                      style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: 'var(--radius)', padding: '2px 8px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
+                    >✕ Сбросить</button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -924,6 +945,7 @@ function App() {
         allTags={allTags}
         selectedTags={selectedTags}
         toggleTag={toggleTag}
+        clearTags={() => setSelectedTags(new Set())}
       />
 
       {fullscreenDraft && (

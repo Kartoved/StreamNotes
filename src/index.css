@@ -586,6 +586,37 @@ body {
   .mobile-tab-bar { display: flex !important; }
 }
 
+/* ── Scroll to top button ─────────────────────────────────────────── */
+.scroll-to-top-btn {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  right: 24px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--text-sub);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  transition: opacity 0.15s, background 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.scroll-to-top-btn:hover {
+  background: var(--bg-active);
+}
+
+@media (max-width: 640px) {
+  .scroll-to-top-btn {
+    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    right: 20px;
+  }
+}
+
 /* ── Mobile tab bar (hidden on desktop) ──────────────────────────── */
 .mobile-tab-bar {
   display: none;
