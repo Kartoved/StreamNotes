@@ -13,6 +13,7 @@ import '../editorTheme.css';
 import { ThreeStateTaskItem } from '../editor/extensions/ThreeStateTaskItem';
 import { AttachmentExtension } from '../editor/extensions/Attachment';
 import { BacklinkDropdown } from './BacklinkDropdown';
+import { RecurrenceChip } from './NoteCard';
 import { createBacklinkExtension, BacklinkSuggestionCallbacks } from '../editor/extensions/BacklinkExtension';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
@@ -296,6 +297,7 @@ export const TweetEditor = ({
   const [type, setType] = useState(initP.type || 'sheaf');
   const [status, setStatus] = useState(initP.status || 'none');
   const [date, setDate] = useState(initP.date || '');
+  const [recurrence, setRecurrence] = useState(initP.recurrence || '');
 
   // ── Backlink dropdown state ──
   const [blActive, setBlActive] = useState(false);
@@ -505,7 +507,7 @@ export const TweetEditor = ({
     const json = editor.getJSON();
     if (!hasTextContent(json)) return;
 
-    const propsJson = JSON.stringify({ type, status, date });
+    const propsJson = JSON.stringify({ type, status, date, recurrence });
     onSubmit(JSON.stringify(json), propsJson);
 
     if (!initialAst) {
@@ -575,7 +577,7 @@ export const TweetEditor = ({
         <Toolbar
             editor={editor}
             onUpload={(files) => uploadFiles(files)}
-            onExpand={onExpand ? (ast) => onExpand(ast, JSON.stringify({ type, status, date })) : undefined}
+            onExpand={onExpand ? (ast) => onExpand(ast, JSON.stringify({ type, status, date, recurrence })) : undefined}
             zenMode={zenMode}
             onCancel={onCancel}
             onInsertBacklink={handleInsertBacklink}
@@ -610,6 +612,7 @@ export const TweetEditor = ({
           {STATUSES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
         </select>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...selStyle }} />
+        <RecurrenceChip value={recurrence} onChange={setRecurrence} />
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
           {uploadProgress && <UploadRing done={uploadProgress.done} total={uploadProgress.total} />}

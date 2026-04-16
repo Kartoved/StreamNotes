@@ -140,6 +140,55 @@ export function CompletionDateChip({ value }: { value: string }) {
   );
 }
 
+// ── Recurrence chip ──────────────────────────────────────────────────
+export function RecurrenceChip({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const days = parseInt(value) || 0;
+
+  if (editing) {
+    return (
+      <input
+        type="number"
+        min="0"
+        autoFocus
+        defaultValue={days || ''}
+        placeholder="дн."
+        onBlur={(e) => {
+          const n = parseInt(e.target.value) || 0;
+          onChange(n > 0 ? `${n}` : '');
+          setEditing(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          if (e.key === 'Escape') { setEditing(false); }
+        }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '52px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
+          background: 'var(--bg)', border: '1px solid var(--line-strong)',
+          borderRadius: '4px', padding: '1px 6px', color: 'var(--text)',
+          outline: 'none',
+        }}
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+      style={{
+        background: days ? 'rgba(96, 149, 237, 0.12)' : 'var(--bg-hover)',
+        color: days ? '#6095ed' : 'var(--text-faint)',
+        borderRadius: '4px', padding: '1px 7px',
+        fontSize: '0.7rem', border: '1px solid ' + (days ? 'rgba(96, 149, 237, 0.3)' : 'var(--line)'),
+        fontFamily: 'var(--font-mono)', cursor: 'pointer', userSelect: 'none',
+        transition: 'all 0.1s', outline: 'none',
+      }}
+      title="Повторяемость (дни)"
+    >🔁 {days ? `${days}d` : 'off'}</button>
+  );
+}
+
 interface NoteCardProps {
   note: any;
   virtualItem: any;
@@ -217,6 +266,7 @@ export const NoteCard = React.memo(function NoteCard({
   const [type, setType]         = useState<string>(props.type || 'sheaf');
   const [targetDate, setDate]   = useState<string>(props.date || '');
   const [completedAt, setCompletedAt] = useState<string>(props.completed_at || '');
+  const [recurrence, setRecurrence] = useState<string>(props.recurrence || '');
 
   // Synchronize state with props when data changes
   React.useEffect(() => {
@@ -227,12 +277,13 @@ export const NoteCard = React.memo(function NoteCard({
       setType(p.type || 'sheaf');
       setDate(p.date || '');
       setCompletedAt(p.completed_at || '');
+      setRecurrence(p.recurrence || '');
     } catch { /* */ }
   }, [note.properties, decrypt]);
 
   // Save a single prop change to DB immediately
   const saveProp = useCallback(async (key: string, val: string) => {
-    const current = { ...props, status, type, date: targetDate, [key]: val };
+    const current = { ...props, status, type, date: targetDate, recurrence, [key]: val };
     // Track when a note is marked as done
     if (key === 'status' && val === 'done') {
       const today = new Date();
@@ -244,10 +295,27 @@ export const NoteCard = React.memo(function NoteCard({
       `UPDATE notes SET properties = ?, updated_at = ? WHERE id = ?`,
       [encrypt(JSON.stringify(current)), Date.now(), note.id]
     );
-  }, [db, encrypt, note.id, props, status, type, targetDate]);
 
-  const handleStatus = (v: string) => { setStatus(v); saveProp('status', v); };
-  const handleDate   = (v: string) => { setDate(v);   saveProp('date', v); };
+    // Recurring task: create next instance when marked done
+    const rec = current.recurrence;
+    if (key === 'status' && val === 'done' && rec) {
+      const days = parseInt(rec) || 1;
+      const next = new Date();
+      next.setDate(next.getDate() + days);
+      const nextDate = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+      const nextProps = { status: 'todo', type: current.type, recurrence: rec, date: nextDate };
+      const now = Date.now();
+      const newId = 'note-' + Math.random().toString(36).substring(2, 9);
+      await db.exec(
+        `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+        [newId, note.parent_id, note.author_id, encrypt(note.content), now.toString(), encrypt(JSON.stringify(nextProps)), note.feed_id, now, now]
+      );
+    }
+  }, [db, encrypt, note, props, status, type, targetDate, recurrence]);
+
+  const handleStatus     = (v: string) => { setStatus(v); saveProp('status', v); };
+  const handleDate       = (v: string) => { setDate(v);   saveProp('date', v); };
+  const handleRecurrence = (v: string) => { setRecurrence(v); saveProp('recurrence', v); };
 
   // ── Touch gestures: swipe-to-reply + long-press context menu ───────
   const touchStartX = useRef(0);
@@ -483,6 +551,9 @@ export const NoteCard = React.memo(function NoteCard({
                 >
                   {status !== 'none' && (
                     <PropChip value={status} options={STATUSES} onChange={handleStatus} />
+                  )}
+                  {status !== 'none' && (
+                    <RecurrenceChip value={recurrence} onChange={handleRecurrence} />
                   )}
                   {targetDate && (
                     <DateChip value={targetDate} onChange={handleDate} />
