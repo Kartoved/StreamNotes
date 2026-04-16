@@ -58,7 +58,10 @@
       "Bash(echo \"EXIT:$?\")",
       "Read(//c/Users/karto/.claude/skills/andrej-karpathy-skills/skills/karpathy-guidelines/**)",
       "Bash(cp -r ~/.claude/skills/andrej-karpathy-skills/skills/karpathy-guidelines ~/.claude/skills/karpathy-guidelines)",
-      "Read(//c/Users/karto/.claude/skills/**)"
+      "Read(//c/Users/karto/.claude/skills/**)",
+      "Bash(grep -c \"TODO\\\\|FIXME\\\\|XXX\\\\|HACK\" src/**/*.tsx src/**/*.ts)",
+      "Bash(rm src/components/CustomDropdowns.tsx)",
+      "Bash(rm -rf src/workers/)"
     ]
   }
 }
