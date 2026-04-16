@@ -434,8 +434,19 @@ export const NoteCard = React.memo(function NoteCard({
               </span>
             )}
             <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
-              {new Date(note.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {(() => {
+                const d = new Date(note.created_at);
+                const yy = String(d.getFullYear()).slice(2);
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const hh = String(d.getHours()).padStart(2, '0');
+                const min = String(d.getMinutes()).padStart(2, '0');
+                return `${yy}/${mm}/${dd} ${hh}:${min}`;
+              })()}
             </span>
+            {!!note.is_pinned && (
+              <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-faint)' }} title="Закреплено">📌</span>
+            )}
           </div>
 
           {/* DIVIDER */}

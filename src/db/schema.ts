@@ -23,7 +23,8 @@ export const schema = [
     feed_id TEXT DEFAULT NULL,
     created_at INTEGER DEFAULT 0,
     updated_at INTEGER DEFAULT 0,
-    is_deleted BOOLEAN DEFAULT 0
+    is_deleted BOOLEAN DEFAULT 0,
+    is_pinned INTEGER DEFAULT 0
   );`,
   `CREATE INDEX IF NOT EXISTS idx_notes_parent_sort ON notes(parent_id, sort_key);`,
   `CREATE INDEX IF NOT EXISTS idx_notes_feed ON notes(feed_id);`,
@@ -71,4 +72,6 @@ export const migrations = [
   `ALTER TABLE feeds ADD COLUMN is_shared BOOLEAN DEFAULT 0;`,
   // v3: Feed archiving
   `ALTER TABLE feeds ADD COLUMN is_archived BOOLEAN DEFAULT 0;`,
+  // v4: Pinned notes
+  `ALTER TABLE notes ADD COLUMN is_pinned INTEGER DEFAULT 0;`,
 ];

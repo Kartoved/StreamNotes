@@ -15,6 +15,7 @@ export interface Note {
   created_at: number;
   updated_at: number;
   is_deleted: number;
+  is_pinned: number;
   depth: number;
 }
 
@@ -90,47 +91,47 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
       if (parentId) {
         query = `WITH RECURSIVE
             thread_tree AS (
-              SELECT *, 0 as depth, created_at as root_created_at, sort_key as path_str
+              SELECT *, 0 as depth, created_at as root_created_at, sort_key as path_str, is_pinned as root_is_pinned
               FROM notes
               WHERE id = ? AND is_deleted = 0
               UNION ALL
-              SELECT n.*, tt.depth + 1, tt.root_created_at, tt.path_str || '/' || n.sort_key
+              SELECT n.*, tt.depth + 1, tt.root_created_at, tt.path_str || '/' || n.sort_key, tt.root_is_pinned
               FROM notes n
               JOIN thread_tree tt ON n.parent_id = tt.id
               WHERE n.is_deleted = 0
             )
           SELECT * FROM thread_tree
-          ORDER BY root_created_at DESC, path_str ASC;`;
+          ORDER BY root_is_pinned DESC, root_created_at DESC, path_str ASC;`;
         params = [parentId];
       } else if (feedId) {
         query = `WITH RECURSIVE
             thread_tree AS (
-              SELECT *, 0 as depth, created_at as root_created_at, sort_key as path_str
+              SELECT *, 0 as depth, created_at as root_created_at, sort_key as path_str, is_pinned as root_is_pinned
               FROM notes
               WHERE parent_id IS NULL AND is_deleted = 0 AND feed_id = ?
               UNION ALL
-              SELECT n.*, tt.depth + 1, tt.root_created_at, tt.path_str || '/' || n.sort_key
+              SELECT n.*, tt.depth + 1, tt.root_created_at, tt.path_str || '/' || n.sort_key, tt.root_is_pinned
               FROM notes n
               JOIN thread_tree tt ON n.parent_id = tt.id
               WHERE n.is_deleted = 0
             )
           SELECT * FROM thread_tree
-          ORDER BY root_created_at DESC, path_str ASC;`;
+          ORDER BY root_is_pinned DESC, root_created_at DESC, path_str ASC;`;
         params = [feedId];
       } else {
         query = `WITH RECURSIVE
             thread_tree AS (
-              SELECT *, 0 as depth, created_at as root_created_at, sort_key as path_str
+              SELECT *, 0 as depth, created_at as root_created_at, sort_key as path_str, is_pinned as root_is_pinned
               FROM notes
               WHERE parent_id IS NULL AND is_deleted = 0
               UNION ALL
-              SELECT n.*, tt.depth + 1, tt.root_created_at, tt.path_str || '/' || n.sort_key
+              SELECT n.*, tt.depth + 1, tt.root_created_at, tt.path_str || '/' || n.sort_key, tt.root_is_pinned
               FROM notes n
               JOIN thread_tree tt ON n.parent_id = tt.id
               WHERE n.is_deleted = 0
             )
           SELECT * FROM thread_tree
-          ORDER BY root_created_at DESC, path_str ASC;`;
+          ORDER BY root_is_pinned DESC, root_created_at DESC, path_str ASC;`;
         params = [];
       }
 

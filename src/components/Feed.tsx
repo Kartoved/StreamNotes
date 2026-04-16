@@ -423,14 +423,22 @@ export const Feed = ({
     return result;
   }, [filteredNotes, parsedCache, collapsedIds, sortMode, groupMode]);
 
-  const [scrollOffset, setScrollOffset] = React.useState(0);
+  const [showScrollTop, setShowScrollTop] = React.useState(false);
   const virtualizer = useVirtualizer({
     count: visibleNotes.length,
     getScrollElement: () => document.querySelector('.main-content'),
     estimateSize: (i) => visibleNotes[i]?.type === 'header' ? 32 : 100,
     overscan: window.innerWidth <= 640 ? 3 : 5,
-    onChange: (instance) => setScrollOffset(instance.scrollOffset ?? 0),
   });
+
+  // Attach scroll listener via virtualizer's own scrollElement
+  React.useEffect(() => {
+    const el = virtualizer.scrollElement as HTMLElement | null;
+    if (!el) return;
+    const handler = () => setShowScrollTop(el.scrollTop > 300);
+    el.addEventListener('scroll', handler, { passive: true });
+    return () => el.removeEventListener('scroll', handler);
+  }, [virtualizer.scrollElement]);
 
   // Reset scroll to top whenever a filter changes so the virtualizer
   // doesn't start mid-list with a stale offset
@@ -438,8 +446,6 @@ export const Feed = ({
     document.querySelector('.main-content')?.scrollTo({ top: 0 });
     virtualizer.scrollToOffset(0);
   }, [searchQuery, selectedDate, statusFilter, selectedTags]);
-
-  const showScrollTop = scrollOffset > 300;
 
   const scrollToTop = () => {
     document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -598,6 +604,7 @@ export const Feed = ({
                   }
                   closeContextMenu();
                 }},
+                ...(canWrite ? [null as null, { label: ctxNote?.is_pinned ? '📌 Открепить' : '📌 Закрепить', action: async () => { await db.exec(`UPDATE notes SET is_pinned = ? WHERE id = ?`, [ctxNote?.is_pinned ? 0 : 1, contextMenu.noteId]); closeContextMenu(); } }] : []),
                 ...(onStartPomodoro ? [null as null, { label: '🍅 Запустить помидор', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
                 ...(userCanDelete ? [null as null, { label: '🗑 Удалить', action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true }] : []),
               ];
