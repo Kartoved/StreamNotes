@@ -308,7 +308,7 @@ export const NoteCard = React.memo(function NoteCard({
       const newId = 'note-' + Math.random().toString(36).substring(2, 9);
       await db.exec(
         `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-        [newId, note.parent_id, note.author_id, encrypt(note.content), now.toString(), encrypt(JSON.stringify(nextProps)), note.feed_id, now, now]
+        [newId, null, note.author_id, encrypt(note.content), now.toString(), encrypt(JSON.stringify(nextProps)), note.feed_id, now, now]
       );
     }
   }, [db, encrypt, note, props, status, type, targetDate, recurrence]);
@@ -552,7 +552,7 @@ export const NoteCard = React.memo(function NoteCard({
                   {status !== 'none' && (
                     <PropChip value={status} options={STATUSES} onChange={handleStatus} />
                   )}
-                  {status !== 'none' && (
+                  {status !== 'none' && !!recurrence && (
                     <RecurrenceChip value={recurrence} onChange={handleRecurrence} />
                   )}
                   {targetDate && (
