@@ -437,15 +437,7 @@ export const Feed = ({
     virtualizer.scrollToOffset(0);
   }, [searchQuery, selectedDate, statusFilter, selectedTags]);
 
-  // Track scroll position to show/hide "scroll to top" button
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  React.useEffect(() => {
-    const el = document.querySelector('.main-content');
-    if (!el) return;
-    const onScroll = () => setShowScrollTop(el.scrollTop > 300);
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-  }, []);
+  const showScrollTop = (virtualizer.scrollOffset ?? 0) > 300;
 
   const scrollToTop = () => {
     document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
