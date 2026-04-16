@@ -9,6 +9,7 @@ import { THEMES, type ThemeId } from '../themes';
 interface Props {
   onClose: () => void;
   onExport: () => void;
+  onExportMD: () => void;
   onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
   font: string;
   setFont: (f: string) => void;
@@ -18,7 +19,7 @@ interface Props {
   onSetNickname?: (name: string) => void;
 }
 
-export default function SettingsModal({ onClose, onExport, onImport, font, setFont, fontOptions, theme, setTheme, onSetNickname }: Props) {
+export default function SettingsModal({ onClose, onExport, onExportMD, onImport, font, setFont, fontOptions, theme, setTheme, onSetNickname }: Props) {
   const { nostrPubKey, logout, nickname, setNickname: setNicknameCrypto, enableBiometric, disableBiometric, biometricEnrolled } = useCrypto();
   const setNickname = onSetNickname ?? setNicknameCrypto;
   const [showPasswordInput, setShowPasswordInput] = useState(false);
@@ -370,11 +371,12 @@ export default function SettingsModal({ onClose, onExport, onImport, font, setFo
         <div>
           <span style={labelStyle}>Утилиты</span>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button onClick={onExport} style={btn}>↑ Экспорт данных</button>
+            <button onClick={onExport} style={btn}>↑ JSON Бэкап</button>
             <label style={{ ...btn, display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
               ↓ Импорт
               <input type="file" accept=".json" style={{ display: 'none' }} onChange={onImport} />
             </label>
+            <button onClick={onExportMD} style={btn}>Markdown (.zip)</button>
             <button 
               onClick={() => { logout(); onClose(); }}
               style={{ ...btn, color: '#f87171', borderColor: '#f87171' }}

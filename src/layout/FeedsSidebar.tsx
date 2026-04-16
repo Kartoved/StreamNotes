@@ -165,6 +165,7 @@ export const FeedsSidebar = ({
   onImportSharedFeed,
   onShareFeed,
   onArchiveFeed,
+  onExportFeedMD,
 }: {
   feeds: FeedData[];
   activeFeedId: string | null;
@@ -175,6 +176,7 @@ export const FeedsSidebar = ({
   onImportSharedFeed?: (payload: { flow_id: string; fek: string; name: string; relay?: string; role?: string; author_npub?: string; notes?: any[]; links?: any[] }) => void;
   onShareFeed?: (id: string) => Promise<{ notes: any[]; links: any[] } | null>;
   onArchiveFeed?: (id: string, archived: boolean) => void;
+  onExportFeedMD?: (id: string, name: string) => void;
 }) => {
   const { decryptFeedKey, nostrPubKey, nostrPrivKey } = useCrypto();
   const [modal, setModal] = useState<'create' | 'share' | 'import' | FeedData | null>(null);
@@ -736,6 +738,14 @@ export const FeedsSidebar = ({
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line-strong)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; }}
                     >Поделиться</button>
+                  )}
+                  {onExportFeedMD && (
+                    <button
+                      onClick={() => { onExportFeedMD(modal.id, modal.name); setModal(null); }}
+                      style={{ flex: 1, background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: '8px', padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)', transition: 'all 0.12s' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line-strong)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; }}
+                    >В Markdown</button>
                   )}
                 </>
               )}

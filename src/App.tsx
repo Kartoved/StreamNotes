@@ -665,6 +665,59 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportFeedMD = async (feedId: string, feedName: string) => {
+    const { formatNotesAsMarkdown } = await import('./utils/markdownExport');
+    const rows = await db.execO(`SELECT id, parent_id, content, sort_key, created_at, feed_id FROM notes WHERE feed_id = ? AND is_deleted = 0`, [feedId]) as any[];
+    const decryptedRows = rows.map(r => ({
+      ...r,
+      content: decryptForFeed(r.content, r.feed_id),
+    }));
+    
+    // Sort slightly different than UI maybe, but formatNotesAsMarkdown handles the tree building
+    const markdown = formatNotesAsMarkdown(decryptedRows);
+    
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${feedName.replace(/[^a-z0-9а-яё]/gi, '_')}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportAllMD = async () => {
+    const JSZip = (await import('jszip')).default;
+    const { formatNotesAsMarkdown } = await import('./utils/markdownExport');
+    
+    const zip = new JSZip();
+    
+    // Get all non-deleted feeds
+    const feedRows = await db.execO(`SELECT id, name FROM feeds`) as any[];
+    for (const f of feedRows) {
+      const feedName = decrypt(f.name) || 'Unnamed';
+      const safeName = feedName.replace(/[^a-z0-9а-яё \-_]/gi, '_').trim() || f.id;
+      
+      const rows = await db.execO(`SELECT id, parent_id, content, sort_key, created_at FROM notes WHERE feed_id = ? AND is_deleted = 0`, [f.id]) as any[];
+      if (rows.length === 0) continue;
+
+      const decryptedRows = rows.map(r => ({
+        ...r,
+        content: f.id ? decryptForFeed(r.content, f.id) : decrypt(r.content), // Fallback
+      }));
+
+      const markdown = formatNotesAsMarkdown(decryptedRows);
+      zip.file(`${safeName}.md`, markdown);
+    }
+
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sheafy-markdown-export-${new Date().toISOString().slice(0, 10)}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -757,6 +810,7 @@ function App() {
         onImportSharedFeed={handleImportSharedFeed}
         onShareFeed={handleShareFeed}
         onArchiveFeed={handleArchiveFeed}
+        onExportFeedMD={handleExportFeedMD}
       />
 
       {/* ── Dashboard panel ── */}
@@ -840,6 +894,7 @@ function App() {
             theme={theme}
             setTheme={handleSetTheme}
             onSetNickname={handleSetNickname}
+            onExportMD={handleExportAllMD}
           />
         )}
 
@@ -1013,6 +1068,7 @@ function App() {
             onImportSharedFeed={handleImportSharedFeed}
             onShareFeed={handleShareFeed}
             onArchiveFeed={handleArchiveFeed}
+            onExportFeedMD={handleExportFeedMD}
               />
         </div>
       )}
