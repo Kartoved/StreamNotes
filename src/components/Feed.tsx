@@ -54,10 +54,14 @@ const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['sheaf', 'task', 'document'];
 
 // Extract plain text from TipTap JSON for search
-function extractPlainText(content: string): string {
+function extractPlainText(content: string, skipCode = false): string {
   try {
     const doc = JSON.parse(content);
     const getText = (node: any): string => {
+      if (skipCode) {
+        if (node.type === 'codeBlock') return '';
+        if (node.marks?.some((m: any) => m.type === 'code')) return '';
+      }
       if (node.type === 'text') return node.text || '';
       return (node.content || []).map(getText).join(' ');
     };
@@ -69,7 +73,7 @@ function extractPlainText(content: string): string {
 
 // Extract #tags from note plain text
 function extractTags(content: string): string[] {
-  const text = extractPlainText(content);
+  const text = extractPlainText(content, true);
   const matches = text.match(/#[\w\u0400-\u04FF][\w\u0400-\u04FF0-9_]*/gi) || [];
   return [...new Set(matches.map((t: string) => t.toLocaleLowerCase()))];
 }
