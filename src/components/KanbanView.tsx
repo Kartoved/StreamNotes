@@ -22,11 +22,8 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
 
-  // Only root notes with a relevant status
-  const rootNotes = notes.filter(n => !n.parent_id);
-
   const byStatus = (status: string) =>
-    rootNotes.filter(n => (parsedCache.get(n.id)?.props.status || 'none') === status);
+    notes.filter(n => (parsedCache.get(n.id)?.props.status || 'none') === status);
 
   const handleDrop = async (targetStatus: string) => {
     if (!dragId || !canWrite) return;

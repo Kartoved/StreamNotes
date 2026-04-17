@@ -10,6 +10,7 @@ import { TiptapRender } from '../editor/TiptapViewer';
 import { BacklinksSection } from './BacklinksSection';
 import { NoteModal } from './NoteModal';
 import { NoteCard } from './NoteCard';
+import { KanbanView } from './KanbanView';
 
 /**
  * Returns a sort_key lexicographically between `after` and `before`.
@@ -127,6 +128,7 @@ export const Feed = ({
 
   const [sortMode, setSortMode] = useState<'default' | 'date' | 'status' | 'created'>('default');
   const [groupMode, setGroupMode] = useState<'none' | 'date' | 'status'>('none');
+  const [viewMode, setViewMode] = useState<'feed' | 'kanban'>('feed');
 
   // ── Touch drag-and-drop (mobile) ─────────────────────────────────
   const touchDragId = useRef<string | null>(null);
@@ -660,6 +662,38 @@ export const Feed = ({
         </div>
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* View mode toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-hover)', borderRadius: 'var(--radius)', padding: '2px', border: '1px solid var(--line)' }}>
+            {[
+              { id: 'feed', label: 'Лента', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg> },
+              { id: 'kanban', label: 'Канбан', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg> },
+            ].map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => setViewMode(opt.id as any)}
+                title={`Вид: ${opt.label}`}
+                style={{
+                  background: viewMode === opt.id ? 'var(--bg)' : 'transparent',
+                  color: viewMode === opt.id ? 'var(--text)' : 'var(--text-faint)',
+                  border: 'none',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '0.7rem',
+                  fontWeight: viewMode === opt.id ? 600 : 400,
+                  boxShadow: viewMode === opt.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  transition: 'all 0.1s'
+                }}
+              >
+                {opt.icon}
+                <span className="feed-toolbar-label">{opt.label}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Grouping */}
           <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-hover)', borderRadius: 'var(--radius)', padding: '2px', border: '1px solid var(--line)' }}>
              {[
@@ -719,7 +753,16 @@ export const Feed = ({
         </div>
       </div>
 
-      {filteredNotes.length === 0 ? (
+      {viewMode === 'kanban' ? (
+        <KanbanView
+          notes={filteredNotes}
+          parsedCache={parsedCache}
+          db={db}
+          feedEncrypt={feedEncrypt}
+          onNoteClick={onNoteClick}
+          canWrite={canWrite}
+        />
+      ) : filteredNotes.length === 0 ? (
         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Ничего не найдено</div>
       ) : (
         <div ref={parentRef} className="feed-container">
