@@ -176,7 +176,7 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
       const parts = node.text.split(hashtagRegex);
       const matches = node.text.match(hashtagRegex) || [];
       const combined: React.ReactNode[] = [];
-      parts.forEach((part, i) => {
+      parts.forEach((part: string, i: number) => {
         combined.push(part);
         if (matches[i]) {
           combined.push(
