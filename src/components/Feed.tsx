@@ -430,11 +430,20 @@ export const Feed = ({
   }, [filteredNotes, parsedCache, collapsedIds, sortMode, groupMode]);
 
   const [showScrollTop, setShowScrollTop] = React.useState(false);
+  const scrollElRef = useRef<HTMLElement | null>(null);
   const virtualizer = useVirtualizer({
     count: visibleNotes.length,
-    getScrollElement: () => document.querySelector('.main-content'),
-    estimateSize: (i) => visibleNotes[i]?.type === 'header' ? 32 : 100,
-    overscan: window.innerWidth <= 640 ? 3 : 5,
+    getScrollElement: () => {
+      if (!scrollElRef.current && typeof document !== 'undefined') {
+        scrollElRef.current = document.querySelector('.main-content');
+      }
+      return scrollElRef.current;
+    },
+    estimateSize: (i) => {
+      if (visibleNotes[i]?.type === 'header') return 32;
+      return typeof window !== 'undefined' && window.innerWidth <= 640 ? 140 : 100;
+    },
+    overscan: typeof window !== 'undefined' && window.innerWidth <= 640 ? 3 : 5,
   });
 
   // Attach scroll listener via virtualizer's own scrollElement
@@ -545,7 +554,7 @@ export const Feed = ({
   }
 
   const ConfirmModal = ({ text, onConfirm, onCancel }: { text: string; onConfirm: () => void; onCancel: () => void }) => (
-    <div onClick={onCancel} style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div onClick={onCancel} style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}>
       <div onClick={e => e.stopPropagation()} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '300px', backdropFilter: 'blur(12px)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ fontSize: '0.95rem', color: 'var(--text-main)', lineHeight: 1.5 }}>{text}</div>
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -580,7 +589,7 @@ export const Feed = ({
             onClick={(e) => e.stopPropagation()}
             style={{
               position: 'fixed',
-              top: Math.min(contextMenu.y, window.innerHeight - 300),
+              top: `min(${contextMenu.y}px, calc(100dvh - 300px - env(safe-area-inset-bottom, 0px)))`,
               left: Math.min(contextMenu.x, window.innerWidth - 200),
               background: 'var(--card-bg)',
               backdropFilter: 'blur(16px)',

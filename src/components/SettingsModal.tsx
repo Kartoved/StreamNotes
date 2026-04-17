@@ -97,7 +97,10 @@ export default function SettingsModal({ onClose, onExport, onExportMD, onImport,
     position: 'fixed', inset: 0, zIndex: 5000,
     background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: '1rem',
+    paddingTop: 'max(1rem, env(safe-area-inset-top, 0px))',
+    paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
+    paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
+    paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
   };
 
   const card: React.CSSProperties = {

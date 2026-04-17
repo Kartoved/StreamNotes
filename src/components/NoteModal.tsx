@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 import { TweetEditor } from './TiptapEditor';
+import { safeAreaPadding } from '../layout/safeArea';
 
 export const NoteModal = ({ noteId, onClose }: { noteId: string; onClose: () => void }) => {
   const db = useDB();
@@ -37,8 +38,8 @@ export const NoteModal = ({ noteId, onClose }: { noteId: string; onClose: () => 
   };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <div onClick={e => e.stopPropagation()} style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', height: '100%', overflow: 'hidden' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'var(--bg)', display: 'flex', flexDirection: 'column', height: 'var(--vvh, 100dvh)', ...safeAreaPadding }}>
+      <div onClick={e => e.stopPropagation()} style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', minHeight: 0, overflow: 'hidden' }}>
         <TweetEditor
           placeholder="Редактировать..."
           initialAst={dec(note.content)}

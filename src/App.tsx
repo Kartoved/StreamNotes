@@ -21,6 +21,22 @@ import './index.css';
 // ─── Helpers ──────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).substring(2, 9);
 
+// Re-renders on breakpoint change so orientation/resize doesn't leave the
+// mobile tab UI desynced.
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 640px)').matches : false
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 640px)');
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return isMobile;
+}
+
 
 
 // ─── App ──────────────────────────────────────────────────────────────
@@ -32,6 +48,10 @@ function App() {
   useCryptoRef.current = crypto;
   const [showSettings, setShowSettings] = useState(false);
   const [lightboxEntry, setLightboxEntry] = useState<{ url: string; name: string } | null>(null);
+
+  const isMobile = useIsMobile();
+  const isMobileRef = useRef(isMobile);
+  isMobileRef.current = isMobile;
 
   // ── Mobile tab navigation ─────────────────────────────────────────
   const [mobileTab, setMobileTab] = useState<'dashboard' | 'feed' | 'calendar'>('feed');
@@ -49,14 +69,14 @@ function App() {
     setMobileTab(tab);
     setMobileFeedsOpen(false);
     setMobileSearchOpen(false);
-    if (window.innerWidth <= 640 && !handlingPopState.current) {
+    if (isMobileRef.current && !handlingPopState.current) {
       try { history.pushState({ mobileTab: tab }, ''); } catch {}
     }
   }, []);
 
   // Seed initial history state + listen for back gesture
   useEffect(() => {
-    if (window.innerWidth > 640) return;
+    if (!isMobileRef.current) return;
     // Seed two entries so the first real back gesture doesn't fall out of the app.
     // replaceState replaces the current entry; then we push one buffer entry on top
     // so Android can fire one gratuitous popstate before reaching our app-managed state.
@@ -66,7 +86,7 @@ function App() {
     } catch {}
 
     const onPop = (e: PopStateEvent) => {
-      if (window.innerWidth > 640) return;
+      if (!isMobileRef.current) return;
       handlingPopState.current = true;
       // Fullscreen editor: back gesture closes it, stays on current tab
       if (fullscreenDraftRef.current) {
@@ -280,6 +300,25 @@ function App() {
     };
     document.addEventListener('visibilitychange', onVisChange);
     return () => document.removeEventListener('visibilitychange', onVisChange);
+  }, []);
+
+  // ── iOS virtual keyboard: publish visual-viewport height as --vvh ──
+  // Zen editor & modals use `height: var(--vvh, 100dvh)` so the keyboard
+  // doesn't overlap the input area.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      document.documentElement.style.setProperty('--vvh', `${vv.height}px`);
+      document.documentElement.style.setProperty('--vv-offset', `${vv.offsetTop}px`);
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
   }, []);
 
   // Auto-create default feed on very first load (wait for sync to try first)
@@ -563,8 +602,6 @@ function App() {
     openFullscreenDraft({ ast, propsJson, onSubmit });
   };
 
-  const isMobile = () => window.innerWidth <= 640;
-
   // ── Sidebar filters ────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
@@ -790,7 +827,7 @@ function App() {
         touchStartY.current = e.touches[0].clientY;
       }}
       onTouchEnd={(e) => {
-        if (window.innerWidth > 640) return;
+        if (!isMobileRef.current) return;
         const dx = e.changedTouches[0].clientX - touchStartX.current;
         const dy = e.changedTouches[0].clientY - touchStartY.current;
         const target = e.target as Element;
@@ -816,7 +853,7 @@ function App() {
       <FeedsSidebar
         feeds={feeds}
         activeFeedId={activeFeedId}
-        onSelect={id => { setActiveFeedId(id); setFocusedTweetId(null); setReplyingToTweetId(null); if (window.innerWidth <= 640) navigateTab('feed'); }}
+        onSelect={id => { setActiveFeedId(id); setFocusedTweetId(null); setReplyingToTweetId(null); if (isMobileRef.current) navigateTab('feed'); }}
         onCreateFeed={handleCreateFeed}
         onUpdateFeed={handleUpdateFeed}
         onDeleteFeed={handleDeleteFeed}
@@ -998,7 +1035,7 @@ function App() {
             replyingToId={replyingToTweetId}
             editingNote={editingTweet}
             onStartReply={(id) => {
-              if (isMobile()) {
+              if (isMobile) {
                 openFullscreenDraft({ ast: '', propsJson: '{}', onSubmit: (ast, pj) => handleInlineReply(id, ast, pj) });
               } else {
                 setReplyingToTweetId(id);
@@ -1007,7 +1044,7 @@ function App() {
             onCancelReply={() => setReplyingToTweetId(null)}
             onSubmitReply={handleInlineReply}
             onStartEdit={(note) => {
-              if (isMobile()) {
+              if (isMobile) {
                 openFullscreenDraft({ ast: note.content, propsJson: note.properties, onSubmit: (ast, pj) => handleEditSubmit(note.id, ast, pj) });
               } else {
                 setEditingTweet(note);

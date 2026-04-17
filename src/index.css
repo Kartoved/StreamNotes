@@ -247,14 +247,21 @@
 /* ── Reset & Base ─────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
 html, body, #root {
   height: 100%;
   overflow: hidden;
+  overscroll-behavior-y: none;
 }
 
-/* dvh fallback: 100vh doesn't account for Safari's collapsing address bar */
+/* dvh fallback: 100vh doesn't account for Safari's collapsing address bar.
+   svh is the absolute fallback for iOS < 15.4; dvh takes precedence where supported. */
 .app-root {
-  height: 100vh;
+  height: 100svh;
   height: 100dvh;
 }
 
@@ -324,6 +331,7 @@ body {
 /* ── Note card hover elevation ────────────────────────────────────── */
 .note-card-inner {
   transition: box-shadow 0.15s ease, transform 0.15s ease;
+  touch-action: pan-y;
 }
 .note-card-inner:hover {
   box-shadow: 0 4px 16px rgba(15, 15, 15, 0.09), 0 1px 4px rgba(15, 15, 15, 0.05);
@@ -331,6 +339,11 @@ body {
 }
 [data-theme="dark"] .note-card-inner:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Remove 300ms tap delay on chips, buttons and the mobile FAB. */
+.prop-chip, .date-chip, .mobile-fab, .mobile-tab-btn, .scroll-to-top-btn {
+  touch-action: manipulation;
 }
 
 
@@ -408,6 +421,14 @@ body {
   .main-content {
     padding: 0.5rem 0.75rem !important;
     padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    overscroll-behavior: contain;
+  }
+  /* Lock scroll-parent height so the virtualizer can measure without
+     thrashing when iOS Safari's address bar collapses. */
+  [data-mobile-tab="feed"] .main-content {
+    height: calc(100dvh - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* ── App header compact ── */
@@ -499,6 +520,7 @@ body {
     flex-direction: column !important;
     border-right: none !important;
     overflow-y: auto !important;
+    overscroll-behavior: contain;
 
     z-index: 10;
     padding: 20px 20px 16px !important;
@@ -515,6 +537,7 @@ body {
     background: var(--bg);
     z-index: 200;
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .mobile-feeds-overlay .feeds-sidebar {
     display: flex !important;
@@ -562,6 +585,7 @@ body {
     width: 100% !important;
     padding: 20px 20px 16px !important;
     overflow-y: auto !important;
+    overscroll-behavior: contain;
 
     border: none !important;
     z-index: 10;

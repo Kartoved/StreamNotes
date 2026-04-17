@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { safeAreaPadding } from '../../layout/safeArea';
 
 export const Lightbox = ({ url, name, onClose }: { url: string; name: string; onClose: () => void }) => {
   useEffect(() => {
@@ -15,6 +16,7 @@ export const Lightbox = ({ url, name, onClose }: { url: string; name: string; on
         background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'zoom-out',
+        ...safeAreaPadding,
       }}
     >
       <img
@@ -30,7 +32,9 @@ export const Lightbox = ({ url, name, onClose }: { url: string; name: string; on
       <button
         onClick={onClose}
         style={{
-          position: 'fixed', top: '24px', right: '24px',
+          position: 'fixed',
+          top: 'calc(24px + env(safe-area-inset-top, 0px))',
+          right: 'calc(24px + env(safe-area-inset-right, 0px))',
           background: 'rgba(255,255,255,0.2)', border: 'none',
           color: 'white', fontSize: '24px', width: '44px', height: '44px',
           borderRadius: '50%', cursor: 'pointer', lineHeight: '44px',

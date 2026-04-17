@@ -18,6 +18,7 @@ import { createBacklinkExtension, BacklinkSuggestionCallbacks } from '../editor/
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 import { HashtagHighlighter } from '../editor/extensions/HashtagHighlighter';
+import { safeAreaPadding } from '../layout/safeArea';
 
 // ─── SVG Icon primitives ──────────────────────────────────────────────
 const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
@@ -560,6 +561,8 @@ export const TweetEditor = ({
       fontFamily: 'var(--font-body)',
       fontSize: '1.1rem',
       lineHeight: 1.8,
+      height: 'var(--vvh, 100dvh)',
+      ...safeAreaPadding,
     } : {
       position: 'relative',
       border: '1px solid var(--line)',
