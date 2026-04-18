@@ -81,8 +81,15 @@ const feedDecrypt = (text) => feedId ? decryptForFeed(text, feedId) : decrypt(te
 - Поиск, фильтрация по тегам и дате (вычисляется через `extractPlainText` / `extractTags`).
 - Context menu (правая кнопка мыши): ответить, редактировать, открыть, свернуть/развернуть, перейти в ветку, **🍅 Запустить помидор** (вызывает `onStartPomodoro`), удалить.
 - Bulk-операции: выбор нескольких заметок, удаление.
-- Sticky toolbar сверху: collapse/expand all + группировка (Дерево/Статусы/Даты) + сортировка.
+- Sticky toolbar сверху: collapse/expand all + группировка (Дерево/Статусы/Даты) + сортировка + переключатель вида (Лента / Канбан).
+- `viewMode: 'feed' | 'kanban'` — локальный стейт. В канбан-режиме рендерит `KanbanView` вместо виртуализированного списка.
 - Принимает `isSharedFeed` и `localNpub` — пробрасывает в `NoteCard` для отображения `AuthorBadge`.
+
+**`src/components/KanbanView.tsx`** — канбан-доска:
+- Три колонки: TODO / DOING / DONE. Фильтрация заметок по `props.status` из `parsedCache`.
+- Колонки — `flex: 1 1 0, minWidth: 0` (равномерно делят ширину контейнера без переполнения).
+- Drag-and-drop между колонками: `onDragStart` → `onDrop` → UPDATE `properties` в SQLite (меняет `status`, при переносе в DONE добавляет `completed_at`).
+- Рендерит `KanbanCard` — карточка с заголовком, датой создания и чипами свойств.
 
 **`src/components/NoteCard.tsx`** — карточка заметки:
 - Inline-редактор (prop `editingNoteId === note.id`).
