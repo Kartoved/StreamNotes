@@ -67,7 +67,8 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             onDragLeave={() => setOverCol(null)}
             onDrop={() => handleDrop(col.id)}
             style={{
-              flex: '0 0 260px',
+              flex: '1 1 0',
+              minWidth: 0,
               display: 'flex',
               flexDirection: 'column',
               background: isOver ? 'var(--bg-active)' : 'var(--bg-hover)',
