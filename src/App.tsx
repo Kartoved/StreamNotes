@@ -6,6 +6,7 @@ import { useNotes, useFeeds, useFeedRole, rescueOrphans } from './db/hooks';
 import type { Feed as FeedData } from './db/hooks';
 import { useCrypto } from './crypto/CryptoContext';
 import { isEncrypted } from './crypto/cipher';
+import { FekMissingError } from './crypto/feedCipher';
 import { SyncEngine, seedDefaultRelays, SyncEvents } from './sync/syncEngine';
 import { RelayClient } from './sync/relayClient';
 import SettingsModal from './components/SettingsModal';
@@ -446,13 +447,24 @@ function App() {
 
   const handleDeleteFeed = useCallback(async (id: string, isShared: boolean) => {
     if (!isShared) {
-      // Author deleting their feed: Soft-delete notes first so the deletion syncs over Nostr
+      // Author deleting their feed: soft-delete notes first so the deletion
+      // syncs over Nostr. We MUST wait for flushNow() before hard delete,
+      // otherwise the soft-delete changeset can be erased from crsql_changes
+      // by the physical DELETE before the engine reads it, leaving "ghost"
+      // notes on other devices forever.
       await db.exec(`UPDATE notes SET is_deleted = 1 WHERE feed_id = ?`, [id]);
-      // Give SyncEngine 2500ms to flush the soft deletes, then hard delete locally.
-      setTimeout(async () => {
-        await db.exec(`DELETE FROM feeds WHERE id = ?`, [id]);
-        await db.exec(`DELETE FROM notes WHERE feed_id = ?`, [id]);
-      }, 2500);
+      const engine = (window as any).__syncEngine;
+      if (engine) {
+        try {
+          await engine.flushNow();
+        } catch (err) {
+          console.error('[delete-feed] flushNow failed, aborting hard delete to preserve sync state', err);
+          alert('Не удалось отправить удаление на relay. Лента оставлена на диске — попробуйте снова при стабильном соединении.');
+          return;
+        }
+      }
+      await db.exec(`DELETE FROM feeds WHERE id = ?`, [id]);
+      await db.exec(`DELETE FROM notes WHERE feed_id = ?`, [id]);
     } else {
       // Reader leaving shared feed: Hard delete immediately.
       // SyncEngine won't push hard deletes to the shared channel (can't map __crsql_del to feed_id).
@@ -640,25 +652,43 @@ function App() {
     return encrypt(text);
   }, [activeFeedId, encryptForFeed, encrypt]);
 
+  const handleFekError = (err: unknown): boolean => {
+    if (err instanceof FekMissingError) {
+      alert(`Не удалось сохранить: ключ шифрования для общей ленты не загружен.\n\nFeed: ${err.feedId}\n\nПерезагрузите приложение или проверьте invite. Ваш текст не потерян — редактор остался открытым.`);
+      return true;
+    }
+    return false;
+  };
+
   const insertRootNote = async (astText: string, propsJson: string) => {
     if (!activeFeedId) return;
     const id = 'note-' + uid();
     const now = Date.now();
-    await db.exec(
-      `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-      [id, focusedTweetId, nostrPubKey, feedEncrypt(astText), now.toString(), feedEncrypt(propsJson), activeFeedId, now, now]
-    );
+    try {
+      await db.exec(
+        `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+        [id, focusedTweetId, nostrPubKey, feedEncrypt(astText), now.toString(), feedEncrypt(propsJson), activeFeedId, now, now]
+      );
+    } catch (err) {
+      if (handleFekError(err)) throw err;
+      throw err;
+    }
   };
 
   const handleInlineReply = async (parentId: string, astText: string, propsJson: string) => {
     if (!activeFeedId) return;
     const id = 'note-' + uid();
     const now = Date.now();
-    await db.exec(
-      `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-      [id, parentId, nostrPubKey, feedEncrypt(astText), now.toString(), feedEncrypt(propsJson), activeFeedId, now, now]
-    );
-    setReplyingToTweetId(null);
+    try {
+      await db.exec(
+        `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+        [id, parentId, nostrPubKey, feedEncrypt(astText), now.toString(), feedEncrypt(propsJson), activeFeedId, now, now]
+      );
+      setReplyingToTweetId(null);
+    } catch (err) {
+      if (handleFekError(err)) return;
+      throw err;
+    }
   };
 
   const handleEditSubmit = async (noteId: string, astText: string, propsJson: string) => {
@@ -666,11 +696,16 @@ function App() {
     const rows = await db.execO(`SELECT feed_id FROM notes WHERE id = ?`, [noteId]) as any[];
     const noteFeedId = rows[0]?.feed_id || activeFeedId;
     const enc = noteFeedId ? (s: string) => encryptForFeed(s, noteFeedId) : encrypt;
-    await db.exec(
-      `UPDATE notes SET content = ?, properties = ?, updated_at = ? WHERE id = ?`,
-      [enc(astText), enc(propsJson), Date.now(), noteId]
-    );
-    setEditingTweet(null);
+    try {
+      await db.exec(
+        `UPDATE notes SET content = ?, properties = ?, updated_at = ? WHERE id = ?`,
+        [enc(astText), enc(propsJson), Date.now(), noteId]
+      );
+      setEditingTweet(null);
+    } catch (err) {
+      if (handleFekError(err)) return;
+      throw err;
+    }
   };
 
   // ── Export / Import ────────────────────────────────────────────────

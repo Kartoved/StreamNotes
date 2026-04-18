@@ -26,6 +26,7 @@ import type { DB } from '@vlcn.io/crsqlite-wasm';
 import type { Event } from 'nostr-tools/core';
 import type { RelayState } from './types';
 import { captureChanges, applyChanges, getDbVersion } from './changeset';
+import { resolveDeleteEditConflicts } from './deleteConflict';
 import { encodeEvent, decodeEvent, type KeyResolver } from './eventCodec';
 import { RelayClient } from './relayClient';
 import { SYNC_EVENT_KIND } from './types';
@@ -66,6 +67,8 @@ export class SyncEngine {
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private flushInFlight = false;
   private flushRequestedDuringPush = false;
+  /** Promise of the currently-running flush (if any). Lets flushNow() wait on it. */
+  private inFlightFlush: Promise<void> | null = null;
 
   /** Highest local db_version we've already pushed. */
   private lastPushedVersion = 0;
@@ -194,7 +197,53 @@ export class SyncEngine {
   private async flush(): Promise<void> {
     if (this.flushInFlight) return;
     this.flushInFlight = true;
+    this.inFlightFlush = (async () => {
+      try { await this._doFlush(); }
+      catch (err) { console.error('[sync] flush failed', err); }
+    })();
     try {
+      await this.inFlightFlush;
+    } finally {
+      this.flushInFlight = false;
+      this.inFlightFlush = null;
+      if (this.flushRequestedDuringPush) {
+        this.flushRequestedDuringPush = false;
+        this.scheduleFlush();
+      }
+    }
+  }
+
+  /**
+   * Force an immediate flush and wait for publish completion.
+   * Unlike `flush()`, this propagates errors to the caller — useful for
+   * "must sync before destructive local op" sequences (e.g. hard delete).
+   */
+  public async flushNow(): Promise<void> {
+    if (!this.started) throw new Error('[sync] flushNow called before start()');
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    // If a flush is already running (which swallows errors), wait for it to
+    // settle. Then run a fresh pass so any changes that arrived during it are
+    // captured, and this pass propagates errors.
+    if (this.inFlightFlush) {
+      try { await this.inFlightFlush; } catch { /* previous pass logged already */ }
+    }
+    this.flushInFlight = true;
+    try {
+      await this._doFlush();
+    } finally {
+      this.flushInFlight = false;
+      if (this.flushRequestedDuringPush) {
+        this.flushRequestedDuringPush = false;
+        this.scheduleFlush();
+      }
+    }
+  }
+
+  private async _doFlush(): Promise<void> {
+    {
       const { changeset, newVersion } = await captureChanges(this.db, this.lastPushedVersion);
       if (!changeset.rows.length) return;
 
@@ -291,14 +340,6 @@ export class SyncEngine {
         `UPDATE sync_relays SET last_db_version = ? WHERE is_active = 1`,
         [newVersion],
       );
-    } catch (err) {
-      console.error('[sync] flush failed', err);
-    } finally {
-      this.flushInFlight = false;
-      if (this.flushRequestedDuringPush) {
-        this.flushRequestedDuringPush = false;
-        this.scheduleFlush();
-      }
     }
   }
 
@@ -327,6 +368,12 @@ export class SyncEngine {
     console.log('[sync] applying', decoded.changeset.rows.length, 'rows from event', event.id.slice(0, 12));
     try {
       await applyChanges(this.db, decoded.changeset);
+      // Rescue edits that arrived after a delete: if an edit col_version
+      // beats is_deleted, restore the note (see deleteConflict.ts).
+      const touchesNotes = decoded.changeset.rows.some((r) => r.table === 'notes');
+      if (touchesNotes) {
+        await resolveDeleteEditConflicts(this.db);
+      }
       // Always update sync_relays to guarantee UI refresh, even if timestamp doesn't advance
       await this.db.exec(
         `UPDATE sync_relays SET last_event_at = MAX(last_event_at, ?) WHERE is_active = 1`,

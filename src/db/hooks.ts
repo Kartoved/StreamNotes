@@ -222,7 +222,7 @@ export function useFeedRole(feedId: string | null, myPubKey: string): FeedRole {
 
 export function useFeeds() {
   const db = useDB();
-  const { decrypt, decryptFeedKey, registerFeedKey } = useCrypto();
+  const { decrypt, decryptFeedKey, registerFeedKey, markFeedShared } = useCrypto();
   const [feeds, setFeeds] = useState<Feed[]>([]);
 
   useEffect(() => {
@@ -231,12 +231,16 @@ export function useFeeds() {
     const fetchFeeds = async () => {
       const res = await db.execO(`SELECT * FROM feeds ORDER BY created_at ASC`);
       const decrypted = (res as Feed[]).map(row => {
-        // Decrypt the FEK and register it in the in-memory cache
+        // Mark shared BEFORE attempting FEK decrypt, so a corrupt/missing key
+        // still prevents writes from silently using the master key.
+        if (row.encryption_key || row.is_shared === 1) {
+          markFeedShared(row.id);
+        }
         if (row.encryption_key) {
           try {
             const fekHex = decryptFeedKey(row.encryption_key);
             registerFeedKey(row.id, fekHex);
-          } catch { /* corrupt key — will fallback to master */ }
+          } catch { /* corrupt key — encryptForFeed will throw FekMissingError */ }
         }
         return {
           ...row,
