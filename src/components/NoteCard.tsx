@@ -90,20 +90,35 @@ export function DateChip({ value, onChange }: { value: string; onChange: (v: str
   const [editing, setEditing] = useState(false);
   if (editing) {
     return (
-      <input
-        type="date"
-        autoFocus
-        defaultValue={value}
-        onChange={e => onChange(e.target.value)}
-        onBlur={() => setEditing(false)}
-        onClick={e => e.stopPropagation()}
-        style={{
-          fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
-          background: 'var(--bg)', border: '1px solid var(--line-strong)',
-          borderRadius: '4px', padding: '1px 6px', color: 'var(--text)',
-          outline: 'none', cursor: 'pointer',
-        }}
-      />
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={e => e.stopPropagation()}>
+        <input
+          type="date"
+          autoFocus
+          defaultValue={value}
+          onChange={e => { if (e.target.value) onChange(e.target.value); }}
+          onBlur={e => {
+            // don't close if clicking the Сбросить button
+            if ((e.relatedTarget as HTMLElement)?.dataset?.clearDate) return;
+            setEditing(false);
+          }}
+          style={{
+            fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
+            background: 'var(--bg)', border: '1px solid var(--line-strong)',
+            borderRadius: '4px', padding: '1px 6px', color: 'var(--text)',
+            outline: 'none', cursor: 'pointer',
+          }}
+        />
+        <button
+          type="button"
+          data-clear-date="1"
+          onMouseDown={e => { e.preventDefault(); onChange(''); setEditing(false); }}
+          style={{
+            background: 'transparent', border: 'none', color: 'var(--text-faint)',
+            fontSize: '0.7rem', cursor: 'pointer', padding: '0 2px',
+            fontFamily: 'var(--font-body)',
+          }}
+        >Сбросить</button>
+      </span>
     );
   }
   return (
@@ -115,7 +130,7 @@ export function DateChip({ value, onChange }: { value: string; onChange: (v: str
         borderRadius: '4px', padding: '1px 7px',
         fontSize: '0.7rem', border: '1px solid var(--line)',
         fontFamily: 'var(--font-mono)', cursor: 'pointer', userSelect: 'none',
-        transition: 'all 0.1s', outline: 'none',
+        transition: 'background 0.1s', outline: 'none',
       }}
       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-active)'}
       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}

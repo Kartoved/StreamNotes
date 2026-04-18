@@ -616,7 +616,12 @@ export const TweetEditor = ({
         <select value={status} onChange={(e) => setStatus(e.target.value)} style={selStyle}>
           {STATUSES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
         </select>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...selStyle }} />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...selStyle }} />
+          {date && (
+            <button type="button" onClick={() => setDate('')} style={{ background: 'transparent', border: 'none', color: 'var(--text-faint)', fontSize: '0.78rem', cursor: 'pointer', padding: '0 2px', fontFamily: 'var(--font-body)' }}>Сбросить</button>
+          )}
+        </span>
         <RecurrenceChip value={recurrence} onChange={setRecurrence} />
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
