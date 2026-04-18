@@ -61,7 +61,10 @@
       "Read(//c/Users/karto/.claude/skills/**)",
       "Bash(grep -c \"TODO\\\\|FIXME\\\\|XXX\\\\|HACK\" src/**/*.tsx src/**/*.ts)",
       "Bash(rm src/components/CustomDropdowns.tsx)",
-      "Bash(rm -rf src/workers/)"
+      "Bash(rm -rf src/workers/)",
+      "Bash(grep -v \"^$\")",
+      "Bash(awk '{print $NF}')",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=8192\" npx vitest run src/__tests__/ui/Feed.test.tsx)"
     ]
   }
 }

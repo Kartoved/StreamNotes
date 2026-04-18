@@ -34,15 +34,13 @@ vi.mock('../../utils/opfsFiles', () => ({
   },
 }));
 
-// ── Mock Lightbox (portal-based) ───────────────────────────────────────
-vi.mock('../../editor/components/Lightbox', () => ({
-  Lightbox: ({ name, onClose }: { url: string; name: string; onClose: () => void }) => (
-    <div data-testid="lightbox">
-      <span>{name}</span>
-      <button onClick={onClose}>Close lightbox</button>
-    </div>
-  ),
-}));
+// AttachmentDisplay calls window.openLightbox(url, name) — it does NOT render
+// <Lightbox> itself. App.tsx registers the global; tests spy on it instead.
+let openLightboxSpy: ReturnType<typeof vi.fn>;
+beforeEach(() => {
+  openLightboxSpy = vi.fn();
+  (window as any).openLightbox = openLightboxSpy;
+});
 
 // ── Component under test ───────────────────────────────────────────────
 import { AttachmentDisplay } from '../../editor/TiptapViewer';
@@ -127,16 +125,17 @@ describe('AttachmentDisplay — image rendering', () => {
     await waitFor(() => expect(screen.getByRole('img')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('img'));
-    expect(screen.getByTestId('lightbox')).toBeInTheDocument();
+    expect(openLightboxSpy).toHaveBeenCalledWith(fakeUrl, 'landscape.png');
   });
 
   it('closes Lightbox when its close button is clicked', async () => {
+    // AttachmentDisplay delegates lightbox management to App via window.openLightbox.
+    // Closing is App's responsibility — verify the open call happened correctly.
     renderAttachment({ fileType: 'image', name: 'landscape.png' });
     await waitFor(() => expect(screen.getByRole('img')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('img'));
-    fireEvent.click(screen.getByText('Close lightbox'));
-    expect(screen.queryByTestId('lightbox')).not.toBeInTheDocument();
+    expect(openLightboxSpy).toHaveBeenCalledTimes(1);
   });
 
   it('switches to error state when <img> fires onError', async () => {

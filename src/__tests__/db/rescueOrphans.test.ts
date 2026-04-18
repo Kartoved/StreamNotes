@@ -17,31 +17,37 @@ function mockDB(nodes: Record<string, string | null>) {
         .filter(([, parent]) => parent !== null)
         .map(([id, parent_id]) => ({ id, parent_id }))
     ),
-    // exec: UPDATE notes SET parent_id = NULL WHERE id = ?
-    exec: vi.fn(async (_sql: string, [id]: [string]) => {
-      store[id] = null;
+    // exec: called both for cycle fixes (with [id] arg) and for the cascade
+    // cleanup CTE at the end of rescueOrphans (no second arg).
+    exec: vi.fn(async (_sql: string, args?: [string]) => {
+      if (args?.[0]) store[args[0]] = null;
     }),
     _store: store,
   };
+}
+
+/** Returns only exec calls that fixed a cycle (have a node-id argument). */
+function cycleFixes(db: ReturnType<typeof mockDB>) {
+  return (db.exec.mock.calls as any[]).filter((call) => call[1] != null);
 }
 
 describe('rescueOrphans — no cycles', () => {
   it('linear chain: A → B → C is left intact', async () => {
     const db = mockDB({ A: null, B: 'A', C: 'B' });
     await rescueOrphans(db as any);
-    expect(db.exec).not.toHaveBeenCalled();
+    expect(cycleFixes(db)).toHaveLength(0);
   });
 
   it('flat list (all roots) is left intact', async () => {
     const db = mockDB({ A: null, B: null, C: null });
     await rescueOrphans(db as any);
-    expect(db.exec).not.toHaveBeenCalled();
+    expect(cycleFixes(db)).toHaveLength(0);
   });
 
   it('deep tree (5 levels) is left intact', async () => {
     const db = mockDB({ A: null, B: 'A', C: 'B', D: 'C', E: 'D' });
     await rescueOrphans(db as any);
-    expect(db.exec).not.toHaveBeenCalled();
+    expect(cycleFixes(db)).toHaveLength(0);
   });
 
   it('multiple independent trees are left intact', async () => {
@@ -50,7 +56,7 @@ describe('rescueOrphans — no cycles', () => {
       X: null, Y: 'X', Z: 'X',
     });
     await rescueOrphans(db as any);
-    expect(db.exec).not.toHaveBeenCalled();
+    expect(cycleFixes(db)).toHaveLength(0);
   });
 });
 
@@ -118,7 +124,7 @@ describe('rescueOrphans — sync scenario', () => {
     }
     const db = mockDB(nodes);
     await expect(rescueOrphans(db as any)).resolves.toBeUndefined();
-    expect(db.exec).not.toHaveBeenCalled();
+    expect(cycleFixes(db)).toHaveLength(0);
   });
 
   it('after sync merge introducing cycle: all cycles are broken', async () => {

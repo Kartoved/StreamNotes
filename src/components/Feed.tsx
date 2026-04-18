@@ -81,6 +81,8 @@ function extractTags(content: string): string[] {
 
 
 
+const EMPTY_TAGS: Set<string> = new Set();
+
 // ─── Feed ─────────────────────────────────────────────────────────────
 export const Feed = ({
   parentId = null,
@@ -98,7 +100,7 @@ export const Feed = ({
   onCancelEdit,
   onSubmitEdit,
   searchQuery = '',
-  selectedTags = new Set(),
+  selectedTags = EMPTY_TAGS,
   selectedDate = null,
   statusFilter = null,
   onStartPomodoro,
@@ -460,7 +462,7 @@ export const Feed = ({
     document.querySelector('.main-content')?.scrollTo({ top: 0 });
     virtualizer.scrollToOffset(0);
     if (searchQuery.trim() || selectedDate || statusFilter || selectedTags.size > 0) {
-      setCollapsedIds(new Set());
+      setCollapsedIds(prev => prev.size === 0 ? prev : new Set());
     }
   }, [searchQuery, selectedDate, statusFilter, selectedTags]);
 
