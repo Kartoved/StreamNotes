@@ -19,6 +19,7 @@ import { DashboardPanel } from './layout/DashboardPanel';
 import { usePomodoro } from './hooks/usePomodoro';
 import { revokeAllUrls } from './utils/opfsFiles';
 import { ToastContainer, showToast } from './components/Toast';
+import { saveBackup, listBackups, loadBackup, deleteBackup, shouldShowBackupReminder, type BackupEntry } from './utils/autoBackup';
 import './index.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -50,6 +51,7 @@ function App() {
   const useCryptoRef = useRef(crypto);
   useCryptoRef.current = crypto;
   const [showSettings, setShowSettings] = useState(false);
+  const [backupList, setBackupList] = useState<BackupEntry[]>([]);
   const [lightboxEntry, setLightboxEntry] = useState<{ url: string; name: string } | null>(null);
 
   const isMobile = useIsMobile();
@@ -119,6 +121,22 @@ function App() {
     if (rescueDone.current) return;
     rescueDone.current = true;
     rescueOrphans(db);
+  }, [db]);
+
+  // ── Auto-backup ───────────────────────────────────────────────────
+  const autoBackupDone = useRef(false);
+  useEffect(() => {
+    if (autoBackupDone.current) return;
+    autoBackupDone.current = true;
+    listBackups().then(setBackupList);
+    if (shouldShowBackupReminder()) {
+      showToast('Нет бэкапа более 3 дней — создайте его в Настройках.', 'info');
+    }
+    const interval = setInterval(() => {
+      runAutoBackup();
+    }, 6 * 60 * 60 * 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db]);
 
   // ── Internal backlink navigation (scrollToNote — basic) ────────────
@@ -855,6 +873,84 @@ function App() {
     e.target.value = '';
   };
 
+  const buildBackupPayload = useCallback(async () => {
+    const rows = await db.execO(`SELECT * FROM notes WHERE is_deleted = 0`) as any[];
+    const decryptedRows = rows.map(r => {
+      const dec = r.feed_id ? (s: string) => decryptForFeed(s, r.feed_id) : decrypt;
+      return { ...r, content: dec(r.content), properties: dec(r.properties) };
+    });
+    const feedRows = await db.execO(`SELECT * FROM feeds`) as any[];
+    const decryptedFeeds = feedRows.map(f => ({
+      ...f,
+      name: decrypt(f.name),
+      avatar: f.avatar ? decrypt(f.avatar) : null,
+      encryption_key: null,
+    }));
+    return { version: 1, notes: decryptedRows, feeds: decryptedFeeds };
+  }, [db, decrypt, decryptForFeed]);
+
+  const runAutoBackup = useCallback(async () => {
+    try {
+      const payload = await buildBackupPayload();
+      await saveBackup(payload);
+      const updated = await listBackups();
+      setBackupList(updated);
+    } catch (err) {
+      console.error('[backup] auto-backup failed', err);
+    }
+  }, [buildBackupPayload]);
+
+  const handleCreateBackup = useCallback(async () => {
+    try {
+      const payload = await buildBackupPayload();
+      await saveBackup(payload);
+      const updated = await listBackups();
+      setBackupList(updated);
+      showToast('Бэкап создан', 'success');
+    } catch (err) {
+      showToast('Ошибка создания бэкапа: ' + String(err), 'error');
+    }
+  }, [buildBackupPayload]);
+
+  const handleRestoreBackup = useCallback(async (name: string) => {
+    if (!confirm(`Восстановить данные из бэкапа ${name}?\n\nЭто импортирует все заметки и ленты из бэкапа. Существующие данные не удаляются.`)) return;
+    try {
+      const data = await loadBackup(name) as any;
+      const notes: any[] = data.notes || [];
+      const importFeeds: any[] = data.feeds || [];
+      for (const f of importFeeds) {
+        const countRes = await db.execA(`SELECT COALESCE(MAX(key_index), -1) + 1 FROM feeds`);
+        const keyIndex = (countRes[0]?.[0] as number) ?? 0;
+        const fekHex = deriveNewFeedKey(keyIndex);
+        const encryptedFek = encryptFeedKey(fekHex);
+        await db.exec(
+          `INSERT OR IGNORE INTO feeds (id, name, color, avatar, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?,?)`,
+          [f.id, encrypt(f.name), f.color, f.avatar ? encrypt(f.avatar) : null, encryptedFek, keyIndex, f.is_shared || 0, f.created_at]
+        );
+      }
+      for (const n of notes) {
+        const noteFeedId = n.feed_id || activeFeedId;
+        const enc = noteFeedId ? (s: string) => encryptForFeed(s, noteFeedId) : encrypt;
+        await db.exec(
+          `INSERT OR IGNORE INTO notes (id, parent_id, author_id, content, sort_key, properties, view_mode, feed_id, created_at, updated_at, is_deleted) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+          [n.id, n.parent_id, n.author_id || nostrPubKey, enc(n.content), n.sort_key, enc(n.properties || '{}'), n.view_mode || 'list', noteFeedId, n.created_at, n.updated_at, n.is_deleted || 0]
+        );
+      }
+      showToast(`Восстановлено ${notes.length} заметок из бэкапа`, 'success');
+    } catch (err) {
+      showToast('Ошибка восстановления: ' + String(err), 'error');
+    }
+  }, [db, encrypt, encryptForFeed, deriveNewFeedKey, encryptFeedKey, activeFeedId, nostrPubKey]);
+
+  const handleDeleteBackup = useCallback(async (name: string) => {
+    try {
+      await deleteBackup(name);
+      setBackupList(prev => prev.filter(b => b.name !== name));
+    } catch (err) {
+      showToast('Ошибка удаления бэкапа: ' + String(err), 'error');
+    }
+  }, []);
+
   const activeFeed = feeds.find(f => f.id === activeFeedId);
   const myFeedRole = useFeedRole(activeFeedId, nostrPubKey);
 
@@ -1000,6 +1096,10 @@ function App() {
             setTheme={handleSetTheme}
             onSetNickname={handleSetNickname}
             onExportMD={handleExportAllMD}
+            backups={backupList}
+            onCreateBackup={handleCreateBackup}
+            onRestoreBackup={handleRestoreBackup}
+            onDeleteBackup={handleDeleteBackup}
           />
         )}
 

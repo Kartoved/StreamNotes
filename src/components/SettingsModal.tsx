@@ -5,6 +5,7 @@ import { validateMnemonic } from '../crypto';
 import { biometricUnsupportedReason } from '../crypto/biometric';
 import SyncRelaysPanel from './SyncRelaysPanel';
 import { THEMES, type ThemeId } from '../themes';
+import type { BackupEntry } from '../utils/autoBackup';
 
 interface Props {
   onClose: () => void;
@@ -17,9 +18,13 @@ interface Props {
   theme: ThemeId;
   setTheme: (t: ThemeId) => void;
   onSetNickname?: (name: string) => void;
+  backups?: BackupEntry[];
+  onCreateBackup?: () => void;
+  onRestoreBackup?: (name: string) => void;
+  onDeleteBackup?: (name: string) => void;
 }
 
-export default function SettingsModal({ onClose, onExport, onExportMD, onImport, font, setFont, fontOptions, theme, setTheme, onSetNickname }: Props) {
+export default function SettingsModal({ onClose, onExport, onExportMD, onImport, font, setFont, fontOptions, theme, setTheme, onSetNickname, backups = [], onCreateBackup, onRestoreBackup, onDeleteBackup }: Props) {
   const { nostrPubKey, logout, nickname, setNickname: setNicknameCrypto, enableBiometric, disableBiometric, biometricEnrolled } = useCrypto();
   const setNickname = onSetNickname ?? setNicknameCrypto;
   const [showPasswordInput, setShowPasswordInput] = useState(false);
@@ -370,6 +375,51 @@ export default function SettingsModal({ onClose, onExport, onExportMD, onImport,
           </div>
         )}
 
+        {/* Auto backup */}
+        <div style={sectionDivider}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <span style={labelStyle}>Автобэкап (OPFS)</span>
+            {onCreateBackup && (
+              <button onClick={onCreateBackup} style={btnAccent}>+ Создать сейчас</button>
+            )}
+          </div>
+          <p style={{ fontSize: '0.7rem', color: 'var(--text-faint)', margin: '0 0 10px', lineHeight: 1.5 }}>
+            Снимки хранятся локально в браузере. Последние {5} бэкапов сохраняются автоматически каждые 6 часов.
+          </p>
+          {backups.length === 0 ? (
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>Бэкапов пока нет</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {backups.map(b => (
+                <div key={b.name} style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  background: 'var(--bg)', border: '1px solid var(--line)',
+                  borderRadius: '6px', padding: '6px 10px',
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text)', fontWeight: 500 }}>
+                      {b.date.toLocaleString('ru', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)' }}>
+                      {(b.size / 1024).toFixed(1)} KB
+                    </div>
+                  </div>
+                  {onRestoreBackup && (
+                    <button onClick={() => onRestoreBackup(b.name)} style={{ ...btn, fontSize: '0.72rem', padding: '4px 10px' }}>
+                      Восстановить
+                    </button>
+                  )}
+                  {onDeleteBackup && (
+                    <button onClick={() => onDeleteBackup(b.name)} style={{ ...btn, fontSize: '0.72rem', padding: '4px 8px', color: 'var(--text-faint)', borderColor: 'transparent' }}>
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Data management */}
         <div>
           <span style={labelStyle}>Утилиты</span>
@@ -380,7 +430,7 @@ export default function SettingsModal({ onClose, onExport, onExportMD, onImport,
               <input type="file" accept=".json" style={{ display: 'none' }} onChange={onImport} />
             </label>
             <button onClick={onExportMD} style={btn}>Markdown (.zip)</button>
-            <button 
+            <button
               onClick={() => { logout(); onClose(); }}
               style={{ ...btn, color: '#f87171', borderColor: '#f87171' }}
             >
