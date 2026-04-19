@@ -1,4 +1,6 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
+import { encodeInviteLink, decodeInviteLink } from '../sharing/inviteLink';
+import { QRCodeCanvas } from '../components/QRCode';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
 import { randomBytes } from '@noble/ciphers/webcrypto';
@@ -198,6 +200,16 @@ export const FeedsSidebar = ({
   const [shareFeedId, setShareFeedId] = useState<string | null>(null);
   const [shareSnapshot, setShareSnapshot] = useState<{ notes: any[]; links: any[] } | null>(null);
 
+  // Derive shareable invite URL from the plain payload (lean — no notes/links snapshot).
+  const shareLink = useMemo(() => {
+    if (!sharePayload || sharePayload.startsWith('Загружаю') || sharePayload.startsWith('Ошибка')) return '';
+    try {
+      const data = JSON.parse(sharePayload);
+      if (!data.flow_id || !data.fek || !data.name) return '';
+      return encodeInviteLink(data, typeof window !== 'undefined' ? window.location.origin : '');
+    } catch { return ''; }
+  }, [sharePayload]);
+
   const openCreate = () => {
     setModalName(''); setModalColor(randomColor()); setModalAvatar(null); setModal('create');
   };
@@ -209,6 +221,15 @@ export const FeedsSidebar = ({
     if (!modalName.trim()) return;
 
     let trimmed = modalName.trim();
+    // Handle paste of invite URL
+    if (trimmed.includes('#i=') || trimmed.startsWith('#i=') || trimmed.startsWith('i=')) {
+      const decoded = decodeInviteLink(trimmed);
+      if (decoded) {
+        onImportSharedFeed?.(decoded);
+        setModal(null);
+        return;
+      }
+    }
     // Handle paste of encrypted invite payload
     if (trimmed.startsWith(NPUBENC_PREFIX)) {
       try { trimmed = decryptPayloadForMe(trimmed, nostrPrivKey); } catch { /* ignore */ }
@@ -304,6 +325,17 @@ export const FeedsSidebar = ({
   const handleImportSubmit = () => {
     setImportError('');
     let text = importText.trim();
+
+    // Handle invite URL / bare fragment
+    if (text.includes('#i=') || text.startsWith('#i=') || text.startsWith('i=')) {
+      const decoded = decodeInviteLink(text);
+      if (decoded) {
+        onImportSharedFeed?.(decoded);
+        setModal(null);
+        setImportText('');
+        return;
+      }
+    }
 
     // Handle pubkey-encrypted payload
     if (text.startsWith(NPUBENC_PREFIX)) {
@@ -479,6 +511,37 @@ export const FeedsSidebar = ({
             <p style={{ fontSize: '0.78rem', color: 'var(--text-sub)', margin: 0, lineHeight: 1.5 }}>
               Скопируй payload или зашифруй для конкретного npub — только получатель сможет его импортировать.
             </p>
+
+            {/* QR + shareable link */}
+            {shareLink && (
+              <>
+                <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>QR-код / ссылка</div>
+                <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                  <QRCodeCanvas text={shareLink} size={140} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
+                    <p style={{ fontSize: '0.72rem', color: 'var(--text-sub)', margin: 0, lineHeight: 1.4 }}>
+                      Отсканируйте QR или поделитесь ссылкой — получатель автоматически импортирует ленту.
+                    </p>
+                    <input
+                      readOnly
+                      value={shareLink}
+                      onClick={e => (e.target as HTMLInputElement).select()}
+                      style={{
+                        width: '100%', background: 'var(--bg-hover)', border: '1px solid var(--line)',
+                        borderRadius: 'var(--radius)', color: 'var(--text)',
+                        fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
+                        padding: '6px 8px', outline: 'none', boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      onClick={() => navigator.clipboard.writeText(shareLink)}
+                      style={{ alignSelf: 'flex-start', background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '5px 14px', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'var(--font-body)' }}
+                    >Копировать ссылку</button>
+                  </div>
+                </div>
+                <div style={{ height: '1px', background: 'var(--line)' }} />
+              </>
+            )}
 
             {/* Plain payload */}
             <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Открытый payload</div>

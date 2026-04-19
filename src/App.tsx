@@ -7,6 +7,7 @@ import type { Feed as FeedData } from './db/hooks';
 import { useCrypto } from './crypto/CryptoContext';
 import { isEncrypted } from './crypto/cipher';
 import { FekMissingError } from './crypto/feedCipher';
+import { decodeInviteLink, hashHasInvite } from './sharing/inviteLink';
 import { SyncEngine, seedDefaultRelays, SyncEvents } from './sync/syncEngine';
 import { RelayClient } from './sync/relayClient';
 import SettingsModal from './components/SettingsModal';
@@ -444,6 +445,24 @@ function App() {
       }, 3000);
     }
   }, [db, encrypt, encryptFeedKey, nostrPubKey]);
+
+  // ── Auto-import invite from URL fragment (/invite#i=<b64>) ────────
+  // Runs once on mount after db/crypto are ready. If the user opened an invite
+  // link, decode the payload, confirm, and import. The fragment is cleared
+  // afterwards so refreshes don't re-prompt.
+  const inviteHandled = useRef(false);
+  useEffect(() => {
+    if (inviteHandled.current) return;
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash;
+    if (!hashHasInvite(hash)) return;
+    inviteHandled.current = true;
+    const payload = decodeInviteLink(window.location.href);
+    if (!payload) return;
+    const ok = window.confirm(`Импортировать шифлоу "${payload.name}"?`);
+    try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch {}
+    if (ok) handleImportSharedFeed(payload);
+  }, [handleImportSharedFeed]);
 
   const handleDeleteFeed = useCallback(async (id: string, isShared: boolean) => {
     if (!isShared) {
