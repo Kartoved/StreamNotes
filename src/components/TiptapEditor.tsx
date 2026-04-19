@@ -13,6 +13,7 @@ import '../editorTheme.css';
 import { ThreeStateTaskItem } from '../editor/extensions/ThreeStateTaskItem';
 import { AttachmentExtension } from '../editor/extensions/Attachment';
 import { BacklinkDropdown } from './BacklinkDropdown';
+import { showToast } from './Toast';
 import { RecurrenceChip } from './NoteCard';
 import { createBacklinkExtension, BacklinkSuggestionCallbacks } from '../editor/extensions/BacklinkExtension';
 import { useDB } from '../db/DBContext';
@@ -483,7 +484,7 @@ export const TweetEditor = ({
         const fileType = getFileType(src);
         nodes.push({ type: 'attachment', attrs: { src, name: arr[i].name, size: arr[i].size, fileType } });
       } catch (e: any) {
-        alert(e.message);
+        showToast(e.message ?? 'Ошибка загрузки файла', 'error');
       }
       setUploadProgress({ done: i + 1, total: arr.length });
     }

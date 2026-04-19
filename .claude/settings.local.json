@@ -64,7 +64,11 @@
       "Bash(rm -rf src/workers/)",
       "Bash(grep -v \"^$\")",
       "Bash(awk '{print $NF}')",
-      "Bash(NODE_OPTIONS=\"--max-old-space-size=8192\" npx vitest run src/__tests__/ui/Feed.test.tsx)"
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=8192\" npx vitest run src/__tests__/ui/Feed.test.tsx)",
+      "Bash(sqlite3 \"c:/Users/karto/Desktop/StreamNotes/StreamNotes/storage.sqlite\" \"SELECT name FROM sqlite_master WHERE type='table';\")",
+      "Bash(node -e ' *)",
+      "Bash(powershell -Command ' *)",
+      "Bash(where sqlite3 *)"
     ]
   }
 }

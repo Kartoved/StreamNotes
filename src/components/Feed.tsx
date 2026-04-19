@@ -11,6 +11,7 @@ import { BacklinksSection } from './BacklinksSection';
 import { NoteModal } from './NoteModal';
 import { NoteCard } from './NoteCard';
 import { KanbanView } from './KanbanView';
+import { showToast } from './Toast';
 
 /**
  * Returns a sort_key lexicographically between `after` and `before`.
@@ -209,7 +210,7 @@ export const Feed = ({
             if (row[0] === dropDraggedId) { isDescendant = true; break; }
             curr = row[0];
           }
-          if (isDescendant) { alert('Нельзя перетащить заметку внутрь самой себя!'); return; }
+          if (isDescendant) { showToast('Нельзя перетащить заметку внутрь самой себя!', 'error'); return; }
           if (zone === 'child') {
             await db.exec(`UPDATE notes SET parent_id = ? WHERE id = ?`, [targetId, dropDraggedId]);
           } else {
@@ -509,7 +510,7 @@ export const Feed = ({
       curr = row[0];
     }
     if (isDescendant) {
-      alert('Нельзя перетащить заметку внутрь самой себя!');
+      showToast('Нельзя перетащить заметку внутрь самой себя!', 'error');
       setDraggedId(null); setDragOverInfo(null);
       return;
     }

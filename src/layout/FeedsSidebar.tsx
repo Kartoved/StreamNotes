@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { encodeInviteLink, decodeInviteLink } from '../sharing/inviteLink';
 import { QRCodeCanvas } from '../components/QRCode';
+import { showToast } from '../components/Toast';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
 import { randomBytes } from '@noble/ciphers/webcrypto';
@@ -534,7 +535,7 @@ export const FeedsSidebar = ({
                       }}
                     />
                     <button
-                      onClick={() => navigator.clipboard.writeText(shareLink)}
+                      onClick={() => { navigator.clipboard.writeText(shareLink); showToast('Ссылка скопирована', 'success'); }}
                       style={{ alignSelf: 'flex-start', background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '5px 14px', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'var(--font-body)' }}
                     >Копировать ссылку</button>
                   </div>
@@ -558,7 +559,7 @@ export const FeedsSidebar = ({
               }}
             />
             <button
-              onClick={() => { navigator.clipboard.writeText(sharePayload); }}
+              onClick={() => { navigator.clipboard.writeText(sharePayload); showToast('Payload скопирован', 'success'); }}
               style={{ alignSelf: 'flex-start', background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '5px 14px', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'var(--font-body)' }}
             >Копировать</button>
 
@@ -597,7 +598,7 @@ export const FeedsSidebar = ({
                   }}
                 />
                 <button
-                  onClick={() => navigator.clipboard.writeText(encryptedPayload)}
+                  onClick={() => { navigator.clipboard.writeText(encryptedPayload); showToast('Зашифрованный payload скопирован', 'success'); }}
                   style={{ alignSelf: 'flex-start', background: 'var(--text)', border: 'none', color: 'var(--bg)', borderRadius: 'var(--radius)', padding: '5px 14px', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'var(--font-body)' }}
                 >Копировать encrypted</button>
               </>
@@ -782,12 +783,6 @@ export const FeedsSidebar = ({
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
               {modal !== 'create' && typeof modal === 'object' && (
                 <>
-                  <button
-                    onClick={() => { onDeleteFeed(modal.id, !!modal.is_shared); setModal(null); }}
-                    style={{ flex: 1, background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: '8px', padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)', transition: 'all 0.12s' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#f87171'; (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; }}
-                  >{modal.is_shared ? 'Отписаться' : 'Удалить'}</button>
                   <button
                     onClick={() => { onArchiveFeed?.(modal.id, !modal.is_archived); setModal(null); }}
                     style={{ flex: 1, background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: '8px', padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)', transition: 'all 0.12s' }}

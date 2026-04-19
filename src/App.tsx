@@ -18,6 +18,7 @@ import { RightSidebar } from './layout/RightSidebar';
 import { DashboardPanel } from './layout/DashboardPanel';
 import { usePomodoro } from './hooks/usePomodoro';
 import { revokeAllUrls } from './utils/opfsFiles';
+import { ToastContainer, showToast } from './components/Toast';
 import './index.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -231,7 +232,7 @@ function App() {
       const existing = await db.execO(`SELECT id, feed_id, is_deleted FROM notes WHERE id = ?`, [noteId]) as any[];
       if (existing.length > 0) {
         if (existing[0].is_deleted) {
-          alert('Эта заметка была удалена.');
+          showToast('Эта заметка была удалена.', 'info');
           return;
         }
         if (existing[0].feed_id && existing[0].feed_id !== activeFeedId) {
@@ -374,7 +375,7 @@ function App() {
     // Check if feed already exists
     const existing = await db.execO(`SELECT id FROM feeds WHERE id = ?`, [flow_id]) as any[];
     if (existing.length > 0) {
-      alert('This flow already exists in your library.');
+      showToast('Эта лента уже есть в библиотеке.', 'info');
       return;
     }
     const encryptedFek = encryptFeedKey(fek);
@@ -431,7 +432,7 @@ function App() {
 
     if (existing.length > 0) {
       // Feed already existed — show a message indicating how many notes were synced
-      alert(`Лента уже существует. Добавлено заметок из снапшота: ${notesInserted}.`);
+      showToast(`Лента уже есть. Синхронизировано заметок: ${notesInserted}.`, 'info');
     }
 
     setActiveFeedId(flow_id);
@@ -478,7 +479,7 @@ function App() {
           await engine.flushNow();
         } catch (err) {
           console.error('[delete-feed] flushNow failed, aborting hard delete to preserve sync state', err);
-          alert('Не удалось отправить удаление на relay. Лента оставлена на диске — попробуйте снова при стабильном соединении.');
+          showToast('Не удалось отправить удаление на relay. Попробуйте при стабильном соединении.', 'error');
           return;
         }
       }
@@ -673,7 +674,7 @@ function App() {
 
   const handleFekError = (err: unknown): boolean => {
     if (err instanceof FekMissingError) {
-      alert(`Не удалось сохранить: ключ шифрования для общей ленты не загружен.\n\nFeed: ${err.feedId}\n\nПерезагрузите приложение или проверьте invite. Ваш текст не потерян — редактор остался открытым.`);
+      showToast(`Ключ шифрования для ленты не загружен — сохранение невозможно. Перезагрузите приложение или проверьте invite.`, 'error');
       return true;
     }
     return false;
@@ -849,8 +850,8 @@ function App() {
           [n.id, n.parent_id, n.author_id || nostrPubKey, enc(n.content), n.sort_key, enc(n.properties || '{}'), n.view_mode || 'list', noteFeedId, n.created_at, n.updated_at, n.is_deleted || 0]
         );
       }
-      alert(`Импортировано ${notes.length} заметок`);
-    } catch (err) { alert('Ошибка: ' + String(err)); }
+      showToast(`Импортировано ${notes.length} заметок`, 'success');
+    } catch (err) { showToast('Ошибка импорта: ' + String(err), 'error'); }
     e.target.value = '';
   };
 
@@ -1207,6 +1208,7 @@ function App() {
       {lightboxEntry && (
         <Lightbox url={lightboxEntry.url} name={lightboxEntry.name} onClose={() => setLightboxEntry(null)} />
       )}
+      <ToastContainer />
     </div>
   );
 }
