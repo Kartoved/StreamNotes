@@ -67,6 +67,22 @@ export function computeUndeletes(
  * a no-op when no conflicts exist. Errors are logged and swallowed — this runs
  * on every incoming changeset and must not break sync.
  */
+/** Detect the actual column names used by notes__crsql_clock (schema varies across cr-sqlite versions). */
+async function detectClockSchema(db: DB): Promise<{ pkCol: string; colNameCol: string; colVersionCol: string } | null> {
+  try {
+    const info = (await db.execO(`PRAGMA table_info(notes__crsql_clock)`)) as Array<{ name: string }>;
+    if (!info.length) return null;
+    const names = new Set(info.map((r) => r.name));
+    const pkCol = names.has('id') ? 'id' : names.has('key') ? 'key' : null;
+    const colNameCol = names.has('__crsql_col_name') ? '__crsql_col_name' : names.has('col_name') ? 'col_name' : names.has('cid') ? 'cid' : null;
+    const colVersionCol = names.has('__crsql_col_version') ? '__crsql_col_version' : names.has('col_version') ? 'col_version' : null;
+    if (!pkCol || !colNameCol || !colVersionCol) return null;
+    return { pkCol, colNameCol, colVersionCol };
+  } catch {
+    return null;
+  }
+}
+
 export async function resolveDeleteEditConflicts(db: DB): Promise<string[]> {
   try {
     const deletedRows = (await db.execO(
@@ -74,12 +90,14 @@ export async function resolveDeleteEditConflicts(db: DB): Promise<string[]> {
     )) as Array<{ id: string }>;
     if (!deletedRows.length) return [];
 
-    // notes__crsql_clock schema: (key, __crsql_col_name, __crsql_col_version, ...)
-    // `key` matches the PK column of `notes` (the `id` string).
+    const schema = await detectClockSchema(db);
+    if (!schema) return [];
+
+    const { pkCol, colNameCol, colVersionCol } = schema;
     const clockRows = (await db.execO(
-      `SELECT key AS noteId, __crsql_col_name AS cid, __crsql_col_version AS colVersion
+      `SELECT "${pkCol}" AS noteId, "${colNameCol}" AS cid, "${colVersionCol}" AS colVersion
          FROM notes__crsql_clock
-        WHERE __crsql_col_name IN ('is_deleted', 'content', 'properties')`,
+        WHERE "${colNameCol}" IN ('is_deleted', 'content', 'properties')`,
     )) as ClockRow[];
 
     const toUndelete = computeUndeletes(
