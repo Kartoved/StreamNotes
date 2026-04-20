@@ -28,13 +28,20 @@ function AuthorBadge({ authorId, isLocal }: { authorId: string; isLocal: boolean
   );
 }
 
-// ── Status cycle colors ─────────────────────────────────────────────
-const STATUS_COLOR: Record<string, string> = {
+// ── Status chip CSS-variable mappings ───────────────────────────────
+const STATUS_TEXT_VAR: Record<string, string> = {
   none:     'var(--text-faint)',
-  todo:     '#e06c75',
-  doing:    '#6095ed',
-  done:     '#5c9e6e',
+  todo:     'var(--chip-todo-text)',
+  doing:    'var(--chip-doing-text)',
+  done:     'var(--chip-done-text)',
   archived: 'var(--text-faint)',
+};
+const STATUS_BG_VAR: Record<string, string> = {
+  none:     'var(--bg-hover)',
+  todo:     'var(--chip-todo-bg)',
+  doing:    'var(--chip-doing-bg)',
+  done:     'var(--chip-done-bg)',
+  archived: 'var(--bg-hover)',
 };
 
 // ── Inline editable prop chip ───────────────────────────────────────
@@ -44,7 +51,8 @@ export function PropChip({
   value: string; options: string[]; onChange: (v: string) => void; mono?: boolean;
 }) {
   const isStatus = options === STATUSES;
-  const color = isStatus ? (STATUS_COLOR[value] || 'var(--text-sub)') : 'var(--text-sub)';
+  const color = isStatus ? (STATUS_TEXT_VAR[value] || 'var(--text-sub)') : 'var(--text-sub)';
+  const bg    = isStatus ? (STATUS_BG_VAR[value]   || 'var(--bg-hover)') : 'var(--bg-hover)';
 
   return (
     <div style={{ display: 'inline-block', position: 'relative' }}>
@@ -56,9 +64,9 @@ export function PropChip({
         style={{
           appearance: 'none',
           WebkitAppearance: 'none',
-          background: 'var(--bg-hover)',
+          background: bg,
           color,
-          border: '1px solid var(--line)',
+          border: '1px solid transparent',
           borderRadius: '4px',
           padding: '1px 8px',
           fontSize: '0.7rem',
@@ -72,11 +80,11 @@ export function PropChip({
           textAlign: 'center',
           minWidth: '60px'
         }}
-        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-active)'}
-        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
+        onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.8'}
+        onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}
       >
         {options.map(opt => (
-          <option key={opt} value={opt} style={{ background: 'var(--bg)', color: (isStatus && STATUS_COLOR[opt]) ? STATUS_COLOR[opt] : 'var(--text)' }}>
+          <option key={opt} value={opt} style={{ background: 'var(--bg)', color: (isStatus && STATUS_TEXT_VAR[opt]) ? STATUS_TEXT_VAR[opt] : 'var(--text)' }}>
             {opt}
           </option>
         ))}
@@ -429,6 +437,7 @@ export const NoteCard = React.memo(function NoteCard({
 
       <div
         className={`note-card-swipeable note-card-inner${isSwiping.current ? ' swiping' : ''}`}
+        data-status={status}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -437,7 +446,7 @@ export const NoteCard = React.memo(function NoteCard({
           background: finalBg !== 'transparent' ? finalBg : 'var(--card-bg)',
           border: (isDragOverSibling || isDragOverChild)
             ? '1px solid var(--accent)'
-            : '1px solid rgba(0,0,0,0.06)',
+            : '1px solid var(--line)',
           borderRadius: 'var(--radius-lg)',
           padding: '10px 20px',
           position: 'relative',

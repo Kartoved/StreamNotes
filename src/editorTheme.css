@@ -86,9 +86,10 @@ a.note-link:hover {
 .hashtag-decorator {
   color: var(--accent);
   background: var(--accent-bg);
-  padding: 0 4px;
+  padding: 1px 5px;
   border-radius: 4px;
-  font-weight: 600;
+  font-weight: 500;
+  font-size: 0.88em;
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
   display: inline;
@@ -97,6 +98,19 @@ a.note-link:hover {
 .hashtag-decorator:hover {
   background: var(--bg-active);
   text-decoration: underline;
+}
+
+[data-theme="dark"] .hashtag-decorator {
+  color: #8990a8;
+  background: #1c2032;
+  border: 1px solid #272c40;
+}
+
+[data-theme="dark"] .hashtag-decorator:hover {
+  background: #222a48;
+  color: #8aa6ff;
+  border-color: #2e3757;
+  text-decoration: none;
 }
 
 /* ─── Placeholder ──────────────────────────────────────────────────── */

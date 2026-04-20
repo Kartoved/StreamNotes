@@ -68,7 +68,9 @@
       "Bash(sqlite3 \"c:/Users/karto/Desktop/StreamNotes/StreamNotes/storage.sqlite\" \"SELECT name FROM sqlite_master WHERE type='table';\")",
       "Bash(node -e ' *)",
       "Bash(powershell -Command ' *)",
-      "Bash(where sqlite3 *)"
+      "Bash(where sqlite3 *)",
+      "Bash(tar -tf /tmp/design.html)",
+      "Bash(tar -xf /tmp/design.html -C /tmp/)"
     ]
   }
 }

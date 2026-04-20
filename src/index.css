@@ -24,24 +24,52 @@
   --shadow-sm:    0 1px 2px rgba(15, 15, 15, 0.05);
   --shadow-md:    0 3px 12px rgba(15, 15, 15, 0.1), 0 1px 4px rgba(15, 15, 15, 0.06);
   --shadow-lg:    0 8px 24px rgba(15, 15, 15, 0.12);
+  /* Status chip colors — neutral in light theme */
+  --chip-todo-bg:   rgba(224, 108, 117, 0.10);
+  --chip-todo-text: #e06c75;
+  --chip-doing-bg:  rgba(96, 149, 237, 0.10);
+  --chip-doing-text:#6095ed;
+  --chip-done-bg:   rgba(92, 158, 110, 0.10);
+  --chip-done-text: #5c9e6e;
 }
 
 [data-theme="dark"] {
-  --bg:           #1e1e1e;
-  --bg-page:      #141414;
-  --bg-hover:     rgba(255, 255, 255, 0.055);
-  --bg-active:    rgba(255, 255, 255, 0.09);
-  --bg-aside:     #111111;
-  --text:         #e8e8e3;
-  --text-sub:     #888880;
-  --text-faint:   #4a4a44;
-  --accent:       #e8e8e3;
-  --accent-warm:  #f5a623;
-  --accent-bg:    rgba(255, 255, 255, 0.055);
-  --line:         #2d2d2a;
-  --line-strong:  #3c3c38;
-  --card-bg:      #202020;
-  --sidebar-bg:   #111111;
+  /* ── Palette from V6 Hi-Fi design ── */
+  --bg:           #1c2032;
+  --bg-page:      #141724;
+  --bg-hover:     rgba(255, 255, 255, 0.05);
+  --bg-active:    rgba(124, 156, 255, 0.12);
+  --bg-aside:     #181b2a;
+  --text:         #e9ecf5;
+  --text-sub:     #8990a8;
+  --text-faint:   #3a3f55;
+  --accent:       #7c9cff;
+  --accent-warm:  #d39a4a;
+  --accent-bg:    #2a3255;
+  --line:         #272c40;
+  --line-strong:  #3a3f55;
+  --card-bg:      #1c2032;
+  --sidebar-bg:   #181b2a;
+  --radius:       10px;
+  --radius-lg:    14px;
+  --font-body:    'Inter', sans-serif;
+  --font-mono:    'JetBrains Mono', 'DM Mono', monospace;
+  --shadow-sm:    0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md:    0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg:    0 10px 32px rgba(0, 0, 0, 0.6);
+  /* Status chip colors */
+  --chip-todo-bg:   #222a48;
+  --chip-todo-text: #8aa6ff;
+  --chip-doing-bg:  rgba(96, 149, 237, 0.18);
+  --chip-doing-text:#6095ed;
+  --chip-done-bg:   #1f2f24;
+  --chip-done-text: #85c197;
+  /* Note left-border accent colors */
+  --note-accent-todo:     #6b8afd;
+  --note-accent-doing:    #a78bfa;
+  --note-accent-done:     #66a877;
+  --note-accent-archived: #3a3f55;
+  --note-accent-none:     #3a3f55;
 }
 
 [data-theme="aurora"] {
@@ -338,7 +366,26 @@ body {
   transform: translateY(-1px);
 }
 [data-theme="dark"] .note-card-inner:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Dark theme: left accent border by status ─────────────────────── */
+[data-theme="dark"] .note-card-inner::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 12px; bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--note-accent-none);
+}
+[data-theme="dark"] .note-card-inner[data-status="todo"]::before     { background: var(--note-accent-todo); }
+[data-theme="dark"] .note-card-inner[data-status="doing"]::before    { background: var(--note-accent-doing); }
+[data-theme="dark"] .note-card-inner[data-status="done"]::before     { background: var(--note-accent-done); }
+[data-theme="dark"] .note-card-inner[data-status="archived"]::before { background: var(--note-accent-archived); }
+
+/* ── Dark theme: remove tinted background — left border replaces it ─ */
+[data-theme="dark"] .note-card-inner {
+  background: var(--card-bg) !important;
 }
 
 /* Remove 300ms tap delay on chips, buttons and the mobile FAB. */
@@ -700,6 +747,8 @@ body {
   .desktop-drag-handle { display: flex; }
   .note-card-inner .note-content { padding-left: 4px; }
 }
+
+[data-theme="dark"] .note-card-inner .note-content { padding-left: 8px; }
 
 /* ── Mobile drag handle (hidden on desktop) ──────────────────────── */
 .mobile-drag-handle {
