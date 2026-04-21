@@ -8,6 +8,7 @@ import { randomBytes } from '@noble/ciphers/webcrypto';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import type { DerivedKeys } from './keys';
 import SeedSetup from '../components/SeedSetup';
+import { clearNotesCache } from '../db/notesCache';
 import UnlockScreen from '../components/UnlockScreen';
 import SeedRecover from '../components/SeedRecover';
 import {
@@ -265,6 +266,7 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
         setBiometricEnrolled(false);
         setScreen('setup');
         feedKeysRef.current.clear();
+        clearNotesCache();
       },
       enableBiometric: async () => {
         if (!mnemonicRef.current) throw new Error('Session expired');

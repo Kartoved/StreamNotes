@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotes } from '../db/hooks';
+import { extractPlainText, extractTags, getOrParse } from '../db/notesCache';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 import { storePendingBacklink } from '../utils/backlinkClipboard';
@@ -54,33 +55,6 @@ export { extractTags, extractPlainText };
 
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['sheaf', 'task', 'document'];
-
-// Extract plain text from TipTap JSON for search
-function extractPlainText(content: string, skipCode = false): string {
-  try {
-    const doc = JSON.parse(content);
-    const getText = (node: any): string => {
-      if (skipCode) {
-        if (node.type === 'codeBlock') return '';
-        if (node.marks?.some((m: any) => m.type === 'code')) return '';
-      }
-      if (node.type === 'text') return node.text || '';
-      return (node.content || []).map(getText).join(' ');
-    };
-    return getText(doc);
-  } catch {
-    return content;
-  }
-}
-
-// Extract #tags from note plain text
-function extractTags(content: string): string[] {
-  const text = extractPlainText(content, true);
-  const matches = text.match(/#[\w\u0400-\u04FF][\w\u0400-\u04FF0-9_]*/gi) || [];
-  return [...new Set(matches.map((t: string) => t.toLocaleLowerCase()))];
-}
-
-
 
 const EMPTY_TAGS: Set<string> = new Set();
 
@@ -283,12 +257,12 @@ export const Feed = ({
   const closeContextMenu = () => setContextMenu(null);
 
   // ── Pre-parse properties + plain text once (reused by filter & sort) ──
+  // Backed by module-level cache keyed by id+updated_at, so unchanged notes
+  // skip JSON.parse and TipTap traversal across feed/view switches.
   const parsedCache = React.useMemo(() => {
     const m = new Map<string, { props: any; text: string }>();
     for (const note of notes) {
-      let props: any = {};
-      try { props = JSON.parse(note.properties || '{}'); } catch { /* */ }
-      m.set(note.id, { props, text: extractPlainText(note.content).toLocaleLowerCase() });
+      m.set(note.id, getOrParse(note.id, note.updated_at, note.content, note.properties));
     }
     return m;
   }, [notes]);
