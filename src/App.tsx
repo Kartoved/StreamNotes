@@ -11,6 +11,8 @@ import { decodeInviteLink, hashHasInvite } from './sharing/inviteLink';
 import { SyncEngine, seedDefaultRelays, SyncEvents } from './sync/syncEngine';
 import { RelayClient } from './sync/relayClient';
 import SettingsModal from './components/SettingsModal';
+import WhatsNewModal from './components/WhatsNewModal';
+import { APP_VERSION } from './data/changelog';
 import { Lightbox } from './editor/components/Lightbox';
 import { THEMES, type ThemeId } from './themes';
 import { FeedsSidebar, parseLucideAvatar } from './layout/FeedsSidebar';
@@ -51,6 +53,7 @@ function App() {
   const useCryptoRef = useRef(crypto);
   useCryptoRef.current = crypto;
   const [showSettings, setShowSettings] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [backupList, setBackupList] = useState<BackupEntry[]>([]);
   const [lightboxEntry, setLightboxEntry] = useState<{ url: string; name: string } | null>(null);
 
@@ -223,6 +226,69 @@ function App() {
       setActiveFeedId(feeds[0].id);
     }
   }, [feeds, activeFeedId]);
+
+  // ── Dev stress test ─────────────────────────────────────────────────
+  useEffect(() => {
+    let _stressAbort = false;
+    (window as any).__stressAbort = () => { _stressAbort = true; console.log('Aborting after current batch...'); };
+    (window as any).__stressTest = async (n = 10000) => {
+      _stressAbort = false;
+      if (!db || !activeFeedId) { console.warn('db or activeFeedId not ready'); return; }
+      const STATUSES = ['none', 'todo', 'doing', 'done'];
+      const TAGS = ['#идея', '#мфт', '#coding', '#ницше', '#школа', '#bookmark'];
+      const WORDS = ['разум', 'предсказывать', 'события', 'умнее', 'варианты', 'решения', 'поток', 'идея', 'задача', 'мысль', 'план', 'фокус', 'цель', 'день', 'время'];
+      const rand = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+      const randText = () => Array.from({ length: 6 + Math.floor(Math.random() * 10) }, () => rand(WORDS)).join(' ');
+
+      const syncEngine = (window as any).__syncEngine;
+      syncEngine?.stop();
+      console.log('Sync paused.');
+      console.time('stressTest');
+      const BATCH = 200;
+      let inserted = 0;
+      const parentIds: string[] = [];
+
+      for (let b = 0; b < Math.ceil(n / BATCH); b++) {
+        const batchSize = Math.min(BATCH, n - b * BATCH);
+        await db.exec('BEGIN');
+        for (let i = 0; i < batchSize; i++) {
+          const id = globalThis.crypto.randomUUID();
+          const isChild = parentIds.length > 50 && Math.random() < 0.2;
+          const parentId = isChild ? parentIds[Math.floor(Math.random() * Math.min(parentIds.length, 200))] : null;
+          const status = rand(STATUSES);
+          const tag = Math.random() < 0.4 ? rand(TAGS) : '';
+          const text = randText() + (tag ? ' ' + tag : '');
+          const content = encrypt(JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] }));
+          const props = encrypt(JSON.stringify({ status }));
+          const sortKey = String(Date.now() + inserted + i).padStart(20, '0');
+          await db.exec(
+            `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id) VALUES (?,?,?,?,?,?,?)`,
+            [id, parentId, nostrPubKey || 'local-user', content, sortKey, props, activeFeedId]
+          );
+          if (!isChild) parentIds.push(id);
+        }
+        await db.exec('COMMIT');
+        inserted += batchSize;
+        console.log(`inserted ${inserted}/${n}`);
+        if (_stressAbort) { console.log(`Aborted at ${inserted}.`); syncEngine?.start(); return; }
+      }
+      console.timeEnd('stressTest');
+      syncEngine?.start();
+      console.log('Done. Sync resumed. Scroll to see notes.');
+    };
+    (window as any).__stressClean = async () => {
+      if (!db || !activeFeedId) return;
+      const syncEngine = (window as any).__syncEngine;
+      syncEngine?.stop();
+      await db.exec(`DELETE FROM notes WHERE feed_id = ?`, [activeFeedId]);
+      syncEngine?.start();
+      console.log('Cleaned. Sync resumed.');
+    };
+    return () => {
+      delete (window as any).__stressTest;
+      delete (window as any).__stressClean;
+    };
+  }, [db, activeFeedId, encrypt, nostrPubKey]);
 
   // ── Re-register FEKs for all feeds whenever feeds list changes ────
   // Use a Set to track which feed IDs have been registered so that:
@@ -613,6 +679,19 @@ function App() {
     setTheme(newTheme);
     const meta = THEMES.find(t => t.id === newTheme);
     if (meta) setFont(meta.defaultFont);
+  };
+
+  // Auto-show "What's New" when APP_VERSION changes
+  useEffect(() => {
+    const seen = localStorage.getItem('sn_whats_new_seen');
+    if (seen !== APP_VERSION) {
+      setShowWhatsNew(true);
+    }
+  }, []);
+
+  const handleCloseWhatsNew = () => {
+    localStorage.setItem('sn_whats_new_seen', APP_VERSION);
+    setShowWhatsNew(false);
   };
 
   const FONT_FAMILIES: Record<string, string> = {
@@ -1100,8 +1179,10 @@ function App() {
             onCreateBackup={handleCreateBackup}
             onRestoreBackup={handleRestoreBackup}
             onDeleteBackup={handleDeleteBackup}
+            onWhatsNew={() => { setShowSettings(false); setShowWhatsNew(true); }}
           />
         )}
+        {showWhatsNew && <WhatsNewModal onClose={handleCloseWhatsNew} />}
 
         {/* Mobile search bar */}
         {mobileSearchOpen && (

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useCrypto } from '../crypto/CryptoContext';
+import { APP_VERSION } from '../data/changelog';
 import { decryptSeedWithPassword } from '../crypto/CryptoContext';
 import { validateMnemonic } from '../crypto';
 import { biometricUnsupportedReason } from '../crypto/biometric';
@@ -22,9 +23,10 @@ interface Props {
   onCreateBackup?: () => void;
   onRestoreBackup?: (name: string) => void;
   onDeleteBackup?: (name: string) => void;
+  onWhatsNew?: () => void;
 }
 
-export default function SettingsModal({ onClose, onExport, onExportMD, onImport, font, setFont, fontOptions, theme, setTheme, onSetNickname, backups = [], onCreateBackup, onRestoreBackup, onDeleteBackup }: Props) {
+export default function SettingsModal({ onClose, onExport, onExportMD, onImport, font, setFont, fontOptions, theme, setTheme, onSetNickname, backups = [], onCreateBackup, onRestoreBackup, onDeleteBackup, onWhatsNew }: Props) {
   const { nostrPubKey, logout, nickname, setNickname: setNicknameCrypto, enableBiometric, disableBiometric, biometricEnrolled } = useCrypto();
   const setNickname = onSetNickname ?? setNicknameCrypto;
   const [showPasswordInput, setShowPasswordInput] = useState(false);
@@ -163,8 +165,23 @@ export default function SettingsModal({ onClose, onExport, onExportMD, onImport,
   return (
     <div style={overlay} onClick={onClose}>
       <div style={card} className="settings-card" onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, letterSpacing: '-0.02em' }}>Настройки</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+          <div>
+            <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700, letterSpacing: '-0.02em' }}>Настройки</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
+                v{APP_VERSION}
+              </span>
+              {onWhatsNew && (
+                <button
+                  onClick={onWhatsNew}
+                  style={{ ...btn, fontSize: '0.7rem', padding: '2px 8px', color: 'var(--accent)', borderColor: 'var(--accent)' }}
+                >
+                  Что нового
+                </button>
+              )}
+            </div>
+          </div>
           <button onClick={onClose} style={{ ...btn, padding: '2px 8px', fontSize: '1.2rem', border: 'none', color: 'var(--text-faint)' }}>×</button>
         </div>
 

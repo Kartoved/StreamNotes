@@ -75,7 +75,6 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
   // When timer hits zero
   const handleFinish = useCallback((finishedPhase: PomodoroPhase, currentSessions: number) => {
     stop();
-    setIsRunning(false);
 
     if (finishedPhase === 'work') {
       const newSessions = currentSessions + 1;
@@ -93,11 +92,14 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
         setPhase('break');
         setSecondsLeft(BREAK_SECS);
       }
+      // Auto-start the break so it runs without user interaction
+      setIsRunning(true);
     } else {
-      // Break finished
+      // Break finished — don't auto-start; let user decide when next session begins
       notify('Перерыв окончен! Время работать 🍅');
       setPhase('work');
       setSecondsLeft(WORK_SECS);
+      setIsRunning(false);
     }
   }, [stop, notify]);
 
