@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotes } from '../db/hooks';
@@ -9,10 +9,12 @@ import { storePendingBacklink } from '../utils/backlinkClipboard';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
 import { BacklinksSection } from './BacklinksSection';
-import { NoteModal } from './NoteModal';
 import { NoteCard } from './NoteCard';
-import { KanbanView } from './KanbanView';
 import { showToast } from './Toast';
+
+// Lazy: only needed when user opens zen-mode or switches to kanban view.
+const NoteModal = lazy(() => import('./NoteModal').then(m => ({ default: m.NoteModal })));
+const KanbanView = lazy(() => import('./KanbanView').then(m => ({ default: m.KanbanView })));
 
 /**
  * Returns a sort_key lexicographically between `after` and `before`.
@@ -545,7 +547,9 @@ export const Feed = ({
   return (
     <>
       {expandedNoteId && (
-        <NoteModal noteId={expandedNoteId} onClose={() => setExpandedNoteId(null)} />
+        <Suspense fallback={null}>
+          <NoteModal noteId={expandedNoteId} onClose={() => setExpandedNoteId(null)} />
+        </Suspense>
       )}
 
       {deleteConfirmId && (
@@ -740,6 +744,7 @@ export const Feed = ({
       </div>
 
       {viewMode === 'kanban' ? (
+        <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.8rem' }}>загрузка…</div>}>
         <KanbanView
           notes={filteredNotes}
           parsedCache={parsedCache}
@@ -748,6 +753,7 @@ export const Feed = ({
           onNoteClick={onNoteClick}
           canWrite={canWrite}
         />
+        </Suspense>
       ) : filteredNotes.length === 0 ? (
         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Ничего не найдено</div>
       ) : (

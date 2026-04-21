@@ -50,6 +50,25 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@vlcn.io/crsqlite-wasm']
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split heavy third-party deps into their own chunks so the main
+        // app bundle stays small and the browser can cache vendors across
+        // app deploys.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('@tiptap') || id.includes('prosemirror')) return 'tiptap';
+          if (id.includes('@xenova') || id.includes('onnxruntime')) return 'whisper';
+          if (id.includes('react-dom')) return 'react-dom';
+          if (id.match(/[\\/]react[\\/]/)) return 'react';
+          if (id.includes('lucide-react')) return 'lucide';
+          if (id.includes('@noble')) return 'crypto-noble';
+          if (id.includes('qrcode')) return 'qrcode';
+        },
+      },
+    },
+  },
   server: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',

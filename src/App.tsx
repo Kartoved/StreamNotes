@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useDB } from './db/DBContext';
 import { Feed, extractTags } from './components/Feed';
 import { TweetEditor } from './components/TiptapEditor';
@@ -8,12 +8,15 @@ import { useCrypto } from './crypto/CryptoContext';
 import { isEncrypted } from './crypto/cipher';
 import { FekMissingError } from './crypto/feedCipher';
 import { decodeInviteLink, hashHasInvite } from './sharing/inviteLink';
-import { SyncEngine, seedDefaultRelays, SyncEvents } from './sync/syncEngine';
-import { RelayClient } from './sync/relayClient';
-import SettingsModal from './components/SettingsModal';
-import WhatsNewModal from './components/WhatsNewModal';
+import { SyncEvents } from './sync/events';
+import type { SyncEngine } from './sync/syncEngine';
+import type { RelayClient } from './sync/relayClient';
 import { APP_VERSION } from './data/changelog';
-import { Lightbox } from './editor/components/Lightbox';
+
+// Heavy / rarely-shown UI — kept out of the initial bundle.
+const SettingsModal = lazy(() => import('./components/SettingsModal'));
+const WhatsNewModal = lazy(() => import('./components/WhatsNewModal'));
+const Lightbox = lazy(() => import('./editor/components/Lightbox').then(m => ({ default: m.Lightbox })));
 import { THEMES, type ThemeId } from './themes';
 import { FeedsSidebar, parseLucideAvatar } from './layout/FeedsSidebar';
 import { RightSidebar } from './layout/RightSidebar';
@@ -340,14 +343,23 @@ function App() {
   }, [db, encrypt, activeFeedId]);
 
   // ── Nostr-relay sync ───────────────────────────────────────────────
+  // Deferred: nostr-tools (~150 kB gzip) is not needed for first paint.
+  // Wait for idle so the initial render isn't blocked downloading + parsing it.
   const syncStarted = useRef(false);
   useEffect(() => {
     if (syncStarted.current) return;
     syncStarted.current = true;
     let engine: SyncEngine | null = null;
     let relay: RelayClient | null = null;
-    (async () => {
+    let cancelled = false;
+
+    const boot = async () => {
       try {
+        const [{ SyncEngine, seedDefaultRelays }, { RelayClient }] = await Promise.all([
+          import('./sync/syncEngine'),
+          import('./sync/relayClient'),
+        ]);
+        if (cancelled) return;
         await seedDefaultRelays(db);
         relay = new RelayClient();
         engine = new SyncEngine({
@@ -363,12 +375,22 @@ function App() {
           relayClient: relay,
         });
         await engine.start();
+        if (cancelled) { engine.stop(); relay.destroy(); return; }
         (window as any).__syncEngine = engine;
       } catch (err) {
         console.error('[sync] failed to start', err);
       }
-    })();
+    };
+
+    const ric: any = (window as any).requestIdleCallback;
+    const handle = ric
+      ? ric(boot, { timeout: 2000 })
+      : setTimeout(boot, 200);
+
     return () => {
+      cancelled = true;
+      const cic: any = (window as any).cancelIdleCallback;
+      if (ric && cic) cic(handle); else clearTimeout(handle);
       try { engine?.stop(); } catch { /* ignore */ }
       try { relay?.destroy(); } catch { /* ignore */ }
       delete (window as any).__syncEngine;
@@ -1163,26 +1185,28 @@ function App() {
             )}
           </div>
         </header>
-        {showSettings && (
-          <SettingsModal
-            onClose={() => setShowSettings(false)}
-            onExport={handleExport}
-            onImport={handleImport}
-            font={font}
-            setFont={setFont}
-            fontOptions={Object.keys(FONT_FAMILIES)}
-            theme={theme}
-            setTheme={handleSetTheme}
-            onSetNickname={handleSetNickname}
-            onExportMD={handleExportAllMD}
-            backups={backupList}
-            onCreateBackup={handleCreateBackup}
-            onRestoreBackup={handleRestoreBackup}
-            onDeleteBackup={handleDeleteBackup}
-            onWhatsNew={() => { setShowSettings(false); setShowWhatsNew(true); }}
-          />
-        )}
-        {showWhatsNew && <WhatsNewModal onClose={handleCloseWhatsNew} />}
+        <Suspense fallback={null}>
+          {showSettings && (
+            <SettingsModal
+              onClose={() => setShowSettings(false)}
+              onExport={handleExport}
+              onImport={handleImport}
+              font={font}
+              setFont={setFont}
+              fontOptions={Object.keys(FONT_FAMILIES)}
+              theme={theme}
+              setTheme={handleSetTheme}
+              onSetNickname={handleSetNickname}
+              onExportMD={handleExportAllMD}
+              backups={backupList}
+              onCreateBackup={handleCreateBackup}
+              onRestoreBackup={handleRestoreBackup}
+              onDeleteBackup={handleDeleteBackup}
+              onWhatsNew={() => { setShowSettings(false); setShowWhatsNew(true); }}
+            />
+          )}
+          {showWhatsNew && <WhatsNewModal onClose={handleCloseWhatsNew} />}
+        </Suspense>
 
         {/* Mobile search bar */}
         {mobileSearchOpen && (
@@ -1387,7 +1411,9 @@ function App() {
       </nav>
 
       {lightboxEntry && (
-        <Lightbox url={lightboxEntry.url} name={lightboxEntry.name} onClose={() => setLightboxEntry(null)} />
+        <Suspense fallback={null}>
+          <Lightbox url={lightboxEntry.url} name={lightboxEntry.name} onClose={() => setLightboxEntry(null)} />
+        </Suspense>
       )}
       <ToastContainer />
     </div>

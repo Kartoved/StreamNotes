@@ -1,5 +1,6 @@
 // Top-level sync orchestrator.
-export const SyncEvents = new EventTarget();
+export { SyncEvents } from './events';
+import { SyncEvents } from './events';
 //
 // Lifecycle:
 //   const engine = new SyncEngine({ db, crypto, relayClient });

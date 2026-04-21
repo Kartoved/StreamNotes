@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDB } from './DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
-import { SyncEvents } from '../sync/syncEngine';
+import { SyncEvents } from '../sync/events';
 import { getOrDecrypt } from './notesCache';
 
 export interface Note {

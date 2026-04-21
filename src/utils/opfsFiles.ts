@@ -1,5 +1,3 @@
-import heic2any from 'heic2any';
-
 export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
 async function getAttachmentsDir(): Promise<FileSystemDirectoryHandle> {
@@ -7,11 +5,13 @@ async function getAttachmentsDir(): Promise<FileSystemDirectoryHandle> {
   return root.getDirectoryHandle('attachments', { create: true });
 }
 
-// Convert HEIC/HEIF to JPEG before storing
+// Convert HEIC/HEIF to JPEG before storing.
+// heic2any is ~500 kB; load it only when the user actually drops a HEIC.
 async function normalizeFile(file: File): Promise<File> {
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
   if (ext === 'heic' || ext === 'heif' || file.type === 'image/heic' || file.type === 'image/heif') {
     try {
+      const { default: heic2any } = await import('heic2any');
       const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.88 }) as Blob;
       const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
       return new File([blob], newName, { type: 'image/jpeg' });
