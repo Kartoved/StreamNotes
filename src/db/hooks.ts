@@ -150,18 +150,31 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
 
     fetchNotes();
 
+    // Coalesce bursts of onUpdate / sync events into a single refetch.
+    // Bursts happen during typing (autosave + crsql_changes), import,
+    // and Nostr sync delivering many rows.
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleFetch = () => {
+      if (debounceTimer) return;
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        if (isMounted) fetchNotes();
+      }, 150);
+    };
+
     const cleanup = db.onUpdate((_: any, __: any, tblName: string) => {
       // sync_relays is updated after remote changes are applied via crsql_changes
       // (which doesn't trigger onUpdate for the actual tables written by the virtual table).
-      if (tblName === 'notes' || tblName === 'sync_relays' || tblName === 'crsql_changes') fetchNotes();
+      if (tblName === 'notes' || tblName === 'sync_relays' || tblName === 'crsql_changes') scheduleFetch();
     });
-    
+
     // Listen to our custom event for infallible sync refreshing
-    const syncListener = () => fetchNotes();
+    const syncListener = () => scheduleFetch();
     SyncEvents.addEventListener('sync', syncListener);
 
     return () => {
       isMounted = false;
+      if (debounceTimer) clearTimeout(debounceTimer);
       cleanup();
       SyncEvents.removeEventListener('sync', syncListener);
     };
