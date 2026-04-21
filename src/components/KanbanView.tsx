@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Note } from '../db/hooks';
 
 interface KanbanViewProps {
@@ -16,20 +16,40 @@ const COLUMNS = [
   { id: 'done',  label: 'Done',  color: '#5c9e6e' },
 ] as const;
 
+type ColId = typeof COLUMNS[number]['id'];
+
+function useIsMobileKanban() {
+  const [m, setM] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const h = (e: MediaQueryListEvent) => setM(e.matches);
+    mq.addEventListener('change', h);
+    return () => mq.removeEventListener('change', h);
+  }, []);
+  return m;
+}
+
 export const KanbanView: React.FC<KanbanViewProps> = ({
   notes, parsedCache, db, feedEncrypt, onNoteClick, canWrite,
 }) => {
+  const isMobile = useIsMobileKanban();
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [activeColIdx, setActiveColIdx] = useState(0);
+
+  // Touch tracking for swipe
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const byStatus = (status: string) =>
     notes.filter(n => (parsedCache.get(n.id)?.props.status || 'none') === status);
 
-  const handleDrop = async (targetStatus: string) => {
-    if (!dragId || !canWrite) return;
-    const note = notes.find(n => n.id === dragId);
+  const moveCard = async (noteId: string, targetStatus: ColId) => {
+    if (!canWrite) return;
+    const note = notes.find(n => n.id === noteId);
     if (!note) return;
-    const cached = parsedCache.get(dragId);
+    const cached = parsedCache.get(noteId);
     const current = { ...(cached?.props ?? {}) };
     if (current.status === targetStatus) return;
     current.status = targetStatus;
@@ -41,12 +61,185 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     }
     await db.exec(
       `UPDATE notes SET properties = ?, updated_at = ? WHERE id = ?`,
-      [feedEncrypt(JSON.stringify(current)), Date.now(), dragId]
+      [feedEncrypt(JSON.stringify(current)), Date.now(), noteId]
     );
+  };
+
+  const handleDrop = async (targetStatus: string) => {
+    if (!dragId || !canWrite) return;
+    await moveCard(dragId, targetStatus as ColId);
     setDragId(null);
     setOverCol(null);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart.current) return;
+    const dx = e.changedTouches[0].clientX - touchStart.current.x;
+    const dy = e.changedTouches[0].clientY - touchStart.current.y;
+    touchStart.current = null;
+    // Only treat as horizontal swipe if horizontal dominates and is long enough
+    if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+    if (dx < 0) setActiveColIdx(i => Math.min(i + 1, COLUMNS.length - 1));
+    else        setActiveColIdx(i => Math.max(i - 1, 0));
+  };
+
+  if (isMobile) {
+    const col = COLUMNS[activeColIdx];
+    const colNotes = byStatus(col.id);
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100dvh - 180px)' }}>
+
+        {/* Column tabs */}
+        <div style={{
+          display: 'flex', gap: '6px', padding: '0 4px 10px',
+          flexShrink: 0,
+        }}>
+          {COLUMNS.map((c, i) => {
+            const isActive = i === activeColIdx;
+            const count = byStatus(c.id).length;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setActiveColIdx(i)}
+                style={{
+                  flex: 1, padding: '7px 4px',
+                  background: isActive ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'transparent',
+                  border: `1px solid ${isActive ? 'var(--accent)' : 'var(--line)'}`,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: c.color }} />
+                  <span style={{
+                    fontSize: '0.7rem', fontWeight: 700,
+                    color: isActive ? 'var(--text)' : 'var(--text-sub)',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    fontFamily: 'var(--font-mono)',
+                  }}>{c.label}</span>
+                </span>
+                <span style={{
+                  fontSize: '0.65rem', color: isActive ? 'var(--accent)' : 'var(--text-faint)',
+                  fontFamily: 'var(--font-mono)', fontWeight: 600,
+                }}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active column — full width, swipeable */}
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          style={{
+            flex: 1,
+            display: 'flex', flexDirection: 'column',
+            background: 'var(--bg-hover)',
+            border: '1px solid var(--line)',
+            borderRadius: 'var(--radius-lg)',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Swipe hint dots */}
+          <div style={{
+            display: 'flex', justifyContent: 'center', gap: '5px',
+            padding: '8px 0 0',
+            flexShrink: 0,
+          }}>
+            {COLUMNS.map((_, i) => (
+              <div key={i} style={{
+                width: i === activeColIdx ? '16px' : '5px',
+                height: '5px',
+                borderRadius: '3px',
+                background: i === activeColIdx ? 'var(--accent)' : 'var(--line)',
+                transition: 'all 0.2s',
+              }} />
+            ))}
+          </div>
+
+          {/* Cards */}
+          <div style={{
+            flex: 1, overflowY: 'auto', padding: '8px',
+            display: 'flex', flexDirection: 'column', gap: '6px',
+          }}>
+            {colNotes.map(note => (
+              <KanbanCard
+                key={note.id}
+                note={note}
+                cached={parsedCache.get(note.id)}
+                isDragging={false}
+                onDragStart={() => setDragId(note.id)}
+                onDragEnd={() => setDragId(null)}
+                onClick={() => onNoteClick?.(note.id)}
+                canWrite={canWrite}
+                isMobile
+                currentColIdx={activeColIdx}
+                onMoveLeft={activeColIdx > 0
+                  ? () => moveCard(note.id, COLUMNS[activeColIdx - 1].id)
+                  : undefined}
+                onMoveRight={activeColIdx < COLUMNS.length - 1
+                  ? () => moveCard(note.id, COLUMNS[activeColIdx + 1].id)
+                  : undefined}
+              />
+            ))}
+            {colNotes.length === 0 && (
+              <div style={{
+                textAlign: 'center', padding: '40px 8px',
+                color: 'var(--text-faint)', fontSize: '0.75rem',
+                fontFamily: 'var(--font-mono)',
+              }}>пусто</div>
+            )}
+          </div>
+        </div>
+
+        {/* Prev / Next navigation */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          padding: '8px 0 0', flexShrink: 0,
+        }}>
+          <button
+            onClick={() => setActiveColIdx(i => Math.max(i - 1, 0))}
+            disabled={activeColIdx === 0}
+            style={{
+              background: 'transparent', border: '1px solid var(--line)',
+              borderRadius: '8px', padding: '6px 16px',
+              color: activeColIdx === 0 ? 'var(--text-faint)' : 'var(--text)',
+              cursor: activeColIdx === 0 ? 'default' : 'pointer',
+              fontSize: '0.8rem', fontFamily: 'var(--font-body)',
+              opacity: activeColIdx === 0 ? 0.35 : 1,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            ← {activeColIdx > 0 ? COLUMNS[activeColIdx - 1].label : ''}
+          </button>
+          <button
+            onClick={() => setActiveColIdx(i => Math.min(i + 1, COLUMNS.length - 1))}
+            disabled={activeColIdx === COLUMNS.length - 1}
+            style={{
+              background: 'transparent', border: '1px solid var(--line)',
+              borderRadius: '8px', padding: '6px 16px',
+              color: activeColIdx === COLUMNS.length - 1 ? 'var(--text-faint)' : 'var(--text)',
+              cursor: activeColIdx === COLUMNS.length - 1 ? 'default' : 'pointer',
+              fontSize: '0.8rem', fontFamily: 'var(--font-body)',
+              opacity: activeColIdx === COLUMNS.length - 1 ? 0.35 : 1,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            {activeColIdx < COLUMNS.length - 1 ? COLUMNS[activeColIdx + 1].label : ''} →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Desktop layout (unchanged) ─────────────────────────────────────────
   return (
     <div style={{
       display: 'flex',
@@ -78,39 +271,25 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               overflow: 'hidden',
             }}
           >
-            {/* Column header */}
             <div style={{
               padding: '10px 14px 8px',
               borderBottom: '1px solid var(--line)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              flexShrink: 0,
+              display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0,
             }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: col.color, flexShrink: 0 }} />
               <span style={{
-                width: '7px', height: '7px', borderRadius: '50%',
-                background: col.color, flexShrink: 0,
-              }} />
-              <span style={{
-                fontSize: '0.72rem', fontWeight: 700,
-                color: 'var(--text-sub)', letterSpacing: '0.06em',
-                textTransform: 'uppercase', fontFamily: 'var(--font-mono)',
+                fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-sub)',
+                letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: 'var(--font-mono)',
               }}>{col.label}</span>
               <span style={{
-                marginLeft: 'auto',
-                fontSize: '0.7rem', color: 'var(--text-faint)',
-                fontFamily: 'var(--font-mono)',
+                marginLeft: 'auto', fontSize: '0.7rem',
+                color: 'var(--text-faint)', fontFamily: 'var(--font-mono)',
               }}>{colNotes.length}</span>
             </div>
 
-            {/* Cards */}
             <div style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '8px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
+              flex: 1, overflowY: 'auto', padding: '8px',
+              display: 'flex', flexDirection: 'column', gap: '6px',
             }}>
               {colNotes.map(note => (
                 <KanbanCard
@@ -148,10 +327,15 @@ interface KanbanCardProps {
   onDragEnd: () => void;
   onClick: () => void;
   canWrite: boolean;
+  isMobile?: boolean;
+  currentColIdx?: number;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
 }
 
 const KanbanCard: React.FC<KanbanCardProps> = ({
   note, cached, isDragging, onDragStart, onDragEnd, onClick, canWrite,
+  isMobile, onMoveLeft, onMoveRight,
 }) => {
   const text = cached?.text ?? '';
   const props = cached?.props ?? {};
@@ -159,9 +343,17 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   const d = new Date(note.created_at);
   const dateStr = `${String(d.getFullYear()).slice(2)}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
 
+  const moveBtn: React.CSSProperties = {
+    background: 'transparent', border: '1px solid var(--line)',
+    borderRadius: '5px', padding: '3px 10px',
+    color: 'var(--text-sub)', cursor: 'pointer',
+    fontSize: '0.75rem', fontFamily: 'var(--font-body)',
+    lineHeight: 1,
+  };
+
   return (
     <div
-      draggable={canWrite}
+      draggable={canWrite && !isMobile}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
@@ -175,8 +367,8 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
         transition: 'opacity 0.15s, box-shadow 0.15s',
         userSelect: 'none',
       }}
-      onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)')}
-      onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
+      onMouseEnter={e => { if (!isMobile) e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)'; }}
+      onMouseLeave={e => { if (!isMobile) e.currentTarget.style.boxShadow = 'none'; }}
     >
       <div style={{
         fontSize: '0.82rem', color: 'var(--text)',
@@ -188,15 +380,13 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       </div>
 
       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{
-          fontSize: '0.68rem', color: 'var(--text-faint)',
-          fontFamily: 'var(--font-mono)',
-        }}>{dateStr}</span>
+        <span style={{ fontSize: '0.68rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
+          {dateStr}
+        </span>
 
         {props.date && (
           <span style={{
-            fontSize: '0.68rem', color: 'var(--text-faint)',
-            fontFamily: 'var(--font-mono)',
+            fontSize: '0.68rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)',
             background: 'var(--bg-hover)', borderRadius: '3px', padding: '0 5px',
             border: '1px solid var(--line)',
           }}>📅 {props.date.slice(0, 10)}</span>
@@ -204,17 +394,33 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
 
         {props.recurrence && (
           <span style={{
-            fontSize: '0.68rem', color: '#6095ed',
-            fontFamily: 'var(--font-mono)',
+            fontSize: '0.68rem', color: '#6095ed', fontFamily: 'var(--font-mono)',
             background: 'rgba(96,149,237,0.1)', borderRadius: '3px', padding: '0 5px',
             border: '1px solid rgba(96,149,237,0.25)',
           }}>🔁 {props.recurrence}d</span>
         )}
 
-        {note.is_pinned ? (
-          <span style={{ fontSize: '0.68rem', marginLeft: 'auto' }}>📌</span>
-        ) : null}
+        {note.is_pinned ? <span style={{ fontSize: '0.68rem', marginLeft: 'auto' }}>📌</span> : null}
       </div>
+
+      {/* Mobile: move-to-column buttons */}
+      {isMobile && canWrite && (onMoveLeft || onMoveRight) && (
+        <div
+          style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '8px' }}
+          onClick={e => e.stopPropagation()}
+        >
+          {onMoveLeft && (
+            <button onClick={onMoveLeft} style={moveBtn}>
+              ← {COLUMNS[COLUMNS.findIndex(c => c.id === (props.status || 'todo')) - 1]?.label ?? ''}
+            </button>
+          )}
+          {onMoveRight && (
+            <button onClick={onMoveRight} style={moveBtn}>
+              {COLUMNS[COLUMNS.findIndex(c => c.id === (props.status || 'todo')) + 1]?.label ?? ''} →
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
