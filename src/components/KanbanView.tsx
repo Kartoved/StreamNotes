@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Note } from '../db/hooks';
 
 interface KanbanViewProps {
@@ -39,11 +40,20 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   const [overCol, setOverCol] = useState<string | null>(null);
   const [activeColIdx, setActiveColIdx] = useState(0);
 
-  // Touch tracking for swipe
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
-  const byStatus = (status: string) =>
-    notes.filter(n => (parsedCache.get(n.id)?.props.status || 'none') === status);
+  // Single-pass grouping by status (replaces 3× byStatus filters)
+  const notesByStatus = useMemo(() => {
+    const m = new Map<ColId, Note[]>([
+      ['todo', []], ['doing', []], ['done', []],
+    ]);
+    for (const n of notes) {
+      const s = (parsedCache.get(n.id)?.props.status || 'none') as ColId;
+      const bucket = m.get(s);
+      if (bucket) bucket.push(n);
+    }
+    return m;
+  }, [notes, parsedCache]);
 
   const moveCard = async (noteId: string, targetStatus: ColId) => {
     if (!canWrite) return;
@@ -81,7 +91,6 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     const dx = e.changedTouches[0].clientX - touchStart.current.x;
     const dy = e.changedTouches[0].clientY - touchStart.current.y;
     touchStart.current = null;
-    // Only treat as horizontal swipe if horizontal dominates and is long enough
     if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
     if (dx < 0) setActiveColIdx(i => Math.min(i + 1, COLUMNS.length - 1));
     else        setActiveColIdx(i => Math.max(i - 1, 0));
@@ -89,19 +98,16 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
 
   if (isMobile) {
     const col = COLUMNS[activeColIdx];
-    const colNotes = byStatus(col.id);
+    const colNotes = notesByStatus.get(col.id) ?? [];
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100dvh - 180px)' }}>
 
         {/* Column tabs */}
-        <div style={{
-          display: 'flex', gap: '6px', padding: '0 4px 10px',
-          flexShrink: 0,
-        }}>
+        <div style={{ display: 'flex', gap: '6px', padding: '0 4px 10px', flexShrink: 0 }}>
           {COLUMNS.map((c, i) => {
             const isActive = i === activeColIdx;
-            const count = byStatus(c.id).length;
+            const count = (notesByStatus.get(c.id) ?? []).length;
             return (
               <button
                 key={c.id}
@@ -110,8 +116,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                   flex: 1, padding: '7px 4px',
                   background: isActive ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'transparent',
                   border: `1px solid ${isActive ? 'var(--accent)' : 'var(--line)'}`,
-                  borderRadius: '8px',
-                  cursor: 'pointer',
+                  borderRadius: '8px', cursor: 'pointer',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
                   transition: 'all 0.15s',
                 }}
@@ -150,60 +155,37 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
           {/* Swipe hint dots */}
           <div style={{
             display: 'flex', justifyContent: 'center', gap: '5px',
-            padding: '8px 0 0',
-            flexShrink: 0,
+            padding: '8px 0 0', flexShrink: 0,
           }}>
             {COLUMNS.map((_, i) => (
               <div key={i} style={{
                 width: i === activeColIdx ? '16px' : '5px',
-                height: '5px',
-                borderRadius: '3px',
+                height: '5px', borderRadius: '3px',
                 background: i === activeColIdx ? 'var(--accent)' : 'var(--line)',
                 transition: 'all 0.2s',
               }} />
             ))}
           </div>
 
-          {/* Cards */}
-          <div style={{
-            flex: 1, overflowY: 'auto', padding: '8px',
-            display: 'flex', flexDirection: 'column', gap: '6px',
-          }}>
-            {colNotes.map(note => (
-              <KanbanCard
-                key={note.id}
-                note={note}
-                cached={parsedCache.get(note.id)}
-                isDragging={false}
-                onDragStart={() => setDragId(note.id)}
-                onDragEnd={() => setDragId(null)}
-                onClick={() => onNoteClick?.(note.id)}
-                canWrite={canWrite}
-                isMobile
-                currentColIdx={activeColIdx}
-                onMoveLeft={activeColIdx > 0
-                  ? () => moveCard(note.id, COLUMNS[activeColIdx - 1].id)
-                  : undefined}
-                onMoveRight={activeColIdx < COLUMNS.length - 1
-                  ? () => moveCard(note.id, COLUMNS[activeColIdx + 1].id)
-                  : undefined}
-              />
-            ))}
-            {colNotes.length === 0 && (
-              <div style={{
-                textAlign: 'center', padding: '40px 8px',
-                color: 'var(--text-faint)', fontSize: '0.75rem',
-                fontFamily: 'var(--font-mono)',
-              }}>пусто</div>
-            )}
-          </div>
+          <VirtualizedColumn
+            notes={colNotes}
+            parsedCache={parsedCache}
+            isMobile
+            canWrite={canWrite}
+            dragId={dragId}
+            setDragId={setDragId}
+            onCardClick={id => onNoteClick?.(id)}
+            onMoveLeft={activeColIdx > 0
+              ? id => moveCard(id, COLUMNS[activeColIdx - 1].id)
+              : undefined}
+            onMoveRight={activeColIdx < COLUMNS.length - 1
+              ? id => moveCard(id, COLUMNS[activeColIdx + 1].id)
+              : undefined}
+          />
         </div>
 
         {/* Prev / Next navigation */}
-        <div style={{
-          display: 'flex', justifyContent: 'space-between',
-          padding: '8px 0 0', flexShrink: 0,
-        }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 0', flexShrink: 0 }}>
           <button
             onClick={() => setActiveColIdx(i => Math.max(i - 1, 0))}
             disabled={activeColIdx === 0}
@@ -239,19 +221,17 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     );
   }
 
-  // ── Desktop layout (unchanged) ─────────────────────────────────────────
+  // ── Desktop layout ────────────────────────────────────────────────────
   return (
     <div style={{
-      display: 'flex',
-      gap: '12px',
-      overflowX: 'auto',
-      overflowY: 'hidden',
+      display: 'flex', gap: '12px',
+      overflowX: 'auto', overflowY: 'hidden',
       height: 'calc(100dvh - 180px)',
       paddingBottom: '16px',
       WebkitOverflowScrolling: 'touch',
     }}>
       {COLUMNS.map(col => {
-        const colNotes = byStatus(col.id);
+        const colNotes = notesByStatus.get(col.id) ?? [];
         const isOver = overCol === col.id;
         return (
           <div
@@ -260,10 +240,8 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             onDragLeave={() => setOverCol(null)}
             onDrop={() => handleDrop(col.id)}
             style={{
-              flex: '1 1 0',
-              minWidth: 0,
-              display: 'flex',
-              flexDirection: 'column',
+              flex: '1 1 0', minWidth: 0,
+              display: 'flex', flexDirection: 'column',
               background: isOver ? 'var(--bg-active)' : 'var(--bg-hover)',
               border: `1px solid ${isOver ? col.color : 'var(--line)'}`,
               borderRadius: 'var(--radius-lg)',
@@ -287,33 +265,95 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               }}>{colNotes.length}</span>
             </div>
 
-            <div style={{
-              flex: 1, overflowY: 'auto', padding: '8px',
-              display: 'flex', flexDirection: 'column', gap: '6px',
-            }}>
-              {colNotes.map(note => (
-                <KanbanCard
-                  key={note.id}
-                  note={note}
-                  cached={parsedCache.get(note.id)}
-                  isDragging={dragId === note.id}
-                  onDragStart={() => setDragId(note.id)}
-                  onDragEnd={() => { setDragId(null); setOverCol(null); }}
-                  onClick={() => onNoteClick?.(note.id)}
-                  canWrite={canWrite}
-                />
-              ))}
-              {colNotes.length === 0 && (
-                <div style={{
-                  textAlign: 'center', padding: '24px 8px',
-                  color: 'var(--text-faint)', fontSize: '0.75rem',
-                  fontFamily: 'var(--font-mono)',
-                }}>пусто</div>
-              )}
-            </div>
+            <VirtualizedColumn
+              notes={colNotes}
+              parsedCache={parsedCache}
+              canWrite={canWrite}
+              dragId={dragId}
+              setDragId={setDragId}
+              onDragEnd={() => { setDragId(null); setOverCol(null); }}
+              onCardClick={id => onNoteClick?.(id)}
+            />
           </div>
         );
       })}
+    </div>
+  );
+};
+
+// ── Virtualized column ─────────────────────────────────────────────────
+interface VirtualizedColumnProps {
+  notes: Note[];
+  parsedCache: Map<string, { props: any; text: string }>;
+  canWrite: boolean;
+  isMobile?: boolean;
+  dragId: string | null;
+  setDragId: (id: string | null) => void;
+  onDragEnd?: () => void;
+  onCardClick: (id: string) => void;
+  onMoveLeft?: (id: string) => void;
+  onMoveRight?: (id: string) => void;
+}
+
+const VirtualizedColumn: React.FC<VirtualizedColumnProps> = ({
+  notes, parsedCache, canWrite, isMobile,
+  dragId, setDragId, onDragEnd, onCardClick,
+  onMoveLeft, onMoveRight,
+}) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: notes.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => (isMobile ? 150 : 110),
+    overscan: isMobile ? 4 : 6,
+  });
+
+  if (notes.length === 0) {
+    return (
+      <div style={{ flex: 1, padding: '8px', overflowY: 'auto' }}>
+        <div style={{
+          textAlign: 'center', padding: isMobile ? '40px 8px' : '24px 8px',
+          color: 'var(--text-faint)', fontSize: '0.75rem',
+          fontFamily: 'var(--font-mono)',
+        }}>пусто</div>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+      <div style={{ height: virtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
+        {virtualizer.getVirtualItems().map(v => {
+          const note = notes[v.index];
+          if (!note) return null;
+          return (
+            <div
+              key={note.id}
+              data-index={v.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0,
+                transform: `translateY(${v.start}px)`,
+                paddingBottom: '6px',
+              }}
+            >
+              <KanbanCard
+                note={note}
+                cached={parsedCache.get(note.id)}
+                isDragging={dragId === note.id}
+                onDragStart={() => setDragId(note.id)}
+                onDragEnd={() => { setDragId(null); onDragEnd?.(); }}
+                onClick={() => onCardClick(note.id)}
+                canWrite={canWrite}
+                isMobile={isMobile}
+                onMoveLeft={onMoveLeft ? () => onMoveLeft(note.id) : undefined}
+                onMoveRight={onMoveRight ? () => onMoveRight(note.id) : undefined}
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -328,7 +368,6 @@ interface KanbanCardProps {
   onClick: () => void;
   canWrite: boolean;
   isMobile?: boolean;
-  currentColIdx?: number;
   onMoveLeft?: () => void;
   onMoveRight?: () => void;
 }
@@ -350,6 +389,11 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     fontSize: '0.75rem', fontFamily: 'var(--font-body)',
     lineHeight: 1,
   };
+
+  // Compute neighbour labels from current status (covers 'none' too)
+  const curIdx = COLUMNS.findIndex(c => c.id === (props.status || 'todo'));
+  const leftLabel = curIdx > 0 ? COLUMNS[curIdx - 1].label : '';
+  const rightLabel = curIdx >= 0 && curIdx < COLUMNS.length - 1 ? COLUMNS[curIdx + 1].label : '';
 
   return (
     <div
@@ -409,16 +453,8 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
           style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '8px' }}
           onClick={e => e.stopPropagation()}
         >
-          {onMoveLeft && (
-            <button onClick={onMoveLeft} style={moveBtn}>
-              ← {COLUMNS[COLUMNS.findIndex(c => c.id === (props.status || 'todo')) - 1]?.label ?? ''}
-            </button>
-          )}
-          {onMoveRight && (
-            <button onClick={onMoveRight} style={moveBtn}>
-              {COLUMNS[COLUMNS.findIndex(c => c.id === (props.status || 'todo')) + 1]?.label ?? ''} →
-            </button>
-          )}
+          {onMoveLeft && <button onClick={onMoveLeft} style={moveBtn}>← {leftLabel}</button>}
+          {onMoveRight && <button onClick={onMoveRight} style={moveBtn}>{rightLabel} →</button>}
         </div>
       )}
     </div>
