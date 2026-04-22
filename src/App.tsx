@@ -853,14 +853,22 @@ function App() {
   };
 
   const handleEditSubmit = async (noteId: string, astText: string, propsJson: string) => {
-    // Lookup the feed_id of this note to encrypt with the correct FEK
-    const rows = await db.execO(`SELECT feed_id FROM notes WHERE id = ?`, [noteId]) as any[];
+    // Lookup the feed_id and existing properties of this note
+    const rows = await db.execO(`SELECT feed_id, properties FROM notes WHERE id = ?`, [noteId]) as any[];
     const noteFeedId = rows[0]?.feed_id || activeFeedId;
+    const dec = noteFeedId ? (s: string) => decryptForFeed(s, noteFeedId) : decrypt;
     const enc = noteFeedId ? (s: string) => encryptForFeed(s, noteFeedId) : encrypt;
+
+    // Merge incoming props over existing ones so fields the editor doesn't
+    // track (completed_at, etc.) are never silently dropped.
+    let existingProps: Record<string, unknown> = {};
+    try { existingProps = JSON.parse(dec(rows[0]?.properties) || '{}'); } catch { /* */ }
+    const merged = JSON.stringify({ ...existingProps, ...JSON.parse(propsJson) });
+
     try {
       await db.exec(
         `UPDATE notes SET content = ?, properties = ?, updated_at = ? WHERE id = ?`,
-        [enc(astText), enc(propsJson), Date.now(), noteId]
+        [enc(astText), enc(merged), Date.now(), noteId]
       );
       setEditingTweet(null);
     } catch (err) {

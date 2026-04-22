@@ -576,7 +576,7 @@ export const NoteCard = React.memo(function NoteCard({
                   {status !== 'none' && (
                     <PropChip value={status} options={STATUSES} onChange={handleStatus} />
                   )}
-                  {status !== 'none' && !!recurrence && (
+                  {status !== 'none' && (
                     <RecurrenceChip value={recurrence} onChange={handleRecurrence} />
                   )}
                   {targetDate && (
