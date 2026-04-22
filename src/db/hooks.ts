@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDB } from './DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 import { SyncEvents } from '../sync/events';
 import { getOrDecrypt, peekDecryptCache, putDecryptCache } from './notesCache';
 import { decryptBatchInWorker, isWorkerReady } from '../crypto/decryptWorker';
+import { getOptimisticFor, reconcileOptimistic, subscribeOptimistic } from './optimisticNotes';
 
 export interface Note {
   id: string;
@@ -78,10 +79,38 @@ export async function rescueOrphans(db: any) {
   `);
 }
 
+/** Merge optimistic notes into the real fetch result.
+ *  - Root inserts (parent_id == null) go above non-pinned roots.
+ *  - Replies go directly under their parent in the existing list. */
+function mergeOptimistic(real: Note[], optimistic: Note[]): Note[] {
+  if (optimistic.length === 0) return real;
+  const realIds = new Set(real.map(n => n.id));
+  const fresh = optimistic.filter(n => !realIds.has(n.id));
+  if (fresh.length === 0) return real;
+
+  const out = [...real];
+  for (const note of fresh) {
+    if (note.parent_id == null) {
+      // Find first non-pinned root and insert before it.
+      const idx = out.findIndex(n => n.depth === 0 && !n.is_pinned);
+      out.splice(idx === -1 ? out.length : idx, 0, note);
+    } else {
+      const parentIdx = out.findIndex(n => n.id === note.parent_id);
+      if (parentIdx === -1) {
+        out.push(note);
+      } else {
+        out.splice(parentIdx + 1, 0, note);
+      }
+    }
+  }
+  return out;
+}
+
 export function useNotes(parentId: string | null = null, feedId: string | null = null) {
   const db = useDB();
   const { decryptForFeed, decrypt } = useCrypto();
   const [notes, setNotes] = useState<Note[]>([]);
+  const lastRealRef = useRef<Note[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -185,10 +214,22 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
         }
       }
 
-      if (isMounted) setNotes(out);
+      if (!isMounted) return;
+      // Reconcile: any optimistic entry whose id now landed in the real
+      // result drops out of the layer (and out of any other useNotes
+      // subscriber's view too).
+      reconcileOptimistic(new Set(out.map(n => n.id)));
+      lastRealRef.current = out;
+      setNotes(mergeOptimistic(out, getOptimisticFor(parentId, feedId)));
     };
 
     fetchNotes();
+
+    // Re-merge synchronously when the optimistic store changes — no DB query.
+    const unsubOpt = subscribeOptimistic(() => {
+      if (!isMounted) return;
+      setNotes(mergeOptimistic(lastRealRef.current, getOptimisticFor(parentId, feedId)));
+    });
 
     // Coalesce bursts of onUpdate / sync events into a single refetch.
     // Bursts happen during typing (autosave + crsql_changes), import,
@@ -217,6 +258,7 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
       if (debounceTimer) clearTimeout(debounceTimer);
       cleanup();
       SyncEvents.removeEventListener('sync', syncListener);
+      unsubOpt();
     };
   }, [db, parentId, feedId]);
 

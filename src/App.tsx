@@ -3,6 +3,8 @@ import { useDB } from './db/DBContext';
 import { Feed, extractTags } from './components/Feed';
 import { TweetEditor } from './components/TiptapEditor';
 import { useNotes, useFeeds, useFeedRole, rescueOrphans } from './db/hooks';
+import { addOptimistic, removeOptimistic } from './db/optimisticNotes';
+import { putDecryptCache } from './db/notesCache';
 import type { Feed as FeedData } from './db/hooks';
 import { useCrypto } from './crypto/CryptoContext';
 import { isEncrypted } from './crypto/cipher';
@@ -803,12 +805,23 @@ function App() {
     if (!activeFeedId) return;
     const id = 'note-' + uid();
     const now = Date.now();
+    // Optimistic: card appears in the same React tick the user submitted.
+    // Pre-seed the decrypt cache so the next real fetch is a sync hit.
+    putDecryptCache(id, now, astText, propsJson);
+    addOptimistic({
+      id, parent_id: focusedTweetId, author_id: nostrPubKey,
+      content: astText, sort_key: now.toString(), properties: propsJson,
+      view_mode: '', feed_id: activeFeedId,
+      created_at: now, updated_at: now,
+      is_deleted: 0, is_pinned: 0, depth: focusedTweetId ? 1 : 0,
+    });
     try {
       await db.exec(
         `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
         [id, focusedTweetId, nostrPubKey, feedEncrypt(astText), now.toString(), feedEncrypt(propsJson), activeFeedId, now, now]
       );
     } catch (err) {
+      removeOptimistic(id);
       if (handleFekError(err)) throw err;
       throw err;
     }
@@ -818,6 +831,14 @@ function App() {
     if (!activeFeedId) return;
     const id = 'note-' + uid();
     const now = Date.now();
+    putDecryptCache(id, now, astText, propsJson);
+    addOptimistic({
+      id, parent_id: parentId, author_id: nostrPubKey,
+      content: astText, sort_key: now.toString(), properties: propsJson,
+      view_mode: '', feed_id: activeFeedId,
+      created_at: now, updated_at: now,
+      is_deleted: 0, is_pinned: 0, depth: 1,
+    });
     try {
       await db.exec(
         `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
@@ -825,6 +846,7 @@ function App() {
       );
       setReplyingToTweetId(null);
     } catch (err) {
+      removeOptimistic(id);
       if (handleFekError(err)) return;
       throw err;
     }
