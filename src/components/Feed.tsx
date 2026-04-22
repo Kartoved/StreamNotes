@@ -660,30 +660,23 @@ export const Feed = ({
         </div>
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* View mode toggle */}
+          {/* View mode: Лента / Канбан */}
           <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-hover)', borderRadius: 'var(--radius)', padding: '2px', border: '1px solid var(--line)' }}>
-            {[
-              { id: 'feed', label: 'Лента', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg> },
+            {([
+              { id: 'feed',   label: 'Лента',  icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg> },
               { id: 'kanban', label: 'Канбан', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg> },
-            ].map(opt => (
+            ] as const).map(opt => (
               <button
                 key={opt.id}
-                onClick={() => setViewMode(opt.id as any)}
-                title={`Вид: ${opt.label}`}
+                onClick={() => { setViewMode(opt.id); if (opt.id === 'kanban') setGroupMode('none'); }}
                 style={{
                   background: viewMode === opt.id ? 'var(--bg)' : 'transparent',
                   color: viewMode === opt.id ? 'var(--text)' : 'var(--text-faint)',
-                  border: 'none',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontSize: '0.7rem',
+                  border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem',
                   fontWeight: viewMode === opt.id ? 600 : 400,
                   boxShadow: viewMode === opt.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                  transition: 'all 0.1s'
+                  transition: 'all 0.1s',
                 }}
               >
                 {opt.icon}
@@ -692,41 +685,32 @@ export const Feed = ({
             ))}
           </div>
 
-          {/* Grouping */}
-          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-hover)', borderRadius: 'var(--radius)', padding: '2px', border: '1px solid var(--line)' }}>
-             {[
-               { id: 'none', label: 'Дерево', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L12 22"/><path d="M12 8L20 8"/><path d="M12 16L20 16"/></svg> },
-               { id: 'status', label: 'Статусы', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8V12L14 14"/></svg> },
-               { id: 'date', label: 'Даты', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> }
-             ].map(opt => (
-               <button
-                 key={opt.id}
-                 onClick={() => setGroupMode(opt.id as any)}
-                 title={`Группировка: ${opt.label}`}
-                 style={{
-                   background: groupMode === opt.id ? 'var(--bg)' : 'transparent',
-                   color: groupMode === opt.id ? 'var(--text)' : 'var(--text-faint)',
-                   border: 'none',
-                   padding: '4px 8px',
-                   borderRadius: '4px',
-                   cursor: 'pointer',
-                   display: 'flex',
-                   alignItems: 'center',
-                   gap: '4px',
-                   fontSize: '0.7rem',
-                   fontWeight: groupMode === opt.id ? 600 : 400,
-                   boxShadow: groupMode === opt.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                   transition: 'all 0.1s'
-                 }}
-               >
-                 {opt.icon}
-                 <span className="feed-toolbar-label">{opt.label}</span>
-               </button>
-             ))}
-          </div>
+          {/* Grouping — only in Лента mode */}
+          {viewMode === 'feed' && (
+            <select
+              value={groupMode}
+              onChange={(e) => { setGroupMode(e.target.value as any); setSortMode('default'); }}
+              style={{
+                background: 'var(--bg-hover)',
+                color: groupMode !== 'none' ? 'var(--text)' : 'var(--text-sub)',
+                border: '1px solid var(--line)',
+                borderRadius: 'var(--radius)',
+                padding: '3px 8px',
+                fontSize: '0.72rem',
+                fontFamily: 'var(--font-body)',
+                outline: 'none',
+                cursor: 'pointer',
+                fontWeight: groupMode !== 'none' ? 600 : 400,
+              }}
+            >
+              <option value="none">По умолчанию</option>
+              <option value="status">По статусам</option>
+              <option value="date">По датам</option>
+            </select>
+          )}
 
-          {/* Sorting - only show if flat */}
-          {(groupMode !== 'none' || sortMode !== 'default') && (
+          {/* Sorting — only when grouping is active */}
+          {viewMode === 'feed' && groupMode !== 'none' && (
             <select
               value={sortMode}
               onChange={(e) => setSortMode(e.target.value as any)}
@@ -739,10 +723,10 @@ export const Feed = ({
                 fontSize: '0.72rem',
                 fontFamily: 'var(--font-body)',
                 outline: 'none',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
-              <option value="default">По умолчанию</option>
+              <option value="default">Сортировка: по умолчанию</option>
               <option value="created">По дате создания</option>
               <option value="date">По дате задачи</option>
               <option value="status">По статусу</option>
