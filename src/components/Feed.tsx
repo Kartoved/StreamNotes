@@ -414,7 +414,6 @@ export const Feed = ({
     return result;
   }, [filteredNotes, parsedCache, collapsedIds, sortMode, groupMode]);
 
-  const [showScrollTop, setShowScrollTop] = React.useState(false);
   const scrollElRef = useRef<HTMLElement | null>(null);
   const virtualizer = useVirtualizer({
     count: visibleNotes.length,
@@ -430,15 +429,9 @@ export const Feed = ({
     },
     overscan: typeof window !== 'undefined' && window.innerWidth <= 640 ? 3 : 5,
   });
-
-  // Attach scroll listener via virtualizer's own scrollElement
-  React.useEffect(() => {
-    const el = virtualizer.scrollElement as HTMLElement | null;
-    if (!el) return;
-    const handler = () => setShowScrollTop(el.scrollTop > 300);
-    el.addEventListener('scroll', handler, { passive: true });
-    return () => el.removeEventListener('scroll', handler);
-  }, [virtualizer.scrollElement]);
+  // Derived directly from virtualizer state — no listener needed.
+  // The virtualizer re-renders the component on every scroll tick.
+  const showScrollTop = (virtualizer.scrollOffset ?? 0) > 300;
 
   // Reset scroll + collapsed state whenever a filter activates
   React.useEffect(() => {
