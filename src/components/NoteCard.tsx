@@ -609,20 +609,31 @@ export const NoteCard = React.memo(function NoteCard({
     </div>
   );
 }, (prev, next) => {
-  // Custom comparator: skip re-render if key data hasn't changed.
-  // Function props (callbacks) are intentionally excluded — they should
-  // be stabilized with useCallback in Feed.tsx.
+  // Custom comparator. Function props are intentionally excluded — they
+  // are stabilized with useCallback in Feed.tsx.
+  //
+  // editingNoteId/draggedId/dragOverInfo are scoped to "did this card's
+  // own state change?" so dragging or editing one card doesn't re-render
+  // every other card in a 3000-note feed.
+  const id = next.note.id;
+  const prevHover = prev.dragOverInfo && prev.dragOverInfo.id === id ? prev.dragOverInfo.zone : null;
+  const nextHover = next.dragOverInfo && next.dragOverInfo.id === id ? next.dragOverInfo.zone : null;
   return (
-    prev.note.id === next.note.id &&
+    prev.note.id === id &&
     prev.note.updated_at === next.note.updated_at &&
     prev.note.properties === next.note.properties &&
     prev.note.content === next.note.content &&
+    prev.note.is_pinned === next.note.is_pinned &&
+    prev.note.parent_id === next.note.parent_id &&
+    prev.note.sort_key === next.note.sort_key &&
     prev.indent === next.indent &&
     prev.isReplying === next.isReplying &&
-    prev.editingNoteId === next.editingNoteId &&
-    prev.draggedId === next.draggedId &&
-    prev.dragOverInfo === next.dragOverInfo &&
+    (prev.editingNoteId === id) === (next.editingNoteId === id) &&
+    (prev.draggedId === id) === (next.draggedId === id) &&
+    prevHover === nextHover &&
     prev.virtualItem.index === next.virtualItem.index &&
-    prev.virtualItem.start === next.virtualItem.start
+    prev.virtualItem.start === next.virtualItem.start &&
+    prev.isSharedFeed === next.isSharedFeed &&
+    prev.localNpub === next.localNpub
   );
 });

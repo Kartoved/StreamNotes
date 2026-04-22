@@ -9,6 +9,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import type { DerivedKeys } from './keys';
 import SeedSetup from '../components/SeedSetup';
 import { clearNotesCache } from '../db/notesCache';
+import { initDecryptWorker, pushFeedKey, pushSharedFeed, terminateDecryptWorker } from './decryptWorker';
 import UnlockScreen from '../components/UnlockScreen';
 import SeedRecover from '../components/SeedRecover';
 import {
@@ -126,6 +127,10 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
     setKeys(derived);
     localStorage.setItem('sn_npub', derived.nostrPubKey);
     localStorage.setItem('sn_initialized', '1');
+    // Spin up the decrypt worker with the master key. Per-feed FEKs are
+    // mirrored as they're registered by useFeeds.
+    initDecryptWorker(derived.contentKey, feedKeysRef.current, sharedFeedIdsRef.current)
+      .catch(() => { /* worker disabled — useNotes falls back to sync decrypt */ });
     setScreen('ready');
   }, []);
 
@@ -223,12 +228,15 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
       decryptForFeed: feedCipher.decryptForFeed,
 
       registerFeedKey: (feedId: string, fekHex: string) => {
-        feedKeysRef.current.set(feedId, hexToBytes(fekHex));
+        const fek = hexToBytes(fekHex);
+        feedKeysRef.current.set(feedId, fek);
         sharedFeedIdsRef.current.add(feedId);
+        pushFeedKey(feedId, fek);
       },
 
       markFeedShared: (feedId: string) => {
         sharedFeedIdsRef.current.add(feedId);
+        pushSharedFeed(feedId);
       },
 
       deriveNewFeedKey: (keyIndex: number) => {
@@ -267,6 +275,7 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
         setScreen('setup');
         feedKeysRef.current.clear();
         clearNotesCache();
+        terminateDecryptWorker();
       },
       enableBiometric: async () => {
         if (!mnemonicRef.current) throw new Error('Session expired');

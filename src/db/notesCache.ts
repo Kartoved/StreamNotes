@@ -48,6 +48,21 @@ export function getOrDecrypt(
   return { content, properties };
 }
 
+/** Sync cache lookup without invoking the fallback decrypt. Used by the
+ *  worker path to separate hits from misses before posting a batch. */
+export function peekDecryptCache(id: string, updated_at: number): { content: string; properties: string } | null {
+  const hit = decryptCache.get(id);
+  if (hit && hit.updated_at === updated_at) {
+    return { content: hit.content, properties: hit.properties };
+  }
+  return null;
+}
+
+/** Populate the cache from a worker-returned decrypt result. */
+export function putDecryptCache(id: string, updated_at: number, content: string, properties: string): void {
+  decryptCache.set(id, { updated_at, content, properties });
+}
+
 export function getOrParse(
   id: string,
   updated_at: number,

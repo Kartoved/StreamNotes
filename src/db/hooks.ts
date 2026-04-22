@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useDB } from './DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 import { SyncEvents } from '../sync/events';
-import { getOrDecrypt } from './notesCache';
+import { getOrDecrypt, peekDecryptCache, putDecryptCache } from './notesCache';
+import { decryptBatchInWorker, isWorkerReady } from '../crypto/decryptWorker';
 
 export interface Note {
   id: string;
@@ -136,16 +137,55 @@ export function useNotes(parentId: string | null = null, feedId: string | null =
         params = [];
       }
 
-      const res = await db.execO(query, params);
-      const decrypted = (res as Note[]).map(row => {
+      const res = await db.execO(query, params) as Note[];
+
+      // Two-phase decrypt:
+      //   1. Resolve cache hits synchronously — most refetches are warm
+      //      (autosave, sync events) so this branch carries the bulk.
+      //   2. Send the misses to the worker in one batch so the main
+      //      thread stays interactive during cold loads of large feeds.
+      const out: Note[] = new Array(res.length);
+      const missIdx: number[] = [];
+      const missRows: { id: string; encContent: string; encProperties: string; feedId: string | null }[] = [];
+
+      for (let i = 0; i < res.length; i++) {
+        const row = res[i];
         const fid = row.feed_id || feedId;
-        const dec = fid ? (s: string) => decryptForFeed(s, fid) : decrypt;
-        const { content, properties } = getOrDecrypt(
-          row.id, row.updated_at, row.content, row.properties, dec,
-        );
-        return { ...row, content, properties };
-      });
-      if (isMounted) setNotes(decrypted);
+        const cached = peekDecryptCache(row.id, row.updated_at);
+        if (cached) {
+          out[i] = { ...row, content: cached.content, properties: cached.properties };
+        } else {
+          missIdx.push(i);
+          missRows.push({ id: row.id, encContent: row.content, encProperties: row.properties, feedId: fid });
+        }
+      }
+
+      const workerResult = isWorkerReady() && missRows.length > 0
+        ? await decryptBatchInWorker(missRows).catch(() => null)
+        : null;
+
+      if (workerResult) {
+        for (let k = 0; k < workerResult.length; k++) {
+          const r = workerResult[k];
+          const i = missIdx[k];
+          out[i] = { ...res[i], content: r.content, properties: r.properties };
+          if (r.ok) putDecryptCache(r.id, res[i].updated_at, r.content, r.properties);
+        }
+      } else {
+        // Fallback: sync decrypt on main thread (worker disabled / failed / tests).
+        for (let k = 0; k < missIdx.length; k++) {
+          const i = missIdx[k];
+          const row = res[i];
+          const fid = row.feed_id || feedId;
+          const dec = fid ? (s: string) => decryptForFeed(s, fid) : decrypt;
+          const { content, properties } = getOrDecrypt(
+            row.id, row.updated_at, row.content, row.properties, dec,
+          );
+          out[i] = { ...row, content, properties };
+        }
+      }
+
+      if (isMounted) setNotes(out);
     };
 
     fetchNotes();

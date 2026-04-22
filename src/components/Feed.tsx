@@ -88,9 +88,15 @@ export const Feed = ({
   const db = useDB();
   const { encrypt, decrypt, encryptForFeed, decryptForFeed } = useCrypto();
 
-  // Feed-aware encrypt/decrypt helpers
-  const feedEncrypt = (text: string) => feedId ? encryptForFeed(text, feedId) : encrypt(text);
-  const feedDecrypt = (text: string) => feedId ? decryptForFeed(text, feedId) : decrypt(text);
+  // Feed-aware encrypt/decrypt helpers — memoised so NoteCard memo holds.
+  const feedEncrypt = useCallback(
+    (text: string) => feedId ? encryptForFeed(text, feedId) : encrypt(text),
+    [feedId, encryptForFeed, encrypt]
+  );
+  const feedDecrypt = useCallback(
+    (text: string) => feedId ? decryptForFeed(text, feedId) : decrypt(text),
+    [feedId, decryptForFeed, decrypt]
+  );
   const notes = useNotes(parentId, feedId);
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -475,23 +481,26 @@ export const Feed = ({
     } catch (e) { console.error(e); }
   };
 
-  const handleDrop = async (targetId: string, zone: 'sibling' | 'child') => {
-    if (!draggedId || draggedId === targetId) return;
+  // Stable across renders — reads drag state from refs so NoteCard's onDrop
+  // callback can also be a stable useCallback (key for memo-ing 3000+ cards).
+  const handleDrop = useCallback(async (targetId: string, zone: 'sibling' | 'child') => {
+    const dragged = draggedIdRef.current;
+    if (!dragged || dragged === targetId) return;
     let isDescendant = false;
     let curr = targetId;
     while (curr) {
       const [row] = await db.execA(`SELECT parent_id FROM notes WHERE id = ?`, [curr]);
       if (!row) break;
-      if (row[0] === draggedId) { isDescendant = true; break; }
+      if (row[0] === dragged) { isDescendant = true; break; }
       curr = row[0];
     }
     if (isDescendant) {
       showToast('Нельзя перетащить заметку внутрь самой себя!', 'error');
-      setDraggedId(null); setDragOverInfo(null);
+      setDraggedIdBoth(null); setDragOverInfo(null);
       return;
     }
     if (zone === 'child') {
-      await db.exec(`UPDATE notes SET parent_id = ? WHERE id = ?`, [targetId, draggedId]);
+      await db.exec(`UPDATE notes SET parent_id = ? WHERE id = ?`, [targetId, dragged]);
     } else {
       const [targetRow] = await db.execA(`SELECT parent_id, sort_key FROM notes WHERE id = ?`, [targetId]);
       if (targetRow) {
@@ -502,11 +511,17 @@ export const Feed = ({
           [parentId, targetKey]
         );
         const newKey = sortKeyBetween(targetKey, nextRow?.[0] ?? null);
-        await db.exec(`UPDATE notes SET parent_id = ?, sort_key = ? WHERE id = ?`, [parentId, newKey, draggedId]);
+        await db.exec(`UPDATE notes SET parent_id = ?, sort_key = ? WHERE id = ?`, [parentId, newKey, dragged]);
       }
     }
-    setDraggedId(null); setDragOverInfo(null);
-  };
+    setDraggedIdBoth(null); setDragOverInfo(null);
+  }, [db]);
+
+  const handleNcDrop = useCallback((e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    const info = dragOverInfoRef.current;
+    if (info) handleDrop(id, info.zone);
+  }, [handleDrop]);
 
   // Stable callbacks for NoteCard (avoids re-render from new function refs)
   const handleNcDragStart = useCallback((e: React.DragEvent, id: string) => {
@@ -833,7 +848,7 @@ export const Feed = ({
                   onDragStart={handleNcDragStart}
                   onDragOver={handleNcDragOver}
                   onDragLeave={handleNcDragLeave}
-                  onDrop={(e, id) => { e.preventDefault(); if (dragOverInfo) handleDrop(id, dragOverInfo.zone); }}
+                  onDrop={handleNcDrop}
                   onDragEnd={handleNcDragEnd}
                   onCancelEdit={onCancelEdit}
                   onSubmitEdit={onSubmitEdit}
