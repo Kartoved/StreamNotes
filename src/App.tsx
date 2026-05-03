@@ -1053,17 +1053,32 @@ function App() {
 
   const buildBackupPayload = useCallback(async () => {
     const rows = await db.execO(`SELECT * FROM notes WHERE is_deleted = 0`) as any[];
+    let skipped = 0;
     const decryptedRows = rows.map(r => {
-      const dec = r.feed_id ? (s: string) => decryptForFeed(s, r.feed_id) : decrypt;
-      return { ...r, content: dec(r.content), properties: dec(r.properties) };
-    });
+      try {
+        const dec = r.feed_id ? (s: string) => decryptForFeed(s, r.feed_id) : decrypt;
+        return { ...r, content: dec(r.content), properties: dec(r.properties) };
+      } catch {
+        // FEK not loaded yet or data corrupted — skip this note rather than
+        // aborting the entire backup. Personal notes are always decryptable.
+        skipped++;
+        return null;
+      }
+    }).filter(Boolean);
+    if (skipped > 0) console.warn(`[backup] skipped ${skipped} notes that could not be decrypted`);
     const feedRows = await db.execO(`SELECT * FROM feeds`) as any[];
-    const decryptedFeeds = feedRows.map(f => ({
-      ...f,
-      name: decrypt(f.name),
-      avatar: f.avatar ? decrypt(f.avatar) : null,
-      encryption_key: null,
-    }));
+    const decryptedFeeds = feedRows.map((f: any) => {
+      try {
+        return {
+          ...f,
+          name: decrypt(f.name),
+          avatar: f.avatar ? decrypt(f.avatar) : null,
+          encryption_key: null,
+        };
+      } catch {
+        return { ...f, name: f.name, avatar: f.avatar, encryption_key: null };
+      }
+    });
     return { version: 1, notes: decryptedRows, feeds: decryptedFeeds };
   }, [db, decrypt, decryptForFeed]);
 
