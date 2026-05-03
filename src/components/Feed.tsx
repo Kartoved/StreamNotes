@@ -448,6 +448,16 @@ export const Feed = ({
       return typeof window !== 'undefined' && window.innerWidth <= 640 ? 140 : 100;
     },
     overscan: typeof window !== 'undefined' && window.innerWidth <= 640 ? 3 : 5,
+    // Stable identity per item so React doesn't reuse a NoteCard component
+    // for a different note when the filtered list shrinks (e.g. changing a
+    // task's status removes it from the current status filter). Without this,
+    // key=index causes useState inside NoteCard to keep the previous note's
+    // status/date values until the effect runs.
+    getItemKey: (i) => {
+      const item = visibleNotes[i];
+      if (!item) return i;
+      return item.type === 'header' ? `h::${item.label}` : item.note.id;
+    },
   });
   // Derived directly from virtualizer state — no listener needed.
   // The virtualizer re-renders the component on every scroll tick.
