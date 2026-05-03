@@ -74,8 +74,11 @@ export function getOrParse(
 
   let props: any = {};
   try { props = JSON.parse(properties || '{}'); } catch { /* keep empty */ }
-  const parsed = { props, text: extractPlainText(content).toLocaleLowerCase() };
-  parseCache.set(id, { updated_at, parsed });
+  const text = extractPlainText(content).toLocaleLowerCase();
+  const parsed = { props, text };
+  // Don't cache when decryption failed — the same updated_at may later be
+  // served with correct data (e.g. after the FEK for a shared feed loads).
+  if (content !== '[Ошибка расшифровки]') parseCache.set(id, { updated_at, parsed });
   return parsed;
 }
 

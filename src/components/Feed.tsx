@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useCallback, lazy, Suspense } from 
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotes } from '../db/hooks';
-import { extractPlainText, extractTags, getOrParse } from '../db/notesCache';
+import { extractPlainText, extractTags } from '../db/notesCache';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 import { storePendingBacklink } from '../utils/backlinkClipboard';
@@ -265,12 +265,16 @@ export const Feed = ({
   const closeContextMenu = () => setContextMenu(null);
 
   // ── Pre-parse properties + plain text once (reused by filter & sort) ──
-  // Backed by module-level cache keyed by id+updated_at, so unchanged notes
-  // skip JSON.parse and TipTap traversal across feed/view switches.
+  // Computed directly from the already-decrypted note data — intentionally NOT
+  // using the module-level parseCache, which can return stale props={} when a
+  // shared-feed note's first decryption fails (FEK not yet loaded) and the
+  // parseCache locks in the bad result for the same updated_at.
   const parsedCache = React.useMemo(() => {
     const m = new Map<string, { props: any; text: string }>();
     for (const note of notes) {
-      m.set(note.id, getOrParse(note.id, note.updated_at, note.content, note.properties));
+      let props: any = {};
+      try { props = JSON.parse(note.properties || '{}'); } catch { /* keep empty */ }
+      m.set(note.id, { props, text: extractPlainText(note.content).toLocaleLowerCase() });
     }
     return m;
   }, [notes]);
