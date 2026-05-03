@@ -443,7 +443,7 @@ body {
   font-family: var(--font-body);
   background: var(--bg-page);
   color: var(--text);
-  font-size: var(--font-size-base, 15px);
+  font-size: 15px;
   line-height: 1.85;
   letter-spacing: 0.01em;
   -webkit-font-smoothing: antialiased;
@@ -585,10 +585,12 @@ body {
 
 /* ── Tiptap editor ────────────────────────────────────────────────── */
 .tiptap-editor { color: var(--text) !important; }
+.tiptap-editor {
+  font-size: var(--font-size-base, 15px) !important;
+}
 .tiptap-editor .ProseMirror {
   outline: none;
   font-family: var(--font-body);
-  font-size: var(--font-size-base, 15px);
   color: var(--text);
   line-height: 1.85;
   letter-spacing: 0.01em;
