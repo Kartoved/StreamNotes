@@ -6,6 +6,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useDB } from '../db/DBContext';
+import { showToast } from './Toast';
 import type { RelayState } from '../sync/types';
 
 const labelStyle: React.CSSProperties = {
@@ -66,18 +67,21 @@ export default function SyncRelaysPanel() {
     setNewUrl('');
     await reload();
     refreshEngine();
+    showToast('Relay добавлен', 'success');
   };
 
   const handleToggle = async (url: string, current: number) => {
     await db.exec(`UPDATE sync_relays SET is_active = ? WHERE url = ?`, [current ? 0 : 1, url]);
     await reload();
     refreshEngine();
+    showToast(current ? 'Relay остановлен' : 'Relay запущен', 'success');
   };
 
   const handleRemove = async (url: string) => {
     await db.exec(`DELETE FROM sync_relays WHERE url = ?`, [url]);
     await reload();
     refreshEngine();
+    showToast('Relay удалён', 'success');
   };
 
   return (

@@ -242,14 +242,17 @@ export const Feed = ({
   const handleDeleteNote = async (id: string) => {
     await deleteWithChildren(id);
     setDeleteConfirmId(null);
+    showToast('Заметка удалена', 'success');
   };
 
   const handleBulkDelete = async () => {
+    const count = selectedIds.size;
     for (const id of selectedIds) {
       await deleteWithChildren(id);
     }
     setSelectedIds(new Set());
     setBulkAction(null);
+    showToast(`Удалено ${count} ${count === 1 ? 'заметка' : count < 5 ? 'заметки' : 'заметок'}`, 'success');
   };
 
   const openContextMenu = useCallback((e: React.MouseEvent, noteId: string) => {
@@ -633,7 +636,7 @@ export const Feed = ({
                   }
                   closeContextMenu();
                 }},
-                ...(canWrite ? [null as null, { label: ctxNote?.is_pinned ? '📌 Открепить' : '📌 Закрепить', action: async () => { await db.exec(`UPDATE notes SET is_pinned = ? WHERE id = ?`, [ctxNote?.is_pinned ? 0 : 1, contextMenu.noteId]); closeContextMenu(); } }] : []),
+                ...(canWrite ? [null as null, { label: ctxNote?.is_pinned ? '📌 Открепить' : '📌 Закрепить', action: async () => { const wasPinned = !!ctxNote?.is_pinned; await db.exec(`UPDATE notes SET is_pinned = ? WHERE id = ?`, [wasPinned ? 0 : 1, contextMenu.noteId]); showToast(wasPinned ? 'Заметка откреплена' : 'Заметка закреплена', 'success'); closeContextMenu(); } }] : []),
                 ...(onStartPomodoro ? [null as null, { label: '🍅 Запустить помидор', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
                 ...(userCanDelete ? [null as null, { label: '🗑 Удалить', action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true }] : []),
               ];

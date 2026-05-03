@@ -467,6 +467,7 @@ function App() {
       [id, encrypt(name), color, avatar ? encrypt(avatar) : null, encryptedFek, keyIndex, 0, Date.now()]
     );
     setActiveFeedId(id);
+    showToast('Лента создана', 'success');
   }, [db, encrypt, deriveNewFeedKey, encryptFeedKey]);
 
   const handleUpdateFeed = useCallback(async (id: string, name: string, color: string, avatar: string | null) => {
@@ -476,6 +477,7 @@ function App() {
       `UPDATE feeds SET name = ?, color = ?, avatar = ? WHERE id = ?`,
       [encrypt(name), color, avatar ? encrypt(avatar) : null, id]
     );
+    showToast('Лента обновлена', 'success');
   }, [db, encrypt]);
 
   const handleImportSharedFeed = useCallback(async (payload: { flow_id: string; fek: string; name: string; relay?: string; role?: string; author_npub?: string; notes?: any[]; links?: any[] }) => {
@@ -606,6 +608,7 @@ function App() {
     if (activeFeedId === id) {
       setActiveFeedId(feeds.find(f => f.id !== id)?.id ?? null);
     }
+    showToast('Лента удалена', 'success');
   }, [db, activeFeedId, feeds]);
 
   const handleShareFeed = useCallback(async (id: string): Promise<{ notes: any[]; links: any[] } | null> => {
@@ -641,6 +644,7 @@ function App() {
     if (archived && activeFeedId === id) {
       setActiveFeedId(feeds.find(f => f.id !== id && !f.is_archived)?.id ?? null);
     }
+    showToast(archived ? 'Лента архивирована' : 'Лента восстановлена из архива', 'success');
   }, [db, activeFeedId, feeds]);
 
   // ── Nickname DB sync (cross-device via CRDT user_settings) ────────────
@@ -649,6 +653,7 @@ function App() {
     try {
       const enc = encrypt(name);
       await db.exec(`INSERT OR REPLACE INTO user_settings (key, value) VALUES ('nickname', ?)`, [enc]);
+      showToast('Никнейм сохранён', 'success');
     } catch (err) {
       console.error('[settings] failed to persist nickname to DB', err);
     }
@@ -951,6 +956,7 @@ function App() {
     a.download = `sheafy-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    showToast('Экспорт готов', 'success');
   };
 
   const handleExportFeedMD = async (feedId: string, feedName: string) => {
@@ -972,6 +978,7 @@ function App() {
     a.download = `${feedName.replace(/[^a-z0-9а-яё]/gi, '_')}.md`;
     a.click();
     URL.revokeObjectURL(url);
+    showToast('Экспорт готов', 'success');
   };
 
   const handleExportAllMD = async () => {
@@ -1017,6 +1024,7 @@ function App() {
     a.download = `sheafy-markdown-export-${new Date().toISOString().slice(0, 10)}.zip`;
     a.click();
     URL.revokeObjectURL(url);
+    showToast('Экспорт готов', 'success');
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1139,6 +1147,7 @@ function App() {
     try {
       await deleteBackup(name);
       setBackupList(prev => prev.filter(b => b.name !== name));
+      showToast('Бэкап удалён', 'success');
     } catch (err) {
       showToast('Ошибка удаления бэкапа: ' + String(err), 'error');
     }
