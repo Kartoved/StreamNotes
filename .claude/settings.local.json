@@ -70,7 +70,8 @@
       "Bash(powershell -Command ' *)",
       "Bash(where sqlite3 *)",
       "Bash(tar -tf /tmp/design.html)",
-      "Bash(tar -xf /tmp/design.html -C /tmp/)"
+      "Bash(tar -xf /tmp/design.html -C /tmp/)",
+      "Bash(npm pkg *)"
     ]
   }
 }
