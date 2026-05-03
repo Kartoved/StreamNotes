@@ -52,7 +52,7 @@ export interface SyncEngineOptions {
   seenCacheLimit?: number;
 }
 
-const DEFAULT_BATCH_MS = 1500;
+const DEFAULT_BATCH_MS = 300;
 const DEFAULT_SEEN_LIMIT = 1024;
 
 export class SyncEngine {
@@ -77,6 +77,8 @@ export class SyncEngine {
   private seenEventIds = new Set<string>();
   /** feedId -> isShared (cached so routing decisions are sync). */
   private sharedFeedIds = new Set<string>();
+  /** Unix timestamp of the most-recently processed incoming event (persisted in sync_relays). */
+  private lastReceivedAt = 0;
 
   constructor(opts: SyncEngineOptions) {
     this.db = opts.db;
@@ -136,6 +138,10 @@ export class SyncEngine {
        FROM sync_relays WHERE is_active = 1`,
     )) as RelayState[];
     this.relay.setRelays(rows.map((r) => r.url));
+    // Use the minimum last_event_at across active relays as the subscription
+    // cursor — ensures we don't miss events that one relay has but another hasn't.
+    const minAt = rows.reduce((m, r) => Math.min(m, r.last_event_at ?? 0), Infinity);
+    this.lastReceivedAt = isFinite(minAt) ? minAt : 0;
   }
 
   private async loadFeeds(): Promise<void> {
@@ -163,19 +169,24 @@ export class SyncEngine {
   }
 
   private subscribeAll(): void {
-    // Personal channel: events authored by us
+    // On first sync lastReceivedAt=0 → since=0 (full history).
+    // On restart after a session, lastReceivedAt is loaded from DB → only
+    // recent events are fetched, making tab-switch reconnect near-instant.
+    // Subtract 60 s as a clock-skew buffer so we don't miss borderline events.
+    const since = this.lastReceivedAt > 0
+      ? Math.max(0, this.lastReceivedAt - 60)
+      : 0;
+
     const personalUnsub = this.relay.subscribe(
-      { kinds: [SYNC_EVENT_KIND], authors: [this.crypto.nostrPubKey], since: 0 },
+      { kinds: [SYNC_EVENT_KIND], authors: [this.crypto.nostrPubKey], since },
       (event) => { void this.handleIncoming(event); },
     );
     this.cleanupSubs.push(personalUnsub);
 
-    // Feed channel: any shared feed whose FEK we hold
-    // since: 0 explicitly requests full history (some relays omit history without it)
     const sharedIds = Array.from(this.sharedFeedIds);
     if (sharedIds.length) {
       const feedUnsub = this.relay.subscribe(
-        { kinds: [SYNC_EVENT_KIND], '#t': sharedIds, since: 0 },
+        { kinds: [SYNC_EVENT_KIND], '#t': sharedIds, since },
         (event) => { void this.handleIncoming(event); },
       );
       this.cleanupSubs.push(feedUnsub);
