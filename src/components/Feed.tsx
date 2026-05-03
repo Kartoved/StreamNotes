@@ -406,13 +406,29 @@ export const Feed = ({
       });
     } else {
       let hidingDepth = -1;
+      let hiddenCount = 0;
       for (const note of base) {
         if (!isFlat && hidingDepth !== -1) {
-          if (note.depth <= hidingDepth) hidingDepth = -1;
-          else continue;
+          if (note.depth <= hidingDepth) {
+            const last = result[result.length - 1];
+            if (last?.type === 'note') last.collapsedChildCount = hiddenCount;
+            hidingDepth = -1;
+            hiddenCount = 0;
+          } else {
+            hiddenCount++;
+            continue;
+          }
         }
-        result.push({ type: 'note', note });
-        if (!isFlat && collapsedIds.has(note.id)) hidingDepth = note.depth;
+        result.push({ type: 'note', note, collapsedChildCount: 0 });
+        if (!isFlat && collapsedIds.has(note.id)) {
+          hidingDepth = note.depth;
+          hiddenCount = 0;
+        }
+      }
+      // collapsed section extends to the end of the list
+      if (hidingDepth !== -1 && result.length > 0) {
+        const last = result[result.length - 1];
+        if (last?.type === 'note') last.collapsedChildCount = hiddenCount;
       }
     }
     return result;
@@ -843,6 +859,7 @@ export const Feed = ({
                   isSharedFeed={isSharedFeed}
                   localNpub={localNpub}
                   onTouchDragStart={handleTouchDragStart}
+                  collapsedChildCount={item.collapsedChildCount ?? 0}
                 />
               );
             })}

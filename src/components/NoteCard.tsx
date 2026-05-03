@@ -245,6 +245,7 @@ interface NoteCardProps {
   isSharedFeed?: boolean;
   localNpub?: string;
   onTouchDragStart?: (id: string, touch: { clientX: number; clientY: number }) => void;
+  collapsedChildCount?: number;
 }
 
 export const NoteCard = React.memo(function NoteCard({
@@ -277,6 +278,7 @@ export const NoteCard = React.memo(function NoteCard({
   isSharedFeed = false,
   localNpub = '',
   onTouchDragStart,
+  collapsedChildCount = 0,
 }: NoteCardProps) {
   const { nickname } = useCrypto();
   let props: any = {};
@@ -565,6 +567,23 @@ export const NoteCard = React.memo(function NoteCard({
                 />
               </div>
 
+              {collapsedChildCount > 0 && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                  marginTop: '6px', padding: '2px 8px',
+                  fontSize: '0.72rem', fontFamily: 'var(--font-mono)',
+                  color: 'var(--text-faint)',
+                  background: 'var(--bg-hover)',
+                  border: '1px solid var(--line)',
+                  borderRadius: 'var(--radius)',
+                  cursor: 'pointer', userSelect: 'none',
+                }}
+                  onClick={e => { e.stopPropagation(); openContextMenu(e, note.id); }}
+                >
+                  ↳ {collapsedChildCount}
+                </div>
+              )}
+
               {/* ── Inline editable props ── */}
               {showProps && (
                 <div
@@ -634,6 +653,7 @@ export const NoteCard = React.memo(function NoteCard({
     prev.virtualItem.index === next.virtualItem.index &&
     prev.virtualItem.start === next.virtualItem.start &&
     prev.isSharedFeed === next.isSharedFeed &&
-    prev.localNpub === next.localNpub
+    prev.localNpub === next.localNpub &&
+    prev.collapsedChildCount === next.collapsedChildCount
   );
 });
