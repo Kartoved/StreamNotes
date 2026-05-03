@@ -459,17 +459,6 @@ export const Feed = ({
       return item.type === 'header' ? `h::${item.label}` : item.note.id;
     },
   });
-  // Explicit scroll listener — more reliable than virtualizer.scrollOffset on
-  // mobile Safari where -webkit-overflow-scrolling:touch events don't always
-  // propagate to the virtualizer's internal handler.
-  const [showScrollTop, setShowScrollTop] = React.useState(false);
-  React.useEffect(() => {
-    const el = document.querySelector('.main-content') as HTMLElement | null;
-    if (!el) return;
-    const onScroll = () => setShowScrollTop(el.scrollTop > 300);
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-  }, []);
 
   // Reset scroll + collapsed state whenever a filter activates
   React.useEffect(() => {
@@ -480,10 +469,6 @@ export const Feed = ({
     }
   }, [searchQuery, selectedDate, statusFilter, selectedTags]);
 
-  const scrollToTop = () => {
-    document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
-    virtualizer.scrollToOffset(0);
-  };
 
   React.useEffect(() => {
     (window as any).scrollToNote = (id: string) => {
@@ -885,19 +870,6 @@ export const Feed = ({
         </div>
       )}
 
-      {/* Scroll to top button */}
-      {showScrollTop && createPortal(
-        <button
-          onClick={scrollToTop}
-          aria-label="Наверх"
-          className="scroll-to-top-btn"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 15l-6-6-6 6"/>
-          </svg>
-        </button>,
-        document.body
-      )}
 
       {/* Touch drag ghost */}
       {touchDragActive && createPortal(

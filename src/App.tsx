@@ -764,6 +764,19 @@ function App() {
     openFullscreenDraft({ ast, propsJson, onSubmit });
   };
 
+  // ── Scroll-to-top ─────────────────────────────────────────────────
+  const [showScrollTop, setShowScrollTop] = React.useState(false);
+  React.useEffect(() => {
+    const el = document.querySelector('.main-content') as HTMLElement | null;
+    if (!el) return;
+    const onScroll = () => setShowScrollTop(el.scrollTop > 300);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+  const scrollToTop = () => {
+    document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // ── Sidebar filters ────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
@@ -1424,6 +1437,19 @@ function App() {
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+      )}
+
+      {/* ── Scroll to top ── */}
+      {showScrollTop && (
+        <button
+          className="scroll-to-top-btn"
+          onClick={scrollToTop}
+          aria-label="Наверх"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 15l-6-6-6 6"/>
           </svg>
         </button>
       )}
