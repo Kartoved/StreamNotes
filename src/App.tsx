@@ -694,13 +694,6 @@ function App() {
     return localStorage.getItem('sn_font') || 'Courier Prime';
   });
 
-  const FONT_SIZES = [
-    { label: 'S',  px: 13 },
-    { label: 'M',  px: 15 },
-    { label: 'L',  px: 17 },
-    { label: 'XL', px: 19 },
-  ] as const;
-
   const [fontSize, setFontSize] = useState<number>(() => {
     return Number(localStorage.getItem('sn_font_size')) || 15;
   });
@@ -1267,7 +1260,6 @@ function App() {
               fontOptions={Object.keys(FONT_FAMILIES)}
               fontSize={fontSize}
               setFontSize={setFontSize}
-              fontSizes={FONT_SIZES}
               theme={theme}
               setTheme={handleSetTheme}
               onSetNickname={handleSetNickname}

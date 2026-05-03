@@ -8,11 +8,6 @@ import SyncRelaysPanel from './SyncRelaysPanel';
 import { THEMES, type ThemeId } from '../themes';
 import type { BackupEntry } from '../utils/autoBackup';
 
-interface FontSizeOption {
-  label: string;
-  px: number;
-}
-
 interface Props {
   onClose: () => void;
   onExport: () => void;
@@ -23,7 +18,6 @@ interface Props {
   fontOptions: string[];
   fontSize: number;
   setFontSize: (px: number) => void;
-  fontSizes: readonly FontSizeOption[];
   theme: ThemeId;
   setTheme: (t: ThemeId) => void;
   onSetNickname?: (name: string) => void;
@@ -34,7 +28,7 @@ interface Props {
   onWhatsNew?: () => void;
 }
 
-export default function SettingsModal({ onClose, onExport, onExportMD, onImport, font, setFont, fontOptions, fontSize, setFontSize, fontSizes, theme, setTheme, onSetNickname, backups = [], onCreateBackup, onRestoreBackup, onDeleteBackup, onWhatsNew }: Props) {
+export default function SettingsModal({ onClose, onExport, onExportMD, onImport, font, setFont, fontOptions, fontSize, setFontSize, theme, setTheme, onSetNickname, backups = [], onCreateBackup, onRestoreBackup, onDeleteBackup, onWhatsNew }: Props) {
   const { nostrPubKey, logout, nickname, setNickname: setNicknameCrypto, enableBiometric, disableBiometric, biometricEnrolled } = useCrypto();
   const setNickname = onSetNickname ?? setNicknameCrypto;
   const [showPasswordInput, setShowPasswordInput] = useState(false);
@@ -265,30 +259,28 @@ export default function SettingsModal({ onClose, onExport, onExportMD, onImport,
             </div>
 
             {/* Font size picker */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
               <span style={{ fontSize: '0.72rem', color: 'var(--text-sub)', flexShrink: 0 }}>Размер</span>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                {fontSizes.map(({ label, px }) => (
-                  <button
-                    key={px}
-                    onClick={() => setFontSize(px)}
-                    style={{
-                      padding: '3px 10px',
-                      fontSize: '0.72rem',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: fontSize === px ? 700 : 400,
-                      background: fontSize === px ? 'var(--text)' : 'var(--bg-hover)',
-                      color: fontSize === px ? 'var(--bg)' : 'var(--text-sub)',
-                      border: '1px solid var(--line)',
-                      borderRadius: 'var(--radius)',
-                      cursor: 'pointer',
-                      transition: 'all 0.1s',
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <input
+                type="range"
+                min={12}
+                max={22}
+                step={1}
+                value={fontSize}
+                onChange={e => setFontSize(Number(e.target.value))}
+                style={{ flex: 1, accentColor: 'var(--text)', cursor: 'pointer' }}
+              />
+              <span style={{
+                fontSize: '0.72rem',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text)',
+                fontWeight: 600,
+                minWidth: '32px',
+                textAlign: 'right',
+                flexShrink: 0,
+              }}>
+                {fontSize}px
+              </span>
             </div>
 
             <p style={{ fontSize: '0.7rem', color: 'var(--text-faint)', margin: '8px 0 0' }}>

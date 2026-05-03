@@ -487,7 +487,7 @@ body {
 /* ── Note content typography ──────────────────────────────────────── */
 .note-content {
   color: var(--text);
-  font-size: 1.05rem;
+  font-size: var(--font-size-base, 15px);
   line-height: 1.85;
   letter-spacing: 0.01em;
   user-select: text;
@@ -588,6 +588,7 @@ body {
 .tiptap-editor .ProseMirror {
   outline: none;
   font-family: var(--font-body);
+  font-size: var(--font-size-base, 15px);
   color: var(--text);
   line-height: 1.85;
   letter-spacing: 0.01em;

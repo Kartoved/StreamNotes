@@ -391,7 +391,7 @@ export const TweetEditor = ({
     editorProps: {
       attributes: {
         class: 'tiptap-editor',
-        style: 'outline: none; min-height: 60px; padding: 4px; font-size: 15px; color: var(--text-main, #e2e8f0); line-height: 1.5;',
+        style: 'outline: none; min-height: 60px; padding: 4px; color: var(--text-main, #e2e8f0); line-height: 1.5;',
         'data-gramm': 'false',
         'data-gramm_editor': 'false',
         'data-enable-grammarly': 'false',
