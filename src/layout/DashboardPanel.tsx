@@ -1,5 +1,5 @@
 import React from 'react';
-import { useDashboardStats } from '../db/useDashboardStats';
+import type { DashboardStats } from '../db/useDashboardStats';
 import { PomodoroState, PomodoroActions, formatPomodoroTime } from '../hooks/usePomodoro';
 
 // ── Progress Ring ─────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ const StatRow = ({
 interface DashboardPanelProps {
   activeStatusFilter: string | null;
   onStatusFilter: (status: string | null) => void;
-  activeFeedId: string | null;
+  stats: DashboardStats;
   pomodoro: PomodoroState;
   pomodoroActions: PomodoroActions;
 }
@@ -91,10 +91,10 @@ const PHASE_LABEL: Record<string, string> = {
 };
 
 export const DashboardPanel = ({
-  activeStatusFilter, onStatusFilter, activeFeedId,
+  activeStatusFilter, onStatusFilter, stats,
   pomodoro, pomodoroActions,
 }: DashboardPanelProps) => {
-  const { todoToday, doingToday, doneToday, totalToday, somedayCount, futureCount } = useDashboardStats(activeFeedId);
+  const { todoToday, doingToday, doneToday, totalToday, somedayCount, futureCount } = stats;
 
   const today = new Date();
   const dateLabel = today.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });

@@ -4,6 +4,11 @@ import initWasm, { DB } from '@vlcn.io/crsqlite-wasm';
 import wasmUrl from '@vlcn.io/crsqlite-wasm/crsqlite.wasm?url';
 import { schema, migrations } from './schema';
 
+// Начинаем скачивать WASM-бинарник немедленно при загрузке модуля — до того,
+// как React отрендерил что-либо. Браузер закэширует ответ, и initWasm() чуть
+// позже заберёт его из кэша вместо того чтобы ждать сети.
+if (typeof window !== 'undefined') fetch(wasmUrl).catch(() => {});
+
 export const DBContext = createContext<DB | null>(null);
 
 export const useDB = () => {
@@ -64,22 +69,23 @@ export const AppDBProvider: React.FC<{children: React.ReactNode}> = ({ children 
                 // Safety: ensure is_archived exists on older DBs (uses crsql_alter so triggers stay valid)
                 await safeAddColumnCRR('feeds', 'is_archived', 'BOOLEAN DEFAULT 0');
 
-                // Register / repair CRR for all tables.
-                // Nuclear repair: drop ALL triggers on each table first, then recreate via crsql_as_crr.
-                // This fixes "expected N values, got M" errors caused by ALTER TABLE without crsql wrappers.
-                for (const table of ['feeds', 'notes', 'links', 'user_settings', 'feed_members']) {
-                  try {
-                    // Drop every trigger on this table (they're all crsql-managed)
-                    const triggers = await database.execO<{name: string}>(
-                      `SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name=?`,
-                      [table]
-                    );
-                    for (const t of triggers) {
-                      try { await database.exec(`DROP TRIGGER IF EXISTS "${t.name}"`); } catch { }
-                    }
-                    // Recreate CRR triggers for current schema
-                    await database.exec(`SELECT crsql_as_crr('${table}')`);
-                  } catch (e) { console.warn(`[db] CRR rebuild ${table}:`, e); }
+                // One-time CRR trigger repair (gated by flag — not run on every startup).
+                // Needed after ALTER TABLE columns were added without crsql_alter wrappers,
+                // which caused "expected N values, got M" errors. Safe to run once and skip.
+                if (!localStorage.getItem('sn_crr_v1')) {
+                  for (const table of ['feeds', 'notes', 'links', 'user_settings', 'feed_members']) {
+                    try {
+                      const triggers = await database.execO<{name: string}>(
+                        `SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name=?`,
+                        [table]
+                      );
+                      for (const t of triggers) {
+                        try { await database.exec(`DROP TRIGGER IF EXISTS "${t.name}"`); } catch { }
+                      }
+                      await database.exec(`SELECT crsql_as_crr('${table}')`);
+                    } catch (e) { console.warn(`[db] CRR rebuild ${table}:`, e); }
+                  }
+                  localStorage.setItem('sn_crr_v1', '1');
                 }
                 
                 if (isMounted) {

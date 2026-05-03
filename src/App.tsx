@@ -778,6 +778,31 @@ function App() {
     return s;
   }, [allNotes]);
 
+  // Dashboard stats computed from already-decrypted allNotes — no extra DB round-trip.
+  const dashboardStats = React.useMemo(() => {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    let todoToday = 0, doingToday = 0, doneToday = 0, somedayCount = 0, futureCount = 0;
+    for (const n of allNotes) {
+      let props: any = {};
+      try { props = JSON.parse(n.properties || '{}'); } catch { continue; }
+      const status = props.status;
+      if (!status || status === 'none' || status === 'archived') continue;
+      if (status === 'todo') {
+        const noteDate = props.date ? props.date.slice(0, 10) : null;
+        if (!noteDate) somedayCount++;
+        else if (noteDate <= todayStr) todoToday++;
+        else futureCount++;
+      } else if (status === 'doing') {
+        doingToday++;
+      } else if (status === 'done') {
+        const completedAt = props.completed_at ? props.completed_at.slice(0, 10) : null;
+        if (completedAt === todayStr) doneToday++;
+      }
+    }
+    return { todoToday, doingToday, doneToday, totalToday: todoToday + doingToday + doneToday, somedayCount, futureCount };
+  }, [allNotes]);
+
   const toggleTag = (tag: string) => {
     setSelectedTags(prev => {
       const next = new Set(prev);
@@ -1149,7 +1174,7 @@ function App() {
       <DashboardPanel
         activeStatusFilter={dashboardStatusFilter}
         onStatusFilter={setDashboardStatusFilter}
-        activeFeedId={activeFeedId}
+        stats={dashboardStats}
         pomodoro={pomodoroState}
         pomodoroActions={pomodoroActions}
       />
