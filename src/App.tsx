@@ -1182,7 +1182,10 @@ function App() {
       {/* ── Dashboard panel ── */}
       <DashboardPanel
         activeStatusFilter={dashboardStatusFilter}
-        onStatusFilter={setDashboardStatusFilter}
+        onStatusFilter={(status) => {
+          setDashboardStatusFilter(status);
+          if (status !== null && isMobileRef.current) navigateTab('feed');
+        }}
         stats={dashboardStats}
         pomodoro={pomodoroState}
         pomodoroActions={pomodoroActions}
