@@ -559,8 +559,11 @@ export const Feed = ({
       const n = notes.find(nn => nn.id === id);
       if (n && onStartEdit) { onStartEdit(n); return; }
     }
+    // Clear inline edit state before opening NoteModal — otherwise the card
+    // stays in edit mode after the modal closes and requires a second save.
+    onCancelEdit?.();
     setExpandedNoteId(id);
-  }, [notes, onStartEdit]);
+  }, [notes, onStartEdit, onCancelEdit]);
 
   if (notes.length === 0) {
     return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Пусто. Напиши что-нибудь первым!</div>;
