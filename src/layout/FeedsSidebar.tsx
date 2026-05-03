@@ -398,11 +398,30 @@ export const FeedsSidebar = ({
           <div
             key={feed.id}
             className="feed-item"
-            onClick={() => activeFeedId === feed.id ? openEdit(feed) : onSelect(feed.id)}
-            style={{ padding: '6px 0' }}
+            onClick={() => onSelect(feed.id)}
+            style={{ padding: '6px 0', position: 'relative' }}
           >
             <FeedIcon feed={feed} active={feed.id === activeFeedId} />
-            <div className="feed-tooltip">{showArchive ? `[архив] ${feed.name}` : feed.name}</div>
+            <div className="feed-tooltip" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1, minWidth: 0 }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {showArchive ? `[архив] ${feed.name}` : feed.name}
+              </span>
+              <button
+                className="feed-edit-btn"
+                onClick={e => { e.stopPropagation(); openEdit(feed); }}
+                title="Настройки ленты"
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--text-faint)', padding: '2px 4px', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', borderRadius: '4px',
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+            </div>
           </div>
         ))}
 

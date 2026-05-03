@@ -464,6 +464,10 @@ body {
   opacity: 1;
   transform: translateY(-50%) translateX(0);
 }
+/* Edit button hidden by default on desktop sidebar; shown on hover */
+.feed-edit-btn { opacity: 0; transition: opacity 0.1s; }
+.feed-item:hover .feed-edit-btn { opacity: 1; }
+.feed-edit-btn:hover { background: var(--bg-hover) !important; color: var(--text) !important; }
 .feed-tooltip {
   position: absolute;
   left: calc(100% + 8px);
@@ -763,9 +767,15 @@ body {
     font-weight: 500 !important;
     box-shadow: none !important;
     padding: 0 !important;
-    pointer-events: none;
+    pointer-events: auto !important;
     letter-spacing: 0.01em !important;
   }
+  /* Edit button always visible in the mobile overlay */
+  .mobile-feeds-overlay .feed-edit-btn {
+    opacity: 0.5 !important;
+    padding: 6px 8px !important;
+  }
+  .mobile-feeds-overlay .feed-edit-btn:active { opacity: 1 !important; }
   .mobile-feeds-btn { display: flex !important; }
 
   /* ── CALENDAR TAB ── */
