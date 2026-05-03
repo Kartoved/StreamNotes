@@ -694,6 +694,17 @@ function App() {
     return localStorage.getItem('sn_font') || 'Courier Prime';
   });
 
+  const FONT_SIZES = [
+    { label: 'S',  px: 13 },
+    { label: 'M',  px: 15 },
+    { label: 'L',  px: 17 },
+    { label: 'XL', px: 19 },
+  ] as const;
+
+  const [fontSize, setFontSize] = useState<number>(() => {
+    return Number(localStorage.getItem('sn_font_size')) || 15;
+  });
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme === 'light' ? '' : theme);
     localStorage.setItem('theme', theme);
@@ -731,6 +742,11 @@ function App() {
     document.documentElement.style.setProperty('--font-body', family);
     localStorage.setItem('sn_font', font);
   }, [font]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--font-size-base', fontSize + 'px');
+    localStorage.setItem('sn_font_size', String(fontSize));
+  }, [fontSize]);
 
   // ── Note state ─────────────────────────────────────────────────────
   const [focusedTweetId, setFocusedTweetId] = useState<string | null>(null);
@@ -1249,6 +1265,9 @@ function App() {
               font={font}
               setFont={setFont}
               fontOptions={Object.keys(FONT_FAMILIES)}
+              fontSize={fontSize}
+              setFontSize={setFontSize}
+              fontSizes={FONT_SIZES}
               theme={theme}
               setTheme={handleSetTheme}
               onSetNickname={handleSetNickname}

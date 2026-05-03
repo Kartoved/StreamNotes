@@ -18,6 +18,8 @@
       try {
         var t = localStorage.getItem('theme');
         if (t && t !== 'light') document.documentElement.setAttribute('data-theme', t);
+        var fs = localStorage.getItem('sn_font_size');
+        if (fs) document.documentElement.style.setProperty('--font-size-base', fs + 'px');
       } catch(e) {}
     </script>
   </head>

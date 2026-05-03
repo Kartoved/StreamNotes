@@ -8,6 +8,11 @@ import SyncRelaysPanel from './SyncRelaysPanel';
 import { THEMES, type ThemeId } from '../themes';
 import type { BackupEntry } from '../utils/autoBackup';
 
+interface FontSizeOption {
+  label: string;
+  px: number;
+}
+
 interface Props {
   onClose: () => void;
   onExport: () => void;
@@ -16,6 +21,9 @@ interface Props {
   font: string;
   setFont: (f: string) => void;
   fontOptions: string[];
+  fontSize: number;
+  setFontSize: (px: number) => void;
+  fontSizes: readonly FontSizeOption[];
   theme: ThemeId;
   setTheme: (t: ThemeId) => void;
   onSetNickname?: (name: string) => void;
@@ -26,7 +34,7 @@ interface Props {
   onWhatsNew?: () => void;
 }
 
-export default function SettingsModal({ onClose, onExport, onExportMD, onImport, font, setFont, fontOptions, theme, setTheme, onSetNickname, backups = [], onCreateBackup, onRestoreBackup, onDeleteBackup, onWhatsNew }: Props) {
+export default function SettingsModal({ onClose, onExport, onExportMD, onImport, font, setFont, fontOptions, fontSize, setFontSize, fontSizes, theme, setTheme, onSetNickname, backups = [], onCreateBackup, onRestoreBackup, onDeleteBackup, onWhatsNew }: Props) {
   const { nostrPubKey, logout, nickname, setNickname: setNicknameCrypto, enableBiometric, disableBiometric, biometricEnrolled } = useCrypto();
   const setNickname = onSetNickname ?? setNicknameCrypto;
   const [showPasswordInput, setShowPasswordInput] = useState(false);
@@ -255,8 +263,36 @@ export default function SettingsModal({ onClose, onExport, onExportMD, onImport,
                     {fontOptions.map(f => <option key={f} value={f} style={{ background: 'var(--bg)', color: 'var(--text)' }}>{f}</option>)}
                 </select>
             </div>
+
+            {/* Font size picker */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-sub)', flexShrink: 0 }}>Размер</span>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {fontSizes.map(({ label, px }) => (
+                  <button
+                    key={px}
+                    onClick={() => setFontSize(px)}
+                    style={{
+                      padding: '3px 10px',
+                      fontSize: '0.72rem',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: fontSize === px ? 700 : 400,
+                      background: fontSize === px ? 'var(--text)' : 'var(--bg-hover)',
+                      color: fontSize === px ? 'var(--bg)' : 'var(--text-sub)',
+                      border: '1px solid var(--line)',
+                      borderRadius: 'var(--radius)',
+                      cursor: 'pointer',
+                      transition: 'all 0.1s',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <p style={{ fontSize: '0.7rem', color: 'var(--text-faint)', margin: '8px 0 0' }}>
-              Выберите шрифт, который будет использоваться по умолчанию.
+              Выберите шрифт и размер по умолчанию.
             </p>
         </div>
 
