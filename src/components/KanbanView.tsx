@@ -73,6 +73,23 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
       `UPDATE notes SET properties = ?, updated_at = ? WHERE id = ?`,
       [feedEncrypt(JSON.stringify(current)), Date.now(), noteId]
     );
+
+    // Replicate recurrence logic from NoteCard.saveProp — create the next
+    // task instance when a recurring note is moved to DONE.
+    if (targetStatus === 'done' && current.recurrence) {
+      const days = parseInt(current.recurrence) || 1;
+      const next = new Date();
+      next.setDate(next.getDate() + days);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const nextDate = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`;
+      const nextProps = { status: 'todo', type: current.type, recurrence: current.recurrence, date: nextDate };
+      const now = Date.now();
+      const newId = 'note-' + Math.random().toString(36).substring(2, 9);
+      await db.exec(
+        `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+        [newId, null, note.author_id, feedEncrypt(note.content), now.toString(), feedEncrypt(JSON.stringify(nextProps)), note.feed_id, now, now]
+      );
+    }
   };
 
   const handleDrop = async (targetStatus: string) => {
