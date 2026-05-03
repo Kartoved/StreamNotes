@@ -41,6 +41,26 @@ export default function SettingsModal({ onClose, onExport, onExportMD, onImport,
   const [bioLoading, setBioLoading] = useState(false);
   const [bioError, setBioError] = useState('');
 
+  const hasPassword = localStorage.getItem('sn_has_password') === '1';
+  const [removePassStep, setRemovePassStep] = useState<'idle' | 'confirm'>('idle');
+  const [removePassInput, setRemovePassInput] = useState('');
+  const [removePassError, setRemovePassError] = useState('');
+  const [removePassDone, setRemovePassDone] = useState(false);
+
+  const handleRemovePassword = () => {
+    const encrypted = localStorage.getItem('sn_seed_encrypted');
+    if (!encrypted) { setRemovePassError('Seed не найден.'); return; }
+    const mnemonic = decryptSeedWithPassword(encrypted, removePassInput);
+    if (!mnemonic) { setRemovePassError('Неверный пароль.'); return; }
+    localStorage.setItem('sn_seed_plain', mnemonic);
+    localStorage.removeItem('sn_seed_encrypted');
+    localStorage.removeItem('sn_has_password');
+    setRemovePassStep('idle');
+    setRemovePassInput('');
+    setRemovePassError('');
+    setRemovePassDone(true);
+  };
+
   useEffect(() => {
     biometricUnsupportedReason().then(setBioUnsupportedReason);
   }, []);
@@ -416,6 +436,52 @@ export default function SettingsModal({ onClose, onExport, onExportMD, onImport,
                   {bioUnsupportedReason}
                 </div>
               </div>
+            )}
+
+            {/* Remove password */}
+            {hasPassword && !removePassDone && (
+              <div style={{ marginTop: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                  <div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text)', fontWeight: 500 }}>Пароль при входе</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: '2px' }}>Включён — вход требует пароль</div>
+                  </div>
+                  {removePassStep === 'idle' ? (
+                    <button onClick={() => setRemovePassStep('confirm')} style={{ ...btn, flexShrink: 0, color: '#f87171', borderColor: '#f87171' }}>
+                      Отключить
+                    </button>
+                  ) : (
+                    <button onClick={() => { setRemovePassStep('idle'); setRemovePassInput(''); setRemovePassError(''); }} style={{ ...btn, flexShrink: 0 }}>
+                      Отмена
+                    </button>
+                  )}
+                </div>
+                {removePassStep === 'confirm' && (
+                  <div style={{ marginTop: '10px' }}>
+                    <p style={{ fontSize: '0.72rem', color: 'var(--text-sub)', margin: '0 0 8px', lineHeight: 1.5 }}>
+                      Введите текущий пароль. После отключения вход будет без пароля.
+                    </p>
+                    <input
+                      type="password"
+                      value={removePassInput}
+                      onChange={e => { setRemovePassInput(e.target.value); setRemovePassError(''); }}
+                      onKeyDown={e => e.key === 'Enter' && handleRemovePassword()}
+                      placeholder="Текущий пароль"
+                      style={inputStyle}
+                      autoFocus
+                    />
+                    {removePassError && <p style={{ fontSize: '0.72rem', color: '#f87171', margin: '6px 0 0' }}>{removePassError}</p>}
+                    <button onClick={handleRemovePassword} style={{ ...btn, color: '#f87171', borderColor: '#f87171', marginTop: '8px' }}>
+                      Подтвердить отключение
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {removePassDone && (
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-sub)', marginTop: '12px' }}>
+                Пароль отключён — следующий вход будет автоматическим.
+              </p>
             )}
           </div>
         )}

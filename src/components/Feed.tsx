@@ -459,9 +459,17 @@ export const Feed = ({
       return item.type === 'header' ? `h::${item.label}` : item.note.id;
     },
   });
-  // Derived directly from virtualizer state — no listener needed.
-  // The virtualizer re-renders the component on every scroll tick.
-  const showScrollTop = (virtualizer.scrollOffset ?? 0) > 300;
+  // Explicit scroll listener — more reliable than virtualizer.scrollOffset on
+  // mobile Safari where -webkit-overflow-scrolling:touch events don't always
+  // propagate to the virtualizer's internal handler.
+  const [showScrollTop, setShowScrollTop] = React.useState(false);
+  React.useEffect(() => {
+    const el = document.querySelector('.main-content') as HTMLElement | null;
+    if (!el) return;
+    const onScroll = () => setShowScrollTop(el.scrollTop > 300);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
 
   // Reset scroll + collapsed state whenever a filter activates
   React.useEffect(() => {
