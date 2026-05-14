@@ -17,6 +17,8 @@ import { BacklinkDropdown } from './BacklinkDropdown';
 import { showToast } from './Toast';
 import { RecurrenceChip } from './NoteCard';
 import { createBacklinkExtension, BacklinkSuggestionCallbacks } from '../editor/extensions/BacklinkExtension';
+import { createHashtagExtension, HashtagCallbacks } from '../editor/extensions/HashtagExtension';
+import { HashtagDropdown } from './HashtagDropdown';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 import { HashtagHighlighter } from '../editor/extensions/HashtagHighlighter';
@@ -308,6 +310,11 @@ export const TweetEditor = ({
   const [blQuery, setBlQuery] = useState<string | null>(null);
   const [blPos, setBlPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
+  // ── Hashtag dropdown state ──
+  const [htActive, setHtActive] = useState(false);
+  const [htQuery, setHtQuery] = useState('');
+  const [htPos, setHtPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
   // Ref holding current suggestion command (set by BacklinkExtension on open)
   const blCommandRef = useRef<((item: { id: string; title: string }) => void) | null>(null);
   // Ref holding BacklinkDropdown's key handler (updated each render by the dropdown)
@@ -340,7 +347,29 @@ export const TweetEditor = ({
   // Extension created once; reads callbacks via stable ref
   const backlinkExt = useMemo(() => createBacklinkExtension(blCallbacksRef), []);
 
-
+  // ── Hashtag suggestion ──
+  const htCommandRef = useRef<((tag: string) => void) | null>(null);
+  const htDropdownKeyRef = useRef<((e: KeyboardEvent) => boolean) | null>(null);
+  const htCallbacksRef = useRef<HashtagCallbacks>({
+    onOpen: () => {}, onUpdate: () => {}, onClose: () => {}, onKeyDown: () => false,
+  });
+  htCallbacksRef.current = {
+    onOpen: ({ query, clientRect, command }) => {
+      htCommandRef.current = command;
+      setHtActive(true);
+      setHtQuery(query);
+      const rect = clientRect?.();
+      if (rect) setHtPos({ top: rect.bottom + 6, left: rect.left });
+    },
+    onUpdate: ({ query, clientRect }) => {
+      setHtQuery(query);
+      const rect = clientRect?.();
+      if (rect) setHtPos({ top: rect.bottom + 6, left: rect.left });
+    },
+    onClose: () => { setHtActive(false); setHtQuery(''); htCommandRef.current = null; },
+    onKeyDown: (event) => htDropdownKeyRef.current?.(event) ?? false,
+  };
+  const hashtagExt = useMemo(() => createHashtagExtension(htCallbacksRef), []);
 
   // Upload ref — stable callback for editorProps (avoids stale closure)
   const uploadFilesRef = useRef<(files: FileList | File[]) => void>(() => {});
@@ -382,6 +411,7 @@ export const TweetEditor = ({
       }),
       AttachmentExtension,
       backlinkExt,
+      hashtagExt,
       Placeholder.configure({
         placeholder,
       }),
@@ -521,8 +551,9 @@ export const TweetEditor = ({
       setType('sheaf');
       setStatus('none');
       setDate('');
+      setRecurrence('');
     }
-  }, [editor, type, status, date, onSubmit, initialAst]);
+  }, [editor, type, status, date, recurrence, onSubmit, initialAst]);
   useEffect(() => { handleSubmitRef.current = handleSubmit; }, [handleSubmit]);
   
   // ── Escape: cancel reply / close zen ──
@@ -603,6 +634,16 @@ export const TweetEditor = ({
           onCreateNew={handleBacklinkCreate}
           onClose={() => { setBlActive(false); setBlQuery(null); }}
           keyHandlerRef={blDropdownKeyRef}
+        />
+      )}
+
+      {htActive && (
+        <HashtagDropdown
+          query={htQuery}
+          position={htPos}
+          onSelect={(tag) => { htCommandRef.current?.(tag); setHtActive(false); }}
+          onClose={() => setHtActive(false)}
+          keyHandlerRef={htDropdownKeyRef}
         />
       )}
 

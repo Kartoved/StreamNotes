@@ -283,6 +283,20 @@ export const Feed = ({
     return m;
   }, [notes]);
 
+  const feedAllTags = React.useMemo(() => {
+    const s = new Set<string>();
+    for (const { text } of parsedCache.values()) {
+      const m = text.match(/#[\wЀ-ӿ][\wЀ-ӿ0-9_]*/gi) || [];
+      m.forEach((t: string) => s.add(t.toLowerCase()));
+    }
+    return [...s].sort();
+  }, [parsedCache]);
+
+  React.useEffect(() => {
+    (window as any).__feedAllTags = feedAllTags;
+    return () => { (window as any).__feedAllTags = []; };
+  }, [feedAllTags]);
+
   // ── Filter by search + tags + date + status ───────────────────────
   const filteredNotes = React.useMemo(() => {
     const q = searchQuery.toLocaleLowerCase().trim();
