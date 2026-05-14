@@ -252,7 +252,7 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
   if (node.type === 'heading') {
     const level = node.attrs?.level || 2;
     const Tag = `h${level}` as any;
-    const fSize = level === 1 ? '1.6rem' : level === 2 ? '1.4rem' : '1.2rem';
+    const fSize = level === 1 ? '1.6em' : level === 2 ? '1.4em' : '1.2em';
     return <Tag key={index} style={{ fontSize: fSize, marginTop: '0.8em', marginBottom: '0.4em', fontWeight: 'bold', lineHeight: 1.2 }}>{ch()}</Tag>;
   }
 

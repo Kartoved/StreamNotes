@@ -11,9 +11,9 @@
 }
 
 .tiptap-editor p { margin: 0 0 0.5em; }
-.tiptap-editor h1 { font-size: 1.5rem; font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
-.tiptap-editor h2 { font-size: 1.25rem; font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
-.tiptap-editor h3 { font-size: 1.1rem;  font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
+.tiptap-editor h1 { font-size: 1.5em; font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
+.tiptap-editor h2 { font-size: 1.25em; font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
+.tiptap-editor h3 { font-size: 1.1em;  font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
 
 .tiptap-editor ul { padding-left: 20px; list-style-type: disc;    margin: 0.5em 0; }
 .tiptap-editor ol { padding-left: 20px; list-style-type: decimal; margin: 0.5em 0; }
@@ -145,9 +145,9 @@ a.note-link:hover {
 .editor-ul { padding-left: 20px; list-style-type: disc;    margin: 0.5em 0; }
 .editor-ol { padding-left: 20px; list-style-type: decimal; margin: 0.5em 0; }
 .editor-listitem { margin-bottom: 4px; }
-.editor-h1 { font-size: 1.5rem;  font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
-.editor-h2 { font-size: 1.25rem; font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
-.editor-h3 { font-size: 1.1rem;  font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
+.editor-h1 { font-size: 1.5em;  font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
+.editor-h2 { font-size: 1.25em; font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
+.editor-h3 { font-size: 1.1em;  font-weight: 700; margin: 0.8em 0 0.4em; line-height: 1.25; }
 
 /* ─── 3-State Task List ────────────────────────────────────────────── */
 .tiptap-editor .editor-task-list,
