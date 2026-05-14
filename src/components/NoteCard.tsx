@@ -2,7 +2,27 @@ import React, { useState, useCallback, useRef } from 'react';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
 import { useCrypto } from '../crypto/CryptoContext';
-import { IconCheck } from './icons';
+import { IconCheck, IconPin } from './icons';
+
+const MONTHS_RU = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+const DAYS_RU   = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+
+function formatNoteDate(createdAt: number): string {
+  const now = new Date();
+  const d   = new Date(createdAt);
+  const hh  = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const time = `${hh}:${min}`;
+
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const noteDay   = new Date(d.getFullYear(),   d.getMonth(),   d.getDate()).getTime();
+  const diffDays  = Math.round((todayStart - noteDay) / 86400000);
+
+  if (diffDays === 0) return time;
+  if (diffDays < 7)  return `${DAYS_RU[d.getDay()]} ${time}`;
+  if (d.getFullYear() === now.getFullYear()) return `${d.getDate()} ${MONTHS_RU[d.getMonth()]}`;
+  return `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+}
 
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 
@@ -451,7 +471,7 @@ export const NoteCard = React.memo(function NoteCard({
             ? '1px solid var(--accent)'
             : '1px solid var(--line)',
           borderRadius: 'var(--radius-lg)',
-          padding: '10px 20px',
+          padding: '12px 16px 8px',
           position: 'relative',
           overflow: 'hidden',
           transition: swipeOffset !== 0 ? 'none' : 'border-color 0.12s, background 0.12s, transform 0.2s cubic-bezier(0.32, 0.72, 0, 1)',
@@ -516,36 +536,6 @@ export const NoteCard = React.memo(function NoteCard({
         {/* ── Card body ── */}
         <div style={{ position: 'relative', zIndex: 2 }} onContextMenu={(e) => openContextMenu(e, note.id)}>
 
-          {/* TOP ROW: author + time */}
-          <div
-            style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '8px', cursor: 'pointer', userSelect: 'none' }}
-            onClick={(e) => { e.stopPropagation(); onNoteClick?.(note.id); }}
-          >
-            {isSharedFeed ? (
-              <AuthorBadge authorId={note.author_id} isLocal={note.author_id === localNpub} />
-            ) : (
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-sub)', letterSpacing: '0.02em' }}>
-                {note.author_id === localNpub || note.author_id === 'local-user' ? nickname : note.author_id.slice(0, 8)}
-              </span>
-            )}
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
-              {(() => {
-                const d = new Date(note.created_at);
-                const yy = String(d.getFullYear()).slice(2);
-                const mm = String(d.getMonth() + 1).padStart(2, '0');
-                const dd = String(d.getDate()).padStart(2, '0');
-                const hh = String(d.getHours()).padStart(2, '0');
-                const min = String(d.getMinutes()).padStart(2, '0');
-                return `${yy}/${mm}/${dd} ${hh}:${min}`;
-              })()}
-            </span>
-            {!!note.is_pinned && (
-              <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-faint)' }} title="Закреплено">📌</span>
-            )}
-          </div>
-
-          {/* DIVIDER */}
-          <div style={{ height: '1px', background: 'var(--line)', marginBottom: '10px' }} />
 
           {/* CONTENT */}
           {editingNoteId === note.id ? (
@@ -585,28 +575,34 @@ export const NoteCard = React.memo(function NoteCard({
                 </div>
               )}
 
-              {/* ── Inline editable props ── */}
-              {showProps && (
-                <div
-                  style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px', alignItems: 'center' }}
-                  onClick={e => e.stopPropagation()}
-                  onMouseDown={e => e.stopPropagation()}
-                  onDragStart={e => e.stopPropagation()}
-                >
-                  {status !== 'none' && (
-                    <PropChip value={status} options={STATUSES} onChange={handleStatus} />
+              {/* ── Footer: props + timestamp + pin ── */}
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}
+                onClick={e => e.stopPropagation()}
+                onMouseDown={e => e.stopPropagation()}
+                onDragStart={e => e.stopPropagation()}
+              >
+                {showProps && status !== 'none' && (
+                  <PropChip value={status} options={STATUSES} onChange={handleStatus} />
+                )}
+                {showProps && status !== 'none' && (
+                  <RecurrenceChip value={recurrence} onChange={handleRecurrence} />
+                )}
+                {showProps && targetDate && (
+                  <DateChip value={targetDate} onChange={handleDate} />
+                )}
+                {showProps && status === 'done' && completedAt && (
+                  <CompletionDateChip value={completedAt} />
+                )}
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {!!note.is_pinned && (
+                    <span style={{ color: 'var(--text-faint)', opacity: 0.6, display: 'flex' }}><IconPin size={11} /></span>
                   )}
-                  {status !== 'none' && (
-                    <RecurrenceChip value={recurrence} onChange={handleRecurrence} />
-                  )}
-                  {targetDate && (
-                    <DateChip value={targetDate} onChange={handleDate} />
-                  )}
-                  {status === 'done' && completedAt && (
-                    <CompletionDateChip value={completedAt} />
-                  )}
+                  <span style={{ fontSize: '0.68rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
+                    {formatNoteDate(note.created_at)}
+                  </span>
                 </div>
-              )}
+              </div>
             </>
           )}
         </div>
