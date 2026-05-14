@@ -1,5 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { resolveUrl, getFileType, formatSize } from '../utils/opfsFiles';
+import { IconClipboard, IconCheck } from '../components/icons';
+
+function CodeBlock({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(() => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [code]);
+  return (
+    <div style={{ position: 'relative', margin: '0.5em 0' }}>
+      <pre style={{
+        background: 'var(--bg-hover)', padding: '12px 16px', paddingRight: '48px',
+        borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)',
+        fontFamily: 'var(--font-mono)', maxWidth: '100%', boxSizing: 'border-box',
+        margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+      }}>
+        <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)', fontSize: '0.9em' }}>{code}</code>
+      </pre>
+      <button
+        onClick={e => { e.stopPropagation(); copy(); }}
+        title="Копировать"
+        style={{
+          position: 'absolute', top: '8px', right: '8px',
+          background: 'var(--bg)', border: '1px solid var(--line)',
+          borderRadius: 'var(--radius)', padding: '4px 6px',
+          cursor: 'pointer', color: copied ? 'var(--accent)' : 'var(--text-sub)',
+          lineHeight: 1, transition: 'color 0.12s', display: 'flex', alignItems: 'center',
+        }}
+      >{copied ? <IconCheck size={13} /> : <IconClipboard size={13} />}</button>
+    </div>
+  );
+}
 
 // ─── SVG Icons ────────────────────────────────────────────────────────
 const FileIcon = () => (
@@ -294,7 +328,7 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
 
   if (node.type === 'codeBlock') {
     const code = (node.content || []).map((c: any) => c.text ?? '').join('');
-    return <pre key={index} style={{ background: 'var(--bg-hover)', padding: '12px 16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)', overflowX: 'auto', margin: '0.5em 0', fontFamily: 'var(--font-mono)', maxWidth: '100%', boxSizing: 'border-box' }}><code style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)', fontSize: '0.9em', whiteSpace: 'pre' }}>{code}</code></pre>;
+    return <CodeBlock key={index} code={code} />;
   }
 
   if (node.type === 'hardBreak') return <br key={index} />;

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { DashboardStats } from '../db/useDashboardStats';
 import { PomodoroState, PomodoroActions, formatPomodoroTime } from '../hooks/usePomodoro';
+import { IconX } from '../components/icons';
 
 // ── Progress Ring ─────────────────────────────────────────────────────
 const ProgressRing = ({ done, total, size = 72 }: { done: number; total: number; size?: number }) => {
@@ -264,7 +265,7 @@ export const DashboardPanel = ({
             }} title={pomodoro.taskTitle}>
               {pomodoro.taskTitle}
             </span>
-            <button onClick={() => pomodoroActions.reset()} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', lineHeight: 1, flexShrink: 0 }}>✕</button>
+            <button onClick={() => pomodoroActions.reset()} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0, display: 'flex' }}><IconX size={13} /></button>
           </div>
         ) : (
           <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)', cursor: 'default' }}>

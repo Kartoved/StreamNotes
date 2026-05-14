@@ -8,6 +8,7 @@ import { useCrypto } from '../crypto/CryptoContext';
 import { storePendingBacklink } from '../utils/backlinkClipboard';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
+import { IconReply, IconEdit, IconMaximize, IconChevronUp, IconChevronDown, IconChevronRight, IconClipboard, IconPin, IconTimer, IconTrash } from './icons';
 import { BacklinksSection } from './BacklinksSection';
 import { NoteCard } from './NoteCard';
 import { showToast } from './Toast';
@@ -626,22 +627,25 @@ export const Feed = ({
               const userCanEdit = canEditAll || (canEditOwn && isOwn);
               const userCanDelete = canEditAll || (canEditOwn && isOwn);
               // Build items: true-null = separator, false = omitted
-              const raw: (false | null | { label: string; action: () => void; danger?: boolean })[] = [
-                canWrite && { label: 'Ответить', action: () => { onStartReply?.(contextMenu.noteId); closeContextMenu(); } },
-                userCanEdit && { label: 'Редактировать', action: () => { if (ctxNote) onStartEdit?.(ctxNote); closeContextMenu(); } },
-                { label: 'Открыть', action: () => { handleNcExpandNote(contextMenu.noteId); closeContextMenu(); } },
-                { label: collapsedIds.has(contextMenu.noteId) ? 'Развернуть' : 'Свернуть', action: () => { setCollapsedIds(prev => { const next = new Set(prev); next.has(contextMenu.noteId) ? next.delete(contextMenu.noteId) : next.add(contextMenu.noteId); return next; }); closeContextMenu(); } },
-                { label: '🔗 Перейти в ветку', action: () => { onNoteClick?.(contextMenu.noteId); closeContextMenu(); } },
-                { label: '⎘ Скопировать как ссылку', action: () => {
+              const MI = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>{icon}{text}</span>
+              );
+              const raw: (false | null | { label: React.ReactNode; action: () => void; danger?: boolean })[] = [
+                canWrite && { label: <MI icon={<IconReply size={14}/>} text="Ответить" />, action: () => { onStartReply?.(contextMenu.noteId); closeContextMenu(); } },
+                userCanEdit && { label: <MI icon={<IconEdit size={14}/>} text="Редактировать" />, action: () => { if (ctxNote) onStartEdit?.(ctxNote); closeContextMenu(); } },
+                { label: <MI icon={<IconMaximize size={14}/>} text="Открыть" />, action: () => { handleNcExpandNote(contextMenu.noteId); closeContextMenu(); } },
+                { label: <MI icon={collapsedIds.has(contextMenu.noteId) ? <IconChevronDown size={14}/> : <IconChevronUp size={14}/>} text={collapsedIds.has(contextMenu.noteId) ? 'Развернуть' : 'Свернуть'} />, action: () => { setCollapsedIds(prev => { const next = new Set(prev); next.has(contextMenu.noteId) ? next.delete(contextMenu.noteId) : next.add(contextMenu.noteId); return next; }); closeContextMenu(); } },
+                { label: <MI icon={<IconChevronRight size={14}/>} text="Перейти в ветку" />, action: () => { onNoteClick?.(contextMenu.noteId); closeContextMenu(); } },
+                { label: <MI icon={<IconClipboard size={14}/>} text="Скопировать как ссылку" />, action: () => {
                   if (ctxNote) {
                     const title = extractPlainText(feedDecrypt(ctxNote.content)).slice(0, 80) || ctxNote.id;
                     storePendingBacklink(ctxNote.id, title);
                   }
                   closeContextMenu();
                 }},
-                ...(canWrite ? [null as null, { label: ctxNote?.is_pinned ? '📌 Открепить' : '📌 Закрепить', action: async () => { const wasPinned = !!ctxNote?.is_pinned; await db.exec(`UPDATE notes SET is_pinned = ? WHERE id = ?`, [wasPinned ? 0 : 1, contextMenu.noteId]); showToast(wasPinned ? 'Заметка откреплена' : 'Заметка закреплена', 'success'); closeContextMenu(); } }] : []),
-                ...(onStartPomodoro ? [null as null, { label: '🍅 Запустить помидор', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
-                ...(userCanDelete ? [null as null, { label: '🗑 Удалить', action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true }] : []),
+                ...(canWrite ? [null as null, { label: <MI icon={<IconPin size={14}/>} text={ctxNote?.is_pinned ? 'Открепить' : 'Закрепить'} />, action: async () => { const wasPinned = !!ctxNote?.is_pinned; await db.exec(`UPDATE notes SET is_pinned = ? WHERE id = ?`, [wasPinned ? 0 : 1, contextMenu.noteId]); showToast(wasPinned ? 'Заметка откреплена' : 'Заметка закреплена', 'success'); closeContextMenu(); } }] : []),
+                ...(onStartPomodoro ? [null as null, { label: <MI icon={<IconTimer size={14}/>} text="Запустить помидор" />, action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
+                ...(userCanDelete ? [null as null, { label: <MI icon={<IconTrash size={14}/>} text="Удалить" />, action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true }] : []),
               ];
               return raw.filter(x => x !== false);
             })().map((item, i) =>

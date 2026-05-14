@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { safeAreaPadding } from '../../layout/safeArea';
+import { IconX } from '../../components/icons';
 
 export const Lightbox = ({ url, name, onClose }: { url: string; name: string; onClose: () => void }) => {
   useEffect(() => {
@@ -40,7 +41,7 @@ export const Lightbox = ({ url, name, onClose }: { url: string; name: string; on
           borderRadius: '50%', cursor: 'pointer', lineHeight: '44px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
-      >✕</button>
+      ><IconX size={20} /></button>
     </div>
   );
 };

@@ -27,6 +27,7 @@ import { usePomodoro } from './hooks/usePomodoro';
 import { revokeAllUrls } from './utils/opfsFiles';
 import { ToastContainer, showToast } from './components/Toast';
 import { saveBackup, listBackups, loadBackup, deleteBackup, shouldShowBackupReminder, type BackupEntry } from './utils/autoBackup';
+import { IconSettings, IconX } from './components/icons';
 import './index.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -1283,7 +1284,7 @@ function App() {
               )}
               <span className="header-theme-label">{theme === 'dark' ? 'Светлая' : 'Тёмная'}</span>
             </button>
-            <button onClick={() => setShowSettings(true)} style={iconBtn}>⚙</button>
+            <button onClick={() => setShowSettings(true)} style={{ ...iconBtn, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconSettings size={14} /></button>
             {focusedTweetId && (
               <button onClick={() => { setFocusedTweetId(null); setReplyingToTweetId(null); }} style={{ ...iconBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}>← Назад</button>
             )}
@@ -1360,8 +1361,8 @@ function App() {
                   {selectedTags.size > 0 && (
                     <button
                       onClick={() => setSelectedTags(new Set())}
-                      style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: 'var(--radius)', padding: '2px 8px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-                    >✕ Сбросить</button>
+                      style={{ background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: 'var(--radius)', padding: '2px 8px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    ><IconX size={11} /> Сбросить</button>
                   )}
                 </div>
               </div>

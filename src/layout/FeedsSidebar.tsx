@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
+import { IconX } from '../components/icons';
 import { encodeInviteLink, decodeInviteLink } from '../sharing/inviteLink';
 import { QRCodeCanvas } from '../components/QRCode';
 import { showToast } from '../components/Toast';
@@ -748,8 +749,8 @@ export const FeedsSidebar = ({
                 <div
                   onClick={() => setModalAvatar(null)}
                   title="Убрать аватар"
-                  style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--line)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', color: 'var(--text-faint)' }}
-                >✕</div>
+                  style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--line)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)' }}
+                ><IconX size={11} /></div>
               )}
             </div>
 

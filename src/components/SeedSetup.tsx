@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { generateMnemonic, validateMnemonic } from '../crypto';
+import { IconCheck, IconClipboard } from './icons';
 
 interface Props {
   onComplete: (mnemonic: string, password: string | null) => void;
@@ -147,7 +148,7 @@ export default function SeedSetup({ onComplete, onRecover }: Props) {
             Я сохранил фразу
           </button>
           <button style={btnSecondary} onClick={handleCopySeed}>
-            {copied ? '✓ Скопировано' : 'Скопировать фразу'}
+            {copied ? <><IconCheck size={14} /> Скопировано</> : <><IconClipboard size={14} /> Скопировать фразу</>}
           </button>
           <button style={btnSecondary} onClick={() => setStep('welcome')}>
             Назад

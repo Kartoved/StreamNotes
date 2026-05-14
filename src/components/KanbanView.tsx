@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Note } from '../db/hooks';
+import { IconCalendar, IconArrowLeft, IconArrowRight } from './icons';
 
 interface KanbanViewProps {
   notes: Note[];
@@ -214,9 +215,10 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               fontSize: '0.8rem', fontFamily: 'var(--font-body)',
               opacity: activeColIdx === 0 ? 0.35 : 1,
               transition: 'opacity 0.15s',
+              display: 'flex', alignItems: 'center', gap: '6px',
             }}
           >
-            ← {activeColIdx > 0 ? COLUMNS[activeColIdx - 1].label : ''}
+            <IconArrowLeft size={14} /> {activeColIdx > 0 ? COLUMNS[activeColIdx - 1].label : ''}
           </button>
           <button
             onClick={() => setActiveColIdx(i => Math.min(i + 1, COLUMNS.length - 1))}
@@ -229,9 +231,10 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               fontSize: '0.8rem', fontFamily: 'var(--font-body)',
               opacity: activeColIdx === COLUMNS.length - 1 ? 0.35 : 1,
               transition: 'opacity 0.15s',
+              display: 'flex', alignItems: 'center', gap: '6px',
             }}
           >
-            {activeColIdx < COLUMNS.length - 1 ? COLUMNS[activeColIdx + 1].label : ''} →
+            {activeColIdx < COLUMNS.length - 1 ? COLUMNS[activeColIdx + 1].label : ''} <IconArrowRight size={14} />
           </button>
         </div>
       </div>
@@ -449,8 +452,8 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
           <span style={{
             fontSize: '0.68rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)',
             background: 'var(--bg-hover)', borderRadius: '3px', padding: '0 5px',
-            border: '1px solid var(--line)',
-          }}>📅 {props.date.slice(0, 10)}</span>
+            border: '1px solid var(--line)', display: 'inline-flex', alignItems: 'center', gap: '4px',
+          }}><IconCalendar size={11} /> {props.date.slice(0, 10)}</span>
         )}
 
         {props.recurrence && (

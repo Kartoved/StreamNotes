@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
+import { IconX } from './icons';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
@@ -221,7 +222,7 @@ function Toolbar({
             style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', color: 'var(--text)', fontSize: '0.82rem', padding: '3px 8px', outline: 'none', fontFamily: 'var(--font-body)' }}
           />
           <button type="button" onClick={applyLink} style={{ ...btn, color: 'var(--text)', border: '1px solid var(--line)', padding: '3px 10px', borderRadius: 'var(--radius)', fontFamily: 'var(--font-body)', fontSize: '0.82rem' }}>OK</button>
-          <button type="button" onClick={() => setLinkPopup(false)} style={{ ...btn, border: '1px solid var(--line)', padding: '3px 8px', borderRadius: 'var(--radius)', fontSize: '0.82rem' }}>✕</button>
+          <button type="button" onClick={() => setLinkPopup(false)} style={{ ...btn, border: '1px solid var(--line)', padding: '4px 6px', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center' }}><IconX size={13} /></button>
         </div>
       )}
     </div>

@@ -284,7 +284,7 @@ describe('Feed — context menu', () => {
 
     // Navigate up from the button → menu box → overlay (which has closeContextMenu)
     // Structure: overlay > menuBox > button
-    const overlay = screen.getByText('Ответить').parentElement?.parentElement as HTMLElement;
+    const overlay = screen.getByText('Ответить').closest('[style*="4000"]') as HTMLElement;
     fireEvent.click(overlay);
 
     expect(screen.queryByText('Ответить')).not.toBeInTheDocument();
@@ -296,7 +296,7 @@ describe('Feed — context menu', () => {
     renderFeed();
 
     fireEvent.contextMenu(screen.getByTestId('note-card'));
-    fireEvent.click(screen.getByText(/🗑 Удалить/));
+    fireEvent.click(screen.getByText(/Удалить/));
 
     await waitFor(() => {
       expect(screen.getByText(/Удалить эту заметку\?/)).toBeInTheDocument();
@@ -309,7 +309,7 @@ describe('Feed — context menu', () => {
     renderFeed();
 
     fireEvent.contextMenu(screen.getByTestId('note-card'));
-    fireEvent.click(screen.getByText(/🗑 Удалить/));
+    fireEvent.click(screen.getByText(/Удалить/));
 
     await waitFor(() => screen.getByText('Отмена'));
     fireEvent.click(screen.getByText('Отмена'));
@@ -327,7 +327,7 @@ describe('Feed — context menu', () => {
     renderFeed();
 
     fireEvent.contextMenu(screen.getByTestId('note-card'));
-    fireEvent.click(screen.getByText(/🗑 Удалить/));
+    fireEvent.click(screen.getByText(/Удалить/));
 
     await waitFor(() => screen.getByText(/Удалить эту заметку\?/));
     // The confirm button is the red danger button in the modal

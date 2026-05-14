@@ -1,5 +1,6 @@
 import React from 'react';
 import { MiniCalendar } from './MiniCalendar';
+import { IconX } from '../components/icons';
 
 interface RightSidebarProps {
   searchQuery: string;
@@ -79,8 +80,8 @@ export const RightSidebar = ({
         {selectedDate && (
           <button
             onClick={() => setSelectedDate(null)}
-            style={{ marginTop: '8px', width: '100%', background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: 'var(--radius)', padding: '4px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-          >✕ Сбросить дату</button>
+            style={{ marginTop: '8px', width: '100%', background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: 'var(--radius)', padding: '4px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+          ><IconX size={11} /> Сбросить дату</button>
         )}
       </div>
 
@@ -91,8 +92,8 @@ export const RightSidebar = ({
             {selectedTags.size > 0 && (
               <button
                 onClick={clearTags}
-                style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: 'var(--radius)', padding: '2px 7px', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-              >✕ Сбросить</button>
+                style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-faint)', borderRadius: 'var(--radius)', padding: '2px 7px', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '4px' }}
+              ><IconX size={11} /> Сбросить</button>
             )}
           </div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>

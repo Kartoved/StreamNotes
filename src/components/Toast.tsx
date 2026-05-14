@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { IconCheck, IconX, IconInfo } from './icons';
 
 export type ToastVariant = 'success' | 'error' | 'info';
 
@@ -22,10 +23,10 @@ export function showToast(message: string, variant: ToastVariant = 'info') {
   }
 }
 
-const ICONS: Record<ToastVariant, string> = {
-  success: '✓',
-  error: '✕',
-  info: 'ℹ',
+const ICONS: Record<ToastVariant, React.ReactNode> = {
+  success: <IconCheck size={14} />,
+  error: <IconX size={14} />,
+  info: <IconInfo size={14} />,
 };
 
 const COLORS: Record<ToastVariant, string> = {
@@ -66,7 +67,7 @@ function ToastItem({ item, onRemove }: { item: ToastItem; onRemove: (id: number)
         userSelect: 'none',
       }}
     >
-      <span style={{ color: COLORS[item.variant], fontSize: '0.85rem', fontWeight: 700, flexShrink: 0 }}>
+      <span style={{ color: COLORS[item.variant], flexShrink: 0, display: 'flex' }}>
         {ICONS[item.variant]}
       </span>
       <span style={{ fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.4 }}>

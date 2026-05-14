@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { IconCheck, IconClipboard } from './icons';
 import { useCrypto } from '../crypto/CryptoContext';
 import { APP_VERSION } from '../data/changelog';
 import { decryptSeedWithPassword } from '../crypto/CryptoContext';
@@ -329,8 +330,8 @@ export default function SettingsModal({ onClose, onExport, onExportMD, onImport,
             }}>
               {shortNpub}
             </code>
-            <button onClick={handleCopyNpub} style={btn}>
-              {copied ? '✓' : 'Copy'}
+            <button onClick={handleCopyNpub} style={{ ...btn, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 8px' }}>
+              {copied ? <IconCheck size={14} /> : <IconClipboard size={14} />}
             </button>
           </div>
         </div>

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
 import { useCrypto } from '../crypto/CryptoContext';
+import { IconCheck } from './icons';
 
 const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 
@@ -155,10 +156,10 @@ export function CompletionDateChip({ value }: { value: string }) {
         borderRadius: '4px', padding: '1px 7px',
         fontSize: '0.7rem', border: '1px solid var(--line)',
         fontFamily: 'var(--font-mono)', userSelect: 'none',
-        display: 'inline-block',
+        display: 'inline-flex', alignItems: 'center', gap: '4px',
       }}
     >
-      ✓ {value}
+      <IconCheck size={11} /> {value}
     </span>
   );
 }

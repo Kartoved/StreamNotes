@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 import { TiptapRender } from '../editor/TiptapViewer';
+import { IconChevronDown, IconChevronRight, IconArrowRight } from './icons';
 
 export const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string; onNoteClick?: (id: string) => void }) => {
   const db = useDB();
@@ -34,7 +35,7 @@ export const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string; onNo
         onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
         style={{ background: 'none', border: 'none', color: '#93c5fd', fontSize: '0.72rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
       >
-        {isExpanded ? '▼' : '▶'} Упомянуто в {backlinks.length} {backlinks.length === 1 ? 'заметке' : 'заметках'}
+        {isExpanded ? <IconChevronDown size={12} /> : <IconChevronRight size={12} />} Упомянуто в {backlinks.length} {backlinks.length === 1 ? 'заметке' : 'заметках'}
       </button>
       {isExpanded && (
         <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -45,9 +46,9 @@ export const BacklinksSection = ({ noteId, onNoteClick }: { noteId: string; onNo
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); onNoteClick?.(b.id); }}
-                style={{ marginTop: '4px', background: 'none', border: 'none', color: '#93c5fd', fontSize: '0.7rem', cursor: 'pointer', padding: 0 }}
+                style={{ marginTop: '4px', background: 'none', border: 'none', color: '#93c5fd', fontSize: '0.7rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
               >
-                → Перейти к заметке
+                <IconArrowRight size={12} /> Перейти к заметке
               </button>
             </div>
           ))}
