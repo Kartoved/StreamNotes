@@ -34,6 +34,8 @@
   overflow-x: auto;
   margin: 0.5em 0;
   font-family: var(--font-mono);
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .tiptap-editor pre code {
   font-family: var(--font-mono);

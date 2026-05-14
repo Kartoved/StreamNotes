@@ -294,7 +294,7 @@ export const renderTiptapNode = (node: any, index: number, onUpdateAST?: (ast: s
 
   if (node.type === 'codeBlock') {
     const code = (node.content || []).map((c: any) => c.text ?? '').join('');
-    return <pre key={index} style={{ background: 'var(--bg-hover)', padding: '12px 16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)', overflowX: 'auto', margin: '0.5em 0', fontFamily: 'var(--font-mono)' }}><code style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)', fontSize: '0.9em' }}>{code}</code></pre>;
+    return <pre key={index} style={{ background: 'var(--bg-hover)', padding: '12px 16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)', overflowX: 'auto', margin: '0.5em 0', fontFamily: 'var(--font-mono)', maxWidth: '100%', boxSizing: 'border-box' }}><code style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)', fontSize: '0.9em', whiteSpace: 'pre' }}>{code}</code></pre>;
   }
 
   if (node.type === 'hardBreak') return <br key={index} />;
