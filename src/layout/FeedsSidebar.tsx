@@ -234,7 +234,13 @@ export const FeedsSidebar = ({
     }
     // Handle paste of encrypted invite payload
     if (trimmed.startsWith(NPUBENC_PREFIX)) {
-      try { trimmed = decryptPayloadForMe(trimmed, nostrPrivKey); } catch { /* ignore */ }
+      try {
+        trimmed = decryptPayloadForMe(trimmed, nostrPrivKey);
+      } catch (err) {
+        console.warn('[invite] decrypt failed', err);
+        showToast('Не удалось расшифровать приглашение. Возможно, оно адресовано другому npub.', 'error');
+        return;
+      }
     }
     if (trimmed.startsWith('{') && trimmed.includes('"flow_id"')) {
       try {

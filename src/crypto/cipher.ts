@@ -29,6 +29,26 @@ export function isEncrypted(value: string): boolean {
   return typeof value === 'string' && value.startsWith(ENC_PREFIX);
 }
 
+/** Validates FEK format: 64 hex chars (32 bytes). Throws on invalid. */
+export function assertValidFekHex(fekHex: string): void {
+  if (typeof fekHex !== 'string' || !/^[0-9a-fA-F]{64}$/.test(fekHex)) {
+    throw new Error('Invalid FEK format: must be 64 hex characters');
+  }
+}
+
+/** Attempts to decrypt with the given key. Returns true only if the input was
+ *  actually encrypted with `ENC_PREFIX` AND the AEAD verification passed.
+ *  Returns false for any failure (bad MAC, malformed, plaintext input, etc.). */
+export function canDecryptWith(ciphertext: string, key: Uint8Array): boolean {
+  if (!isEncrypted(ciphertext)) return false;
+  try {
+    decrypt(ciphertext, key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function uint8ToBase64(bytes: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < bytes.length; i++) {

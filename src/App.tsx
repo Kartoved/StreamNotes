@@ -7,7 +7,8 @@ import { addOptimistic, removeOptimistic } from './db/optimisticNotes';
 import { putDecryptCache } from './db/notesCache';
 import type { Feed as FeedData } from './db/hooks';
 import { useCrypto } from './crypto/CryptoContext';
-import { isEncrypted } from './crypto/cipher';
+import { isEncrypted, assertValidFekHex, canDecryptWith } from './crypto/cipher';
+import { hexToBytes } from '@noble/hashes/utils';
 import { FekMissingError } from './crypto/feedCipher';
 import { decodeInviteLink, hashHasInvite } from './sharing/inviteLink';
 import { SyncEvents } from './sync/events';
@@ -405,9 +406,9 @@ function App() {
     const onVisChange = () => {
       if (document.visibilityState === 'hidden') {
         revokeAllUrls();
-        try { (window as any).__syncEngine?.stop(); } catch { /* ignore */ }
+        try { (window as any).__syncEngine?.stop(); } catch (err) { console.warn('[sync] stop on hide failed', err); }
       } else {
-        try { (window as any).__syncEngine?.start(); } catch { /* ignore */ }
+        try { (window as any).__syncEngine?.start(); } catch (err) { console.warn('[sync] start on visible failed', err); }
       }
     };
     document.addEventListener('visibilitychange', onVisChange);
@@ -483,29 +484,44 @@ function App() {
 
   const handleImportSharedFeed = useCallback(async (payload: { flow_id: string; fek: string; name: string; relay?: string; role?: string; author_npub?: string; notes?: any[]; links?: any[] }) => {
     const { flow_id, fek, name, role = 'participant', author_npub } = payload;
-    // Check if feed already exists
-    const existing = await db.execO(`SELECT id FROM feeds WHERE id = ?`, [flow_id]) as any[];
-    if (existing.length > 0) {
-      showToast('Эта лента уже есть в библиотеке.', 'info');
+
+    // ── Validate FEK format ──
+    try { assertValidFekHex(fek); }
+    catch {
+      showToast('Приглашение повреждено: неверный формат ключа.', 'error');
       return;
     }
-    const encryptedFek = encryptFeedKey(fek);
-    // Register the FEK immediately so encrypt/decrypt work
-    useCryptoRef.current.registerFeedKey(flow_id, fek);
-    const now = Date.now();
 
-    if (existing.length === 0) {
-      // Fresh import: create the feed row
+    const existing = await db.execO(`SELECT id FROM feeds WHERE id = ?`, [flow_id]) as any[];
+    const isNewFeed = existing.length === 0;
+    const now = Date.now();
+    let notesInserted = 0;
+
+    // ── Validate FEK against snapshot for NEW feeds (anti-tamper check) ──
+    // Without this, an attacker could send a fake invite with random FEK; receiver
+    // would write notes encrypted with the attacker's FEK, leaking plaintext to them.
+    if (isNewFeed && payload.notes?.length) {
+      const fekBytes = hexToBytes(fek);
+      const sample = payload.notes.find(n => typeof n.content === 'string' && isEncrypted(n.content));
+      if (sample && !canDecryptWith(sample.content, fekBytes)) {
+        showToast('Приглашение повреждено или подделано: ключ не расшифровывает вложенные заметки.', 'error');
+        return;
+      }
+    }
+
+    if (isNewFeed) {
+      const encryptedFek = encryptFeedKey(fek);
+      // Register the FEK so encrypt/decrypt work
+      useCryptoRef.current.registerFeedKey(flow_id, fek);
+
       await db.exec(
         `INSERT INTO feeds (id, name, color, encryption_key, key_index, is_shared, created_at) VALUES (?,?,?,?,?,?,?)`,
         [flow_id, encrypt(name || 'Shared Flow'), '#6095ed', encryptedFek, null, 1, now]
       );
-      // Record our own role in this shared feed
       await db.exec(
         `INSERT OR REPLACE INTO feed_members (feed_id, pubkey, role, added_at) VALUES (?,?,?,?)`,
         [flow_id, nostrPubKey, role, now]
       );
-      // Record the author as admin (if provided)
       if (author_npub && author_npub !== nostrPubKey) {
         await db.exec(
           `INSERT OR IGNORE INTO feed_members (feed_id, pubkey, role, added_at) VALUES (?,?,?,?)`,
@@ -513,12 +529,10 @@ function App() {
         );
       }
     }
-    // Feed already existed — still fall through to insert snapshot notes below
+    // For existing feeds: NEVER touch the FEK. Re-importing should only merge new
+    // snapshot rows. Replacing the FEK on an existing feed could brick access to
+    // existing notes if a tampered invite slipped through.
 
-    // Import notes snapshot if included in payload — this ensures notes appear immediately
-    // without relying on relay sync (which may be slow or unavailable).
-    // Works whether this is a fresh import or a re-import of an existing feed.
-    let notesInserted = 0;
     if (payload.notes?.length) {
       for (const n of payload.notes) {
         try {
@@ -541,9 +555,10 @@ function App() {
       }
     }
 
-    if (existing.length > 0) {
-      // Feed already existed — show a message indicating how many notes were synced
-      showToast(`Лента уже есть. Синхронизировано заметок: ${notesInserted}.`, 'info');
+    if (isNewFeed) {
+      showToast(notesInserted > 0 ? `Лента импортирована. Заметок: ${notesInserted}.` : 'Лента импортирована.', 'success');
+    } else {
+      showToast(notesInserted > 0 ? `Синхронизировано новых заметок: ${notesInserted}.` : 'Лента уже актуальна.', 'info');
     }
 
     setActiveFeedId(flow_id);

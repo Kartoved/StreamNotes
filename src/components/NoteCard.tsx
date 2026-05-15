@@ -301,12 +301,11 @@ export const NoteCard = React.memo(function NoteCard({
   onTouchDragStart,
   collapsedChildCount = 0,
 }: NoteCardProps) {
-  const { nickname } = useCrypto();
-  let props: any = {};
-  try { 
-    const raw = decrypt(note.properties) || '{}';
-    props = JSON.parse(raw); 
-  } catch { /* */ }
+  // note.properties is already decrypted by useNotes → getOrDecrypt
+  const props = React.useMemo(() => {
+    try { return JSON.parse(note.properties || '{}'); }
+    catch { return {}; }
+  }, [note.properties]);
 
   const [status, setStatus]     = useState<string>(props.status || 'none');
   const [type, setType]         = useState<string>(props.type || 'sheaf');
@@ -314,18 +313,14 @@ export const NoteCard = React.memo(function NoteCard({
   const [completedAt, setCompletedAt] = useState<string>(props.completed_at || '');
   const [recurrence, setRecurrence] = useState<string>(props.recurrence || '');
 
-  // Synchronize state with props when data changes
+  // Synchronize state when underlying note properties change
   React.useEffect(() => {
-    try {
-      const raw = decrypt(note.properties) || '{}';
-      const p = JSON.parse(raw);
-      setStatus(p.status || 'none');
-      setType(p.type || 'sheaf');
-      setDate(p.date || '');
-      setCompletedAt(p.completed_at || '');
-      setRecurrence(p.recurrence || '');
-    } catch { /* */ }
-  }, [note.properties, decrypt]);
+    setStatus(props.status || 'none');
+    setType(props.type || 'sheaf');
+    setDate(props.date || '');
+    setCompletedAt(props.completed_at || '');
+    setRecurrence(props.recurrence || '');
+  }, [props]);
 
   // Save a single prop change to DB immediately
   const saveProp = useCallback(async (key: string, val: string) => {

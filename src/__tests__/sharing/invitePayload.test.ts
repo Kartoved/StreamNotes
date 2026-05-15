@@ -9,7 +9,7 @@
  *   - a recipient who imports the payload can read the sharer's notes
  */
 import { describe, it, expect } from 'vitest';
-import { encrypt, decrypt } from '../../crypto/cipher';
+import { encrypt, decrypt, assertValidFekHex, canDecryptWith } from '../../crypto/cipher';
 import { deriveKeys, deriveFeedKey } from '../../crypto/keys';
 import { mnemonicToSeed } from '../../crypto/bip39';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
@@ -169,5 +169,47 @@ describe('payload validation (simulates import UI)', () => {
     expect(validatePayload(null)).toBe(false);
     expect(validatePayload(undefined)).toBe(false);
     expect(validatePayload('raw string')).toBe(false);
+  });
+});
+
+// ── FEK tamper protection ──────────────────────────────────────────
+// These tests guard the security-critical anti-tamper check in
+// handleImportSharedFeed. If they break, an attacker could send a
+// fake invite with random FEK and trick the receiver into encrypting
+// their writes with a key the attacker controls.
+describe('FEK validation helpers', () => {
+  it('assertValidFekHex accepts a 64-hex-char key', () => {
+    expect(() => assertValidFekHex('a'.repeat(64))).not.toThrow();
+    expect(() => assertValidFekHex('0123456789abcdef'.repeat(4))).not.toThrow();
+  });
+
+  it('assertValidFekHex rejects wrong length', () => {
+    expect(() => assertValidFekHex('a'.repeat(63))).toThrow();
+    expect(() => assertValidFekHex('a'.repeat(65))).toThrow();
+    expect(() => assertValidFekHex('')).toThrow();
+  });
+
+  it('assertValidFekHex rejects non-hex chars', () => {
+    expect(() => assertValidFekHex('z'.repeat(64))).toThrow();
+    expect(() => assertValidFekHex('g'.repeat(64))).toThrow();
+  });
+
+  it('canDecryptWith returns true for matching key', () => {
+    const fek = hexToBytes('a'.repeat(64));
+    const ct = encrypt('secret', fek);
+    expect(canDecryptWith(ct, fek)).toBe(true);
+  });
+
+  it('canDecryptWith returns false for wrong key (anti-tamper)', () => {
+    const realFek = hexToBytes('a'.repeat(64));
+    const fakeFek = hexToBytes('b'.repeat(64));
+    const ct = encrypt('secret', realFek);
+    expect(canDecryptWith(ct, fakeFek)).toBe(false);
+  });
+
+  it('canDecryptWith returns false for malformed ciphertext', () => {
+    const fek = hexToBytes('a'.repeat(64));
+    expect(canDecryptWith('enc1:not-base64!', fek)).toBe(false);
+    expect(canDecryptWith('not-encrypted-at-all', fek)).toBe(false);
   });
 });

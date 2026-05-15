@@ -118,12 +118,14 @@ function defaultProps(overrides = {}) {
 // ── Tests ──────────────────────────────────────────────────────────────
 
 describe('NoteCard — basic render', () => {
-  it('renders "you" label for local author', () => {
+  // Author header is hidden until collab mode ships — see project_attachment_hidden pattern.
+  // Re-enable when AuthorBadge is reattached to the card UI.
+  it.skip('renders "you" label for local author', () => {
     render(<NoteCard {...defaultProps()} />);
     expect(screen.getByText('you')).toBeInTheDocument();
   });
 
-  it('renders truncated author ID for remote author in non-shared feed', () => {
+  it.skip('renders truncated author ID for remote author in non-shared feed', () => {
     const props = defaultProps({
       note: makeNote({ author_id: 'npub1abc123def456' }),
       localNpub: 'someone-else',
@@ -215,7 +217,8 @@ describe('NoteCard — status chip interaction', () => {
 });
 
 describe('NoteCard — click interactions', () => {
-  it('calls onNoteClick with note id when header area is clicked', () => {
+  // Author header was the click surface; hidden until collab mode ships.
+  it.skip('calls onNoteClick with note id when header area is clicked', () => {
     const onNoteClick = vi.fn();
     render(<NoteCard {...defaultProps({ onNoteClick })} />);
 
@@ -345,7 +348,8 @@ describe('NoteCard — edge cases', () => {
   });
 });
 
-describe('NoteCard — shared feed author badge', () => {
+// AuthorBadge is intentionally not rendered until collab mode is implemented.
+describe.skip('NoteCard — shared feed author badge', () => {
   it('shows AuthorBadge with "you" for local npub in shared feed', () => {
     const npub = 'npub1localuser';
     const props = defaultProps({
