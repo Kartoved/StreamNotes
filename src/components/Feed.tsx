@@ -17,6 +17,57 @@ import { showToast } from './Toast';
 const NoteModal = lazy(() => import('./NoteModal').then(m => ({ default: m.NoteModal })));
 const KanbanView = lazy(() => import('./KanbanView').then(m => ({ default: m.KanbanView })));
 
+// Context menu panel that measures its own rendered size and clamps the
+// origin so the menu always fits in the viewport (works for tall menus
+// triggered near the bottom of the page, both desktop and mobile).
+function ContextMenuPanel({
+  originX, originY, children,
+}: { originX: number; originY: number; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const PAD = 8;
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let left = originX;
+    let top = originY;
+    if (left + rect.width + PAD > vw) left = Math.max(PAD, vw - rect.width - PAD);
+    if (top + rect.height + PAD > vh) top = Math.max(PAD, vh - rect.height - PAD);
+    setPos({ top, left });
+  }, [originX, originY]);
+
+  return (
+    <div
+      ref={ref}
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: 'fixed',
+        top: pos?.top ?? originY,
+        left: pos?.left ?? originX,
+        background: 'var(--card-bg)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid var(--line)',
+        borderRadius: '12px',
+        padding: '6px',
+        minWidth: '190px',
+        maxHeight: 'calc(100dvh - 16px)',
+        overflowY: 'auto',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+        zIndex: 4001,
+        // Hide until measured to avoid a flash at the wrong position.
+        visibility: pos ? 'visible' : 'hidden',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /**
  * Returns a sort_key lexicographically between `after` and `before`.
  * Appends a single digit ('5' first, then lower) to `after` until a value
@@ -618,22 +669,9 @@ export const Feed = ({
           onContextMenu={(e) => e.preventDefault()}
           style={{ position: 'fixed', inset: 0, zIndex: 4000 }}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: 'fixed',
-              top: `min(${contextMenu.y}px, calc(100dvh - 300px - env(safe-area-inset-bottom, 0px)))`,
-              left: Math.min(contextMenu.x, window.innerWidth - 200),
-              background: 'var(--card-bg)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              border: '1px solid var(--line)',
-              borderRadius: '12px',
-              padding: '6px',
-              minWidth: '190px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
-              zIndex: 4001,
-            }}
+          <ContextMenuPanel
+            originX={contextMenu.x}
+            originY={contextMenu.y}
           >
             {(() => {
               const ctxNote = notes.find(n => n.id === contextMenu.noteId);
@@ -685,7 +723,7 @@ export const Feed = ({
                 </button>
               )
             )}
-          </div>
+          </ContextMenuPanel>
         </div>
       )}
 
