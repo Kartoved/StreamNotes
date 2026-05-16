@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
 import { useCrypto } from '../crypto/CryptoContext';
-import { IconCheck, IconPin, IconRepeat, IconCalendar } from './icons';
+import { IconCheck, IconPin, IconRepeat, IconCalendar, IconReply } from './icons';
 import { CHIP_BASE, CHIP_SELECT, CHIP_ACTIVE, CHIP_HEIGHT } from './chipStyle';
 import { SkillChip, NoteSkill } from './SkillChip';
 import { getNoteKind, NoteKind } from '../utils/noteKind';
@@ -30,6 +30,9 @@ function formatNoteDate(createdAt: number): string {
 }
 
 const STATUSES = ['todo', 'doing', 'done', 'archived'];
+
+// Stable empty reference so React.memo doesn't see a "new" array each render.
+const EMPTY_BACKLINKS: ReadonlyArray<{ id: string; snippet: string }> = [];
 
 // Legacy entries may have status='none' (the old default). Tasks always
 // have a real status now — fold 'none' into 'todo' at display time.
@@ -252,6 +255,8 @@ interface NoteCardProps {
   localNpub?: string;
   onTouchDragStart?: (id: string, touch: { clientX: number; clientY: number }) => void;
   collapsedChildCount?: number;
+  backlinks?: ReadonlyArray<{ id: string; snippet: string }>;
+  defaultBacklinksOpen?: boolean;
 }
 
 export const NoteCard = React.memo(function NoteCard({
@@ -285,6 +290,8 @@ export const NoteCard = React.memo(function NoteCard({
   localNpub = '',
   onTouchDragStart,
   collapsedChildCount = 0,
+  backlinks = EMPTY_BACKLINKS,
+  defaultBacklinksOpen = false,
 }: NoteCardProps) {
   const { decryptForFeed } = useCrypto();
   // note.properties is already decrypted by useNotes → getOrDecrypt
@@ -302,6 +309,9 @@ export const NoteCard = React.memo(function NoteCard({
   const [recurrence, setRecurrence] = useState<string>(props.recurrence || '');
   const [skill, setSkill] = useState<NoteSkill | undefined>(props.skill);
   const [kind, setKind] = useState<NoteKind>(getNoteKind(props));
+  const [backlinksOpen, setBacklinksOpen] = useState(defaultBacklinksOpen);
+  // If the open-by-default flag flips (we move in/out of expand mode), reflect it.
+  React.useEffect(() => { setBacklinksOpen(defaultBacklinksOpen); }, [defaultBacklinksOpen]);
 
   // Synchronize state when underlying note properties change
   React.useEffect(() => {
@@ -655,6 +665,24 @@ export const NoteCard = React.memo(function NoteCard({
                   <SkillChip value={skill} onChange={handleSkill} existingNames={getAllSkillNames()} />
                 )}
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {backlinks.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setBacklinksOpen(o => !o); }}
+                      title={backlinksOpen ? 'Скрыть упоминания' : `Упомянуто в ${backlinks.length}`}
+                      style={{
+                        ...CHIP_BASE,
+                        ...(backlinksOpen ? {
+                          color: '#93c5fd',
+                          background: 'rgba(147, 197, 253, 0.10)',
+                          borderColor: 'rgba(147, 197, 253, 0.30)',
+                        } : {}),
+                      }}
+                    >
+                      <IconReply size={11} />
+                      <span>{backlinks.length}</span>
+                    </button>
+                  )}
                   {!!note.is_pinned && (
                     <span style={{ color: 'var(--text-faint)', opacity: 0.6, display: 'flex' }}><IconPin size={11} /></span>
                   )}
@@ -663,6 +691,59 @@ export const NoteCard = React.memo(function NoteCard({
                   </span>
                 </div>
               </div>
+
+              {/* Linked references — sits at the bottom of this card, above
+                  any child threads which render as sibling cards below. */}
+              {backlinks.length > 0 && backlinksOpen && (
+                <div
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    marginTop: '10px', paddingTop: '8px',
+                    borderTop: '1px dashed var(--line)',
+                    display: 'flex', flexDirection: 'column', gap: '4px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.66rem', color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '2px' }}>
+                    Упомянуто в {backlinks.length}
+                  </div>
+                  {backlinks.map(b => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onNoteClick?.(b.id); }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        textAlign: 'left',
+                        background: 'transparent',
+                        border: '1px solid var(--line)',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        color: 'var(--text-sub)',
+                        fontSize: '0.78rem',
+                        fontFamily: 'var(--font-body)',
+                        cursor: 'pointer',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                        textOverflow: 'ellipsis',
+                        transition: 'background 0.1s, border-color 0.1s, color 0.1s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'var(--bg-hover)';
+                        e.currentTarget.style.color = 'var(--text)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-sub)';
+                      }}
+                    >
+                      <IconReply size={11} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {b.snippet || '(без текста)'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -711,6 +792,8 @@ export const NoteCard = React.memo(function NoteCard({
     prev.virtualItem.start === next.virtualItem.start &&
     prev.isSharedFeed === next.isSharedFeed &&
     prev.localNpub === next.localNpub &&
-    prev.collapsedChildCount === next.collapsedChildCount
+    prev.collapsedChildCount === next.collapsedChildCount &&
+    prev.backlinks === next.backlinks &&
+    prev.defaultBacklinksOpen === next.defaultBacklinksOpen
   );
 });

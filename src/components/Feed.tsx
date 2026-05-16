@@ -113,6 +113,9 @@ const TYPES = ['sheaf', 'task', 'document'];
 
 const EMPTY_TAGS: Set<string> = new Set();
 const EMPTY_SKILLS: Set<string> = new Set();
+export type BacklinkRef = { id: string; snippet: string };
+const EMPTY_BACKLINKS: ReadonlyArray<BacklinkRef> = [];
+const BACKLINK_RE = /note:\/\/([a-zA-Z0-9_-]+)/g;
 
 // ─── Feed ─────────────────────────────────────────────────────────────
 export const Feed = ({
@@ -350,6 +353,32 @@ export const Feed = ({
     (window as any).__feedAllTags = feedAllTags;
     return () => { (window as any).__feedAllTags = []; };
   }, [feedAllTags]);
+
+  // Backlinks per note, scoped to the current feed (notes is already feed-filtered).
+  // A backlink target outside the current feed is skipped so we don't link to
+  // notes the user can't see here.
+  const backlinksMap = React.useMemo(() => {
+    const validIds = new Set(notes.map(n => n.id));
+    const m = new Map<string, BacklinkRef[]>();
+    for (const n of notes) {
+      const content = n.content || '';
+      BACKLINK_RE.lastIndex = 0;
+      const targets = new Set<string>();
+      let match: RegExpExecArray | null;
+      while ((match = BACKLINK_RE.exec(content)) !== null) {
+        const tid = match[1];
+        if (tid !== n.id && validIds.has(tid)) targets.add(tid);
+      }
+      if (targets.size === 0) continue;
+      const snippet = (parsedCache.get(n.id)?.text || '').trim().slice(0, 80);
+      for (const tid of targets) {
+        const arr = m.get(tid) || [];
+        arr.push({ id: n.id, snippet });
+        m.set(tid, arr);
+      }
+    }
+    return m;
+  }, [notes, parsedCache]);
 
   // ── Filter by search + tags + date + status ───────────────────────
   const filteredNotes = React.useMemo(() => {
@@ -933,6 +962,8 @@ export const Feed = ({
                   localNpub={localNpub}
                   onTouchDragStart={handleTouchDragStart}
                   collapsedChildCount={item.collapsedChildCount ?? 0}
+                  backlinks={backlinksMap.get(item.note.id) ?? EMPTY_BACKLINKS}
+                  defaultBacklinksOpen={!!parentId}
                 />
               );
             })}
