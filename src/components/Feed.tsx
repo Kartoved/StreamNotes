@@ -99,6 +99,7 @@ interface FeedProps {
   onSubmitEdit?: (id: string, text: string, propsJson: string) => void;
   searchQuery?: string;
   selectedTags?: Set<string>;
+  selectedSkills?: Set<string>;
   selectedDate?: string | null;
   statusFilter?: string | null;
   onStartPomodoro?: (taskId: string, taskTitle: string) => void;
@@ -111,6 +112,7 @@ const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['sheaf', 'task', 'document'];
 
 const EMPTY_TAGS: Set<string> = new Set();
+const EMPTY_SKILLS: Set<string> = new Set();
 
 // ─── Feed ─────────────────────────────────────────────────────────────
 export const Feed = ({
@@ -130,6 +132,7 @@ export const Feed = ({
   onSubmitEdit,
   searchQuery = '',
   selectedTags = EMPTY_TAGS,
+  selectedSkills = EMPTY_SKILLS,
   selectedDate = null,
   statusFilter = null,
   onStartPomodoro,
@@ -353,9 +356,10 @@ export const Feed = ({
     const q = searchQuery.toLocaleLowerCase().trim();
     const hasSearch = q.length > 0;
     const hasTags = selectedTags.size > 0;
+    const hasSkills = selectedSkills.size > 0;
     const hasDate = !!selectedDate;
     const hasStatus = !!statusFilter;
-    if (!hasSearch && !hasTags && !hasDate && !hasStatus) return notes;
+    if (!hasSearch && !hasTags && !hasSkills && !hasDate && !hasStatus) return notes;
 
     const matchingIds = new Set<string>();
     for (const note of notes) {
@@ -363,6 +367,10 @@ export const Feed = ({
       const text = cached?.text ?? '';
       const searchOk = !hasSearch || text.includes(q);
       const tagOk = !hasTags || [...selectedTags].every(tag => text.includes(tag));
+      const skillOk = !hasSkills || (() => {
+        const props = cached?.props ?? {};
+        return props.skill?.name ? selectedSkills.has(props.skill.name) : false;
+      })();
       let dateOk = true;
       if (hasDate) {
         const props = cached?.props ?? {};
@@ -396,7 +404,7 @@ export const Feed = ({
           statusOk = props.status === statusFilter;
         }
       }
-      if (searchOk && tagOk && dateOk && statusOk) matchingIds.add(note.id);
+      if (searchOk && tagOk && skillOk && dateOk && statusOk) matchingIds.add(note.id);
 
     }
 
@@ -411,7 +419,7 @@ export const Feed = ({
     }
 
     return notes.filter(n => toKeep.has(n.id));
-  }, [notes, parsedCache, searchQuery, selectedTags, selectedDate, statusFilter]);
+  }, [notes, parsedCache, searchQuery, selectedTags, selectedSkills, selectedDate, statusFilter]);
 
   const visibleNotes = React.useMemo(() => {
     let base = [...filteredNotes];
@@ -533,10 +541,10 @@ export const Feed = ({
   React.useEffect(() => {
     document.querySelector('.main-content')?.scrollTo({ top: 0 });
     virtualizer.scrollToOffset(0);
-    if (searchQuery.trim() || selectedDate || statusFilter || selectedTags.size > 0) {
+    if (searchQuery.trim() || selectedDate || statusFilter || selectedTags.size > 0 || selectedSkills.size > 0) {
       setCollapsedIds(prev => prev.size === 0 ? prev : new Set());
     }
-  }, [searchQuery, selectedDate, statusFilter, selectedTags]);
+  }, [searchQuery, selectedDate, statusFilter, selectedTags, selectedSkills]);
 
 
   React.useEffect(() => {

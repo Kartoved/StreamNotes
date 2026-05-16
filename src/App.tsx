@@ -803,6 +803,7 @@ function App() {
   // ── Sidebar filters ────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [selectedSkills, setSelectedSkills] = useState<Set<string>>(new Set());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [dashboardStatusFilter, setDashboardStatusFilter] = useState<string | null>(null);
 
@@ -855,6 +856,33 @@ function App() {
       return next;
     });
   };
+  const toggleSkill = (skill: string) => {
+    setSelectedSkills(prev => {
+      const next = new Set(prev);
+      next.has(skill) ? next.delete(skill) : next.add(skill);
+      return next;
+    });
+  };
+
+  // Per-skill open/done counts. Used by RightSidebar to render the skills
+  // panel sorted by activity ("open" = todo + doing).
+  const skillStats = React.useMemo(() => {
+    const m = new Map<string, { open: number; done: number }>();
+    for (const n of allNotes) {
+      let props: any = {};
+      try { props = JSON.parse(n.properties || '{}'); } catch { continue; }
+      const skill = props.skill;
+      if (!skill || typeof skill.name !== 'string') continue;
+      const status = props.status;
+      const cur = m.get(skill.name) || { open: 0, done: 0 };
+      if (status === 'todo' || status === 'doing') cur.open += 1;
+      else if (status === 'done') cur.done += 1;
+      m.set(skill.name, cur);
+    }
+    return [...m.entries()]
+      .map(([name, v]) => ({ name, open: v.open, done: v.done }))
+      .sort((a, b) => (b.open - a.open) || a.name.localeCompare(b.name));
+  }, [allNotes]);
 
   // ── CRUD ───────────────────────────────────────────────────────────
   // Feed-aware encrypt helper — uses FEK when available
@@ -1440,6 +1468,7 @@ function App() {
             onSubmitEdit={handleEditSubmit}
             searchQuery={searchQuery}
             selectedTags={selectedTags}
+            selectedSkills={selectedSkills}
             selectedDate={selectedDate}
             statusFilter={dashboardStatusFilter}
             onStartPomodoro={(taskId, taskTitle) => pomodoroActions.start(taskId, taskTitle)}
@@ -1458,6 +1487,10 @@ function App() {
         selectedTags={selectedTags}
         toggleTag={toggleTag}
         clearTags={() => setSelectedTags(new Set())}
+        skillStats={skillStats}
+        selectedSkills={selectedSkills}
+        toggleSkill={toggleSkill}
+        clearSkills={() => setSelectedSkills(new Set())}
       />
 
       {fullscreenDraft && (
