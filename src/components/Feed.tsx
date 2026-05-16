@@ -9,7 +9,6 @@ import { storePendingBacklink } from '../utils/backlinkClipboard';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
 import { IconReply, IconEdit, IconMaximize, IconChevronUp, IconChevronDown, IconChevronRight, IconClipboard, IconPin, IconTimer, IconTrash } from './icons';
-import { BacklinksSection } from './BacklinksSection';
 import { NoteCard } from './NoteCard';
 import { showToast } from './Toast';
 

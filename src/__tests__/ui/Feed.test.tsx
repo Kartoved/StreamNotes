@@ -102,11 +102,6 @@ vi.mock('../../components/NoteModal', () => ({
   ),
 }));
 
-// BacklinksSection — stub
-vi.mock('../../components/BacklinksSection', () => ({
-  BacklinksSection: () => <div data-testid="backlinks" />,
-}));
-
 // ── Component under test ───────────────────────────────────────────────
 import { Feed } from '../../components/Feed';
 
