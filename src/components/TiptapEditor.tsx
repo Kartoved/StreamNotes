@@ -41,11 +41,12 @@ const Ic = ({ d, size = 15 }: { d: string; size?: number }) => (
 // ─── Toolbar Component ────────────────────────────────────────────────
 function Toolbar({
     editor, onUpload, onExpand, zenMode, onCancel,
-    onInsertBacklink,
+    onInsertBacklink, onInsertHashtag,
 }: {
     editor: any; onUpload: (files: FileList | File[]) => void; onExpand?: (ast: string) => void;
     zenMode?: boolean; onCancel?: () => void;
     onInsertBacklink?: () => void;
+    onInsertHashtag?: () => void;
 }) {
   if (!editor) return null;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -188,6 +189,11 @@ function Toolbar({
             <text x="3" y="17" fontSize="14" fontWeight="700" fill="currentColor" stroke="none" fontFamily="var(--font-mono)">[[</text>
           </svg>
         </button>
+
+        <button type="button" title="Хештег #"
+          style={textBtn({ fontWeight: 700, fontSize: '0.95rem' })}
+          onMouseEnter={e => btnHover(e, true)} onMouseLeave={e => btnHover(e, false)}
+          onClick={() => onInsertHashtag?.()}>#</button>
 
         {gap}
 
@@ -531,6 +537,17 @@ export const TweetEditor = ({
     editor.chain().focus().insertContent('[[').run();
   }, [editor]);
 
+  // ── Hashtag: toolbar button handler ──
+  const handleInsertHashtag = useCallback(() => {
+    if (!editor) return;
+    // Insert a leading space if caret is mid-word, so the # opens the
+    // suggestion plugin (which only triggers on word boundaries).
+    const { state } = editor;
+    const before = state.doc.textBetween(Math.max(0, state.selection.from - 1), state.selection.from, ' ');
+    const prefix = before && !/\s/.test(before) ? ' #' : '#';
+    editor.chain().focus().insertContent(prefix).run();
+  }, [editor]);
+
   const uploadFiles = useCallback(async (files: FileList | File[]) => {
     if (!editor) return;
     const arr = Array.from(files);
@@ -652,6 +669,7 @@ export const TweetEditor = ({
             zenMode={zenMode}
             onCancel={onCancel}
             onInsertBacklink={handleInsertBacklink}
+            onInsertHashtag={handleInsertHashtag}
         />
       </div>
 
