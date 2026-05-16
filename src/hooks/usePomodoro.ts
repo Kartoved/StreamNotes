@@ -6,6 +6,11 @@ const WORK_SECS = 25 * 60;
 const BREAK_SECS = 5 * 60;
 const LONG_BREAK_SECS = 15 * 60;
 
+// Break auto-starts after work; the next work session always requires an
+// explicit user click. Matches typical pomodoro apps (PomoFocus default).
+const AUTO_START_BREAK = true;
+const AUTO_START_WORK = false;
+
 function todayKey() {
   return 'pomodoro_' + new Date().toISOString().slice(0, 10);
 }
@@ -19,6 +24,15 @@ function incrementCompleted(): number {
   const next = getCompletedToday() + 1;
   localStorage.setItem(key, String(next));
   return next;
+}
+
+function secsForPhase(p: PomodoroPhase): number {
+  switch (p) {
+    case 'work': return WORK_SECS;
+    case 'break': return BREAK_SECS;
+    case 'longBreak': return LONG_BREAK_SECS;
+    default: return WORK_SECS;
+  }
 }
 
 export interface PomodoroState {
@@ -48,7 +62,7 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
   const [sessionCount, setSessionCount] = useState(0);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Tracks the wall-clock time when the current phase should end (for background sync)
+  // Wall-clock timestamp when the current phase should end (survives background throttling).
   const endTimeRef = useRef<number | null>(null);
   const phaseRef = useRef<PomodoroPhase>('idle');
   const sessionCountRef = useRef(0);
@@ -64,89 +78,95 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
     }
   }, []);
 
-  const stop = useCallback(() => {
+  const clearTick = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    endTimeRef.current = null;
   }, []);
 
-  // When timer hits zero
-  const handleFinish = useCallback((finishedPhase: PomodoroPhase, currentSessions: number) => {
-    stop();
+  // Atomically transition to the next phase when the current timer hits zero.
+  // Reads current phase/sessions from refs so it doesn't need to be in the
+  // tick effect's deps (which was a source of stale-closure bugs).
+  const handleFinish = useCallback(() => {
+    clearTick();
+    endTimeRef.current = null;
+
+    const finishedPhase = phaseRef.current;
 
     if (finishedPhase === 'work') {
-      const newSessions = currentSessions + 1;
+      const newSessions = sessionCountRef.current + 1;
+      sessionCountRef.current = newSessions;
       setSessionCount(newSessions);
-      const newCount = incrementCompleted();
-      setCompletedToday(newCount);
+      setCompletedToday(incrementCompleted());
 
-      const isLongBreak = newSessions % 4 === 0;
-      if (isLongBreak) {
-        notify('Отличная работа! Длинный перерыв 15 минут 🎉');
-        setPhase('longBreak');
-        setSecondsLeft(LONG_BREAK_SECS);
-      } else {
-        notify('Помидор завершён! Отдохни 5 минут ☕');
-        setPhase('break');
-        setSecondsLeft(BREAK_SECS);
-      }
-      // Auto-start the break so it runs without user interaction
-      setIsRunning(true);
+      const longBreak = newSessions % 4 === 0;
+      const nextPhase: PomodoroPhase = longBreak ? 'longBreak' : 'break';
+      const nextSecs = secsForPhase(nextPhase);
+
+      notify(longBreak
+        ? 'Отличная работа! Длинный перерыв 15 минут 🎉'
+        : 'Помидор завершён! Отдохни 5 минут ☕');
+
+      phaseRef.current = nextPhase;
+      setPhase(nextPhase);
+      setSecondsLeft(nextSecs);
+      setIsRunning(AUTO_START_BREAK);
     } else {
-      // Break finished — don't auto-start; let user decide when next session begins
+      // Break finished → ready for next work session.
       notify('Перерыв окончен! Время работать 🍅');
+      phaseRef.current = 'work';
       setPhase('work');
       setSecondsLeft(WORK_SECS);
-      setIsRunning(false);
+      setIsRunning(AUTO_START_WORK);
     }
-  }, [stop, notify]);
+  }, [clearTick, notify]);
 
-  // Tick — also updates endTimeRef when starting
+  // Tick — recomputes secondsLeft from wall-clock to survive throttling.
   useEffect(() => {
     if (!isRunning) return;
-    const currentPhase = phase;
-    const currentSessions = sessionCount;
 
-    // Set end time when timer starts/resumes
+    // Anchor the end time when the timer (re-)starts.
     if (endTimeRef.current === null) {
       endTimeRef.current = Date.now() + secondsLeft * 1000;
     }
 
-    intervalRef.current = setInterval(() => {
-      const remaining = Math.round((endTimeRef.current! - Date.now()) / 1000);
-      if (remaining <= 0) {
-        handleFinish(currentPhase, currentSessions);
-        setSecondsLeft(0);
-      } else {
-        setSecondsLeft(remaining);
-      }
-    }, 1000);
-    return () => stop();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRunning, phase, sessionCount]);
-
-  // Sync timer after tab returns from background (mobile browsers throttle timers)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState !== 'visible') return;
-      if (!isRunningRef.current || endTimeRef.current === null) return;
-
+    const tick = () => {
+      if (endTimeRef.current === null) return;
       const remaining = Math.round((endTimeRef.current - Date.now()) / 1000);
       if (remaining <= 0) {
-        handleFinish(phaseRef.current, sessionCountRef.current);
-        setSecondsLeft(0);
+        // Single source of truth for the next state — don't setSecondsLeft here.
+        handleFinish();
       } else {
         setSecondsLeft(remaining);
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    // Tick once immediately so the visible counter doesn't lag a second.
+    tick();
+    intervalRef.current = setInterval(tick, 1000);
+    return () => clearTick();
+  // secondsLeft is intentionally NOT a dep — we use endTimeRef as the source of truth.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunning, phase]);
+
+  // Sync after tab returns from background (mobile browsers throttle timers).
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!isRunningRef.current || endTimeRef.current === null) return;
+
+      const remaining = Math.round((endTimeRef.current - Date.now()) / 1000);
+      if (remaining <= 0) {
+        handleFinish();
+      } else {
+        setSecondsLeft(remaining);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [handleFinish]);
 
-  // Request notification permission on first use
   const requestNotificationPermission = useCallback(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -156,37 +176,47 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
   const actions: PomodoroActions = {
     start: useCallback((tid?: string | null, title?: string | null) => {
       requestNotificationPermission();
-      endTimeRef.current = null; // will be set in tick effect
+      clearTick();
+      endTimeRef.current = null;
+      sessionCountRef.current = 0;
+      setSessionCount(0);
       setTaskId(tid ?? null);
       setTaskTitle(title ?? null);
+      phaseRef.current = 'work';
       setPhase('work');
       setSecondsLeft(WORK_SECS);
       setIsRunning(true);
-    }, [requestNotificationPermission]),
+    }, [requestNotificationPermission, clearTick]),
 
     pause: useCallback(() => {
-      // Capture remaining time so resume restarts from correct position
+      // Freeze remaining seconds; resume will anchor a fresh endTime from it.
       if (endTimeRef.current !== null) {
         const remaining = Math.round((endTimeRef.current - Date.now()) / 1000);
         setSecondsLeft(Math.max(0, remaining));
       }
+      clearTick();
       endTimeRef.current = null;
       setIsRunning(false);
-    }, []),
+    }, [clearTick]),
 
     resume: useCallback(() => {
-      endTimeRef.current = null; // will be recalculated from current secondsLeft in tick effect
+      // Tick effect will anchor endTimeRef from current secondsLeft.
+      endTimeRef.current = null;
       setIsRunning(true);
     }, []),
 
     reset: useCallback(() => {
-      stop();
+      clearTick();
+      endTimeRef.current = null;
+      sessionCountRef.current = 0;
+      phaseRef.current = 'idle';
       setIsRunning(false);
       setPhase('idle');
       setSecondsLeft(WORK_SECS);
+      setSessionCount(0);
       setTaskId(null);
       setTaskTitle(null);
-    }, [stop]),
+    }, [clearTick]),
   };
 
   const state: PomodoroState = {
