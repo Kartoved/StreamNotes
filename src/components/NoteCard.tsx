@@ -3,6 +3,9 @@ import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
 import { useCrypto } from '../crypto/CryptoContext';
 import { IconCheck, IconPin } from './icons';
+import { SkillChip, NoteSkill } from './SkillChip';
+import { getAllSkillNames } from '../db/notesCache';
+import { playDoneSound } from '../utils/skillSound';
 
 const MONTHS_RU = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 const DAYS_RU   = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
@@ -185,9 +188,14 @@ export function CompletionDateChip({ value }: { value: string }) {
 }
 
 // ── Recurrence chip ──────────────────────────────────────────────────
+// Value semantics: ''   → off (no recurrence)
+//                  '0'  → repeat immediately on done (next instance has no date)
+//                  'N>0'→ repeat in N days
 export function RecurrenceChip({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [editing, setEditing] = useState(false);
-  const days = parseInt(value) || 0;
+  const parsed = parseInt(value);
+  const active = !Number.isNaN(parsed) && parsed >= 0;
+  const label = !active ? 'off' : parsed === 0 ? 'сразу' : `${parsed}d`;
 
   if (editing) {
     return (
@@ -195,11 +203,13 @@ export function RecurrenceChip({ value, onChange }: { value: string; onChange: (
         type="number"
         min="0"
         autoFocus
-        defaultValue={days || ''}
+        defaultValue={active ? String(parsed) : ''}
         placeholder="дн."
         onBlur={(e) => {
-          const n = parseInt(e.target.value) || 0;
-          onChange(n > 0 ? `${n}` : '');
+          const raw = e.target.value.trim();
+          if (raw === '') { onChange(''); setEditing(false); return; }
+          const n = parseInt(raw);
+          onChange(!Number.isNaN(n) && n >= 0 ? `${n}` : '');
           setEditing(false);
         }}
         onKeyDown={(e) => {
@@ -221,15 +231,15 @@ export function RecurrenceChip({ value, onChange }: { value: string; onChange: (
       type="button"
       onClick={(e) => { e.stopPropagation(); setEditing(true); }}
       style={{
-        background: days ? 'rgba(96, 149, 237, 0.12)' : 'var(--bg-hover)',
-        color: days ? '#6095ed' : 'var(--text-faint)',
+        background: active ? 'rgba(96, 149, 237, 0.12)' : 'var(--bg-hover)',
+        color: active ? '#6095ed' : 'var(--text-faint)',
         borderRadius: '4px', padding: '1px 7px',
-        fontSize: '0.7rem', border: '1px solid ' + (days ? 'rgba(96, 149, 237, 0.3)' : 'var(--line)'),
+        fontSize: '0.7rem', border: '1px solid ' + (active ? 'rgba(96, 149, 237, 0.3)' : 'var(--line)'),
         fontFamily: 'var(--font-mono)', cursor: 'pointer', userSelect: 'none',
         transition: 'all 0.1s', outline: 'none',
       }}
-      title="Повторяемость (дни)"
-    >🔁 {days ? `${days}d` : 'off'}</button>
+      title="Повторяемость: пусто = off, 0 = сразу, N = через N дней"
+    >🔁 {label}</button>
   );
 }
 
@@ -301,6 +311,7 @@ export const NoteCard = React.memo(function NoteCard({
   onTouchDragStart,
   collapsedChildCount = 0,
 }: NoteCardProps) {
+  const { decryptForFeed } = useCrypto();
   // note.properties is already decrypted by useNotes → getOrDecrypt
   const props = React.useMemo(() => {
     try { return JSON.parse(note.properties || '{}'); }
@@ -312,6 +323,7 @@ export const NoteCard = React.memo(function NoteCard({
   const [targetDate, setDate]   = useState<string>(props.date || '');
   const [completedAt, setCompletedAt] = useState<string>(props.completed_at || '');
   const [recurrence, setRecurrence] = useState<string>(props.recurrence || '');
+  const [skill, setSkill] = useState<NoteSkill | undefined>(props.skill);
 
   // Synchronize state when underlying note properties change
   React.useEffect(() => {
@@ -320,15 +332,19 @@ export const NoteCard = React.memo(function NoteCard({
     setDate(props.date || '');
     setCompletedAt(props.completed_at || '');
     setRecurrence(props.recurrence || '');
+    setSkill(props.skill);
   }, [props]);
 
   // Save a single prop change to DB immediately
-  const saveProp = useCallback(async (key: string, val: string) => {
-    const current = { ...props, status, type, date: targetDate, recurrence, [key]: val };
+  const saveProp = useCallback(async (key: string, val: any) => {
+    const current: any = { ...props, status, type, date: targetDate, recurrence, skill, [key]: val };
+    if (key === 'skill' && val === undefined) delete current.skill;
     // Track when a note is marked as done
     if (key === 'status' && val === 'done') {
       const today = new Date();
       current.completed_at = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      // Reward sound on done transition (only when transitioning to done from non-done).
+      if (status !== 'done') playDoneSound();
     } else if (key === 'status' && val !== 'done') {
       delete current.completed_at;
     }
@@ -337,26 +353,85 @@ export const NoteCard = React.memo(function NoteCard({
       [encrypt(JSON.stringify(current)), Date.now(), note.id]
     );
 
-    // Recurring task: create next instance when marked done
+    // Recurring task: deep-clone the entire subtree as the next instance.
+    // recurrence === ''  → no recurrence
+    // recurrence === '0' → immediate (next root has no date — lands in backlog)
+    // recurrence === 'N' → next root scheduled N days from today
     const rec = current.recurrence;
-    if (key === 'status' && val === 'done' && rec) {
-      const days = parseInt(rec) || 1;
-      const next = new Date();
-      next.setDate(next.getDate() + days);
-      const nextDate = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
-      const nextProps = { status: 'todo', type: current.type, recurrence: rec, date: nextDate };
+    const days = rec === '' ? NaN : parseInt(rec);
+    if (key === 'status' && val === 'done' && !Number.isNaN(days) && days >= 0) {
       const now = Date.now();
-      const newId = 'note-' + Math.random().toString(36).substring(2, 9);
+      const newRootId = 'note-' + Math.random().toString(36).substring(2, 9);
+
+      // Root keeps recurrence + skill; date derived from `days`.
+      const rootProps: any = { status: 'todo', type: current.type, recurrence: rec };
+      if (current.skill) rootProps.skill = current.skill;
+      if (days > 0) {
+        const next = new Date();
+        next.setDate(next.getDate() + days);
+        rootProps.date = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+      }
+
       await db.exec(
         `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-        [newId, null, note.author_id, encrypt(note.content), now.toString(), encrypt(JSON.stringify(nextProps)), note.feed_id, now, now]
+        [newRootId, null, note.author_id, encrypt(note.content), now.toString(), encrypt(JSON.stringify(rootProps)), note.feed_id, now, now]
       );
+
+      // Pull all descendants of the original note. Columns are encrypted —
+      // decrypt with the appropriate key per row before re-encrypting.
+      const descendants = await db.execO(
+        `WITH RECURSIVE tree AS (
+           SELECT * FROM notes WHERE parent_id = ? AND is_deleted = 0
+           UNION ALL
+           SELECT n.* FROM notes n JOIN tree t ON n.parent_id = t.id WHERE n.is_deleted = 0
+         ) SELECT * FROM tree`,
+        [note.id]
+      ) as any[];
+
+      if (descendants.length > 0) {
+        const idMap = new Map<string, string>();
+        idMap.set(note.id, newRootId);
+        for (const d of descendants) {
+          idMap.set(d.id, 'note-' + Math.random().toString(36).substring(2, 9));
+        }
+
+        for (const d of descendants) {
+          const dec = d.feed_id ? (s: string) => decryptForFeed(s, d.feed_id) : decrypt;
+          let plainContent: string;
+          let dProps: any;
+          try {
+            plainContent = dec(d.content);
+            dProps = JSON.parse(dec(d.properties));
+          } catch {
+            // Skip un-decryptable descendant — its own subtree is lost too,
+            // since further children reference an id we won't insert.
+            continue;
+          }
+
+          // Reset per-iteration state: done → todo, no inherited date,
+          // children don't carry their own recurrence (only the root spawns).
+          const newProps: any = { ...dProps };
+          if (newProps.status === 'done') newProps.status = 'todo';
+          delete newProps.date;
+          delete newProps.completed_at;
+          delete newProps.recurrence;
+
+          const newId = idMap.get(d.id)!;
+          const newParentId = idMap.get(d.parent_id) || null;
+
+          await db.exec(
+            `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+            [newId, newParentId, d.author_id, encrypt(plainContent), d.sort_key, encrypt(JSON.stringify(newProps)), d.feed_id, now, now]
+          );
+        }
+      }
     }
-  }, [db, encrypt, note, props, status, type, targetDate, recurrence]);
+  }, [db, encrypt, decrypt, decryptForFeed, note, props, status, type, targetDate, recurrence, skill]);
 
   const handleStatus     = (v: string) => { setStatus(v); saveProp('status', v); };
   const handleDate       = (v: string) => { setDate(v);   saveProp('date', v); };
   const handleRecurrence = (v: string) => { setRecurrence(v); saveProp('recurrence', v); };
+  const handleSkill      = (v: NoteSkill | undefined) => { setSkill(v); saveProp('skill', v); };
 
   // ── Touch gestures: swipe-to-reply + long-press context menu ───────
   const touchStartX = useRef(0);
@@ -580,7 +655,7 @@ export const NoteCard = React.memo(function NoteCard({
                 {showProps && status !== 'none' && (
                   <PropChip value={status} options={STATUSES} onChange={handleStatus} />
                 )}
-                {showProps && status !== 'none' && parseInt(recurrence) > 0 && (
+                {showProps && status !== 'none' && recurrence !== '' && !Number.isNaN(parseInt(recurrence)) && (
                   <RecurrenceChip value={recurrence} onChange={handleRecurrence} />
                 )}
                 {showProps && targetDate && (
@@ -588,6 +663,9 @@ export const NoteCard = React.memo(function NoteCard({
                 )}
                 {showProps && status === 'done' && completedAt && (
                   <CompletionDateChip value={completedAt} />
+                )}
+                {showProps && skill && (
+                  <SkillChip value={skill} onChange={handleSkill} existingNames={getAllSkillNames()} />
                 )}
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {!!note.is_pinned && (

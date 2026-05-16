@@ -82,6 +82,20 @@ export function getOrParse(
   return parsed;
 }
 
+/** Walk the decrypt cache and return a sorted list of unique skill names
+ *  used across notes the user has already loaded. Lowercase by convention. */
+export function getAllSkillNames(): string[] {
+  const names = new Set<string>();
+  for (const entry of decryptCache.values()) {
+    try {
+      const p = JSON.parse(entry.properties);
+      const n = p?.skill?.name;
+      if (typeof n === 'string' && n.length > 0) names.add(n);
+    } catch { /* skip */ }
+  }
+  return [...names].sort();
+}
+
 export function clearNotesCache(): void {
   decryptCache.clear();
   parseCache.clear();

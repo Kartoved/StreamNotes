@@ -20,6 +20,7 @@ import { APP_VERSION } from './data/changelog';
 const SettingsModal = lazy(() => import('./components/SettingsModal'));
 const WhatsNewModal = lazy(() => import('./components/WhatsNewModal'));
 const Lightbox = lazy(() => import('./editor/components/Lightbox').then(m => ({ default: m.Lightbox })));
+const SkillsProfile = lazy(() => import('./components/SkillsProfile'));
 import { THEMES, type ThemeId } from './themes';
 import { FeedsSidebar, parseLucideAvatar } from './layout/FeedsSidebar';
 import { RightSidebar } from './layout/RightSidebar';
@@ -61,6 +62,7 @@ function App() {
   useCryptoRef.current = crypto;
   const [showSettings, setShowSettings] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showSkills, setShowSkills] = useState(false);
   const [backupList, setBackupList] = useState<BackupEntry[]>([]);
   const [lightboxEntry, setLightboxEntry] = useState<{ url: string; name: string } | null>(null);
 
@@ -1242,6 +1244,7 @@ function App() {
         stats={dashboardStats}
         pomodoro={pomodoroState}
         pomodoroActions={pomodoroActions}
+        onOpenSkills={() => setShowSkills(true)}
       />
 
       {/* ── Main content ── */}
@@ -1328,6 +1331,7 @@ function App() {
             />
           )}
           {showWhatsNew && <WhatsNewModal onClose={handleCloseWhatsNew} />}
+          {showSkills && <SkillsProfile onClose={() => setShowSkills(false)} />}
         </Suspense>
 
         {/* Mobile search bar */}

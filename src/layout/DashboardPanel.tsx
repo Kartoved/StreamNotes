@@ -75,6 +75,7 @@ interface DashboardPanelProps {
   stats: DashboardStats;
   pomodoro: PomodoroState;
   pomodoroActions: PomodoroActions;
+  onOpenSkills?: () => void;
 }
 
 const PHASE_TOTAL: Record<string, number> = {
@@ -93,7 +94,7 @@ const PHASE_LABEL: Record<string, string> = {
 
 export const DashboardPanel = ({
   activeStatusFilter, onStatusFilter, stats,
-  pomodoro, pomodoroActions,
+  pomodoro, pomodoroActions, onOpenSkills,
 }: DashboardPanelProps) => {
   const { todoToday, doingToday, doneToday, totalToday, somedayCount, futureCount } = stats;
 
@@ -179,6 +180,25 @@ export const DashboardPanel = ({
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
+
+      {/* Profile / Skills entry */}
+      {onOpenSkills && (
+        <button
+          onClick={onOpenSkills}
+          style={{
+            background: 'transparent', border: '1px solid var(--line)',
+            borderRadius: 'var(--radius)', color: 'var(--text-sub)',
+            fontSize: '0.72rem', padding: '6px 10px',
+            cursor: 'pointer', fontFamily: 'var(--font-body)',
+            margin: '0 4px', transition: 'all 0.1s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          <span>🎯</span><span>Профиль и навыки</span>
+        </button>
+      )}
 
       {/* Divider */}
       <div style={{ height: '1px', background: 'var(--line)', margin: '0 4px' }} />

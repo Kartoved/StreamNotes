@@ -16,6 +16,8 @@ import { AttachmentExtension } from '../editor/extensions/Attachment';
 import { BacklinkDropdown } from './BacklinkDropdown';
 import { showToast } from './Toast';
 import { RecurrenceChip } from './NoteCard';
+import { SkillChip, NoteSkill } from './SkillChip';
+import { getAllSkillNames } from '../db/notesCache';
 import { createBacklinkExtension, BacklinkSuggestionCallbacks } from '../editor/extensions/BacklinkExtension';
 import { createHashtagExtension, HashtagCallbacks } from '../editor/extensions/HashtagExtension';
 import { HashtagDropdown } from './HashtagDropdown';
@@ -304,6 +306,7 @@ export const TweetEditor = ({
   const [status, setStatus] = useState(initP.status || 'none');
   const [date, setDate] = useState(initP.date || '');
   const [recurrence, setRecurrence] = useState(initP.recurrence || '');
+  const [skill, setSkill] = useState<NoteSkill | undefined>(initP.skill);
 
   // ── Backlink dropdown state ──
   const [blActive, setBlActive] = useState(false);
@@ -542,7 +545,7 @@ export const TweetEditor = ({
     const json = editor.getJSON();
     if (!hasTextContent(json)) return;
 
-    const propsJson = JSON.stringify({ type, status, date, recurrence });
+    const propsJson = JSON.stringify({ type, status, date, recurrence, ...(skill ? { skill } : {}) });
     onSubmit(JSON.stringify(json), propsJson);
 
     if (!initialAst) {
@@ -552,8 +555,9 @@ export const TweetEditor = ({
       setStatus('none');
       setDate('');
       setRecurrence('');
+      setSkill(undefined);
     }
-  }, [editor, type, status, date, recurrence, onSubmit, initialAst]);
+  }, [editor, type, status, date, recurrence, skill, onSubmit, initialAst]);
   useEffect(() => { handleSubmitRef.current = handleSubmit; }, [handleSubmit]);
   
   // ── Escape: cancel reply / close zen ──
@@ -615,7 +619,7 @@ export const TweetEditor = ({
         <Toolbar
             editor={editor}
             onUpload={(files) => uploadFiles(files)}
-            onExpand={onExpand ? (ast) => onExpand(ast, JSON.stringify({ type, status, date, recurrence })) : undefined}
+            onExpand={onExpand ? (ast) => onExpand(ast, JSON.stringify({ type, status, date, recurrence, ...(skill ? { skill } : {}) })) : undefined}
             zenMode={zenMode}
             onCancel={onCancel}
             onInsertBacklink={handleInsertBacklink}
@@ -666,6 +670,7 @@ export const TweetEditor = ({
           )}
         </span>
         <RecurrenceChip value={recurrence} onChange={setRecurrence} />
+        <SkillChip value={skill} onChange={setSkill} existingNames={getAllSkillNames()} />
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
           {uploadProgress && <UploadRing done={uploadProgress.done} total={uploadProgress.total} />}
