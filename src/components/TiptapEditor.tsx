@@ -341,7 +341,8 @@ export const TweetEditor = ({
       const rect = clientRect?.();
       if (rect) setBlPos({ top: rect.bottom + 6, left: rect.left });
     },
-    onUpdate: ({ query, clientRect }) => {
+    onUpdate: ({ query, clientRect, command }) => {
+      blCommandRef.current = command;
       setBlQuery(query);
       const rect = clientRect?.();
       if (rect) setBlPos({ top: rect.bottom + 6, left: rect.left });
@@ -371,7 +372,8 @@ export const TweetEditor = ({
       const rect = clientRect?.();
       if (rect) setHtPos({ top: rect.bottom + 6, left: rect.left });
     },
-    onUpdate: ({ query, clientRect }) => {
+    onUpdate: ({ query, clientRect, command }) => {
+      htCommandRef.current = command;
       setHtQuery(query);
       const rect = clientRect?.();
       if (rect) setHtPos({ top: rect.bottom + 6, left: rect.left });

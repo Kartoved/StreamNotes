@@ -11,6 +11,7 @@ export interface HashtagCallbacks {
   onUpdate: (props: {
     query: string;
     clientRect: (() => DOMRect | null) | null;
+    command: (tag: string) => void;
   }) => void;
   onClose: () => void;
   onKeyDown: (event: KeyboardEvent) => boolean;
@@ -50,6 +51,7 @@ export function createHashtagExtension(callbacksRef: { current: HashtagCallbacks
               callbacksRef.current.onUpdate({
                 query: props.query,
                 clientRect: props.clientRect ?? null,
+                command: props.command,
               });
             },
             onExit() {

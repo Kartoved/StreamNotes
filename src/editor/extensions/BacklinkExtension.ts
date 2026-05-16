@@ -10,6 +10,7 @@ export interface BacklinkSuggestionCallbacks {
   onUpdate: (props: {
     query: string;
     clientRect: (() => DOMRect | null) | null;
+    command: (item: { id: string; title: string }) => void;
   }) => void;
   onClose: () => void;
   onKeyDown: (event: KeyboardEvent) => boolean;
@@ -62,6 +63,7 @@ export function createBacklinkExtension(callbacksRef: BacklinkCallbacksRef) {
               callbacksRef.current.onUpdate({
                 query: props.query,
                 clientRect: props.clientRect ?? null,
+                command: props.command,
               });
             },
             onExit() {
