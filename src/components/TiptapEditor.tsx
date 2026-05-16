@@ -445,6 +445,21 @@ export const TweetEditor = ({
         'data-dashlane-ignore': 'true',
         spellcheck: 'false',
       },
+      // Intercept clicks on internal note:// links so the browser doesn't
+      // try to navigate to them as real URLs (TipTap's openOnClick: false
+      // disables its own handler but the <a> still triggers default nav).
+      handleClick: (_view, _pos, event) => {
+        const a = (event.target as HTMLElement | null)?.closest('a');
+        const href = a?.getAttribute('href') || '';
+        if (href.startsWith('note://')) {
+          event.preventDefault();
+          event.stopPropagation();
+          const noteId = href.slice('note://'.length);
+          (window as any).navigateToNote?.(noteId) ?? (window as any).scrollToNote?.(noteId);
+          return true;
+        }
+        return false;
+      },
       handleDrop: (_view, event) => {
         const files = (event as DragEvent).dataTransfer?.files;
         if (files?.length) { event.preventDefault(); uploadFilesRef.current(files); return true; }
