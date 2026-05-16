@@ -2,28 +2,17 @@ import React from 'react';
 import { NoteKind } from '../utils/noteKind';
 
 interface KindChipProps {
-  value: NoteKind | undefined;          // undefined = inbox
-  onChange: (next: NoteKind | undefined) => void;
-  // Compact rendering hides the inbox option and renders inline as a button
-  // (used on cards where we only want to nudge classification).
-  inboxOnly?: boolean;
+  value: NoteKind;
+  onChange: (next: NoteKind) => void;
 }
 
-const LABELS: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  inbox: {
-    label: '📥 разобрать',
-    color: '#f59e0b',
-    bg: 'rgba(245, 158, 11, 0.10)',
-    border: 'rgba(245, 158, 11, 0.30)',
-  },
+const LABELS: Record<NoteKind, { color: string; bg: string; border: string }> = {
   note: {
-    label: '📝 заметка',
     color: 'var(--text-sub)',
     bg: 'var(--bg-hover)',
     border: 'var(--line)',
   },
   task: {
-    label: '✓ задача',
     color: '#6095ed',
     bg: 'rgba(96, 149, 237, 0.12)',
     border: 'rgba(96, 149, 237, 0.30)',
@@ -31,14 +20,7 @@ const LABELS: Record<string, { label: string; color: string; bg: string; border:
 };
 
 export function KindChip({ value, onChange }: KindChipProps) {
-  const key = value ?? 'inbox';
-  const meta = LABELS[key];
-
-  const onSel = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const v = e.target.value;
-    if (v === 'inbox') onChange(undefined);
-    else onChange(v as NoteKind);
-  };
+  const meta = LABELS[value];
 
   return (
     <div
@@ -46,8 +28,8 @@ export function KindChip({ value, onChange }: KindChipProps) {
       onClick={e => e.stopPropagation()}
     >
       <select
-        value={key}
-        onChange={onSel}
+        value={value}
+        onChange={e => onChange(e.target.value as NoteKind)}
         style={{
           appearance: 'none',
           WebkitAppearance: 'none',
@@ -63,9 +45,8 @@ export function KindChip({ value, onChange }: KindChipProps) {
           outline: 'none',
         }}
       >
-        <option value="inbox" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>📥 разобрать</option>
-        <option value="note"  style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>📝 заметка</option>
-        <option value="task"  style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>✓ задача</option>
+        <option value="task" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>✓ задача</option>
+        <option value="note" style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}>📝 заметка</option>
       </select>
       <span style={{
         position: 'absolute', right: '4px', top: '50%',

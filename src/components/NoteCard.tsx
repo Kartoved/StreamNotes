@@ -4,7 +4,6 @@ import { TiptapRender } from '../editor/TiptapViewer';
 import { useCrypto } from '../crypto/CryptoContext';
 import { IconCheck, IconPin } from './icons';
 import { SkillChip, NoteSkill } from './SkillChip';
-import { KindChip } from './KindChip';
 import { getNoteKind, NoteKind } from '../utils/noteKind';
 import { getAllSkillNames } from '../db/notesCache';
 import { playDoneSound } from '../utils/skillSound';
@@ -326,7 +325,7 @@ export const NoteCard = React.memo(function NoteCard({
   const [completedAt, setCompletedAt] = useState<string>(props.completed_at || '');
   const [recurrence, setRecurrence] = useState<string>(props.recurrence || '');
   const [skill, setSkill] = useState<NoteSkill | undefined>(props.skill);
-  const [kind, setKind] = useState<NoteKind | undefined>(getNoteKind(props));
+  const [kind, setKind] = useState<NoteKind>(getNoteKind(props));
 
   // Synchronize state when underlying note properties change
   React.useEffect(() => {
@@ -343,16 +342,13 @@ export const NoteCard = React.memo(function NoteCard({
   const saveProp = useCallback(async (key: string, val: any) => {
     const current: any = { ...props, status, type, date: targetDate, recurrence, skill, kind, [key]: val };
     if (key === 'skill' && val === undefined) delete current.skill;
-    if (key === 'kind') {
-      if (val === undefined) delete current.kind;
+    if (key === 'kind' && val !== 'task') {
       // Leaving task: strip task-only metadata so it stops showing on the card.
-      if (val !== 'task') {
-        current.status = 'none';
-        current.date = '';
-        current.recurrence = '';
-        delete current.skill;
-        delete current.completed_at;
-      }
+      current.status = 'none';
+      current.date = '';
+      current.recurrence = '';
+      delete current.skill;
+      delete current.completed_at;
     }
     // Track when a note is marked as done
     if (key === 'status' && val === 'done') {
@@ -447,19 +443,6 @@ export const NoteCard = React.memo(function NoteCard({
   const handleDate       = (v: string) => { setDate(v);   saveProp('date', v); };
   const handleRecurrence = (v: string) => { setRecurrence(v); saveProp('recurrence', v); };
   const handleSkill      = (v: NoteSkill | undefined) => { setSkill(v); saveProp('skill', v); };
-  const handleKind       = (v: NoteKind | undefined) => {
-    setKind(v);
-    // When switching away from task, strip task-only metadata from local state
-    // so the card stops rendering stale chips. saveProp will overwrite props.kind
-    // (and the cleared fields below) atomically.
-    if (v !== 'task') {
-      setStatus('none');
-      setDate('');
-      setRecurrence('');
-      setSkill(undefined);
-    }
-    saveProp('kind', v);
-  };
 
   // ── Touch gestures: swipe-to-reply + long-press context menu ───────
   const touchStartX = useRef(0);
@@ -680,9 +663,6 @@ export const NoteCard = React.memo(function NoteCard({
                 onMouseDown={e => e.stopPropagation()}
                 onDragStart={e => e.stopPropagation()}
               >
-                {showProps && kind === undefined && (
-                  <KindChip value={kind} onChange={handleKind} />
-                )}
                 {showProps && kind === 'task' && status !== 'none' && (
                   <PropChip value={status} options={STATUSES} onChange={handleStatus} />
                 )}

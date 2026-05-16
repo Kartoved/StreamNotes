@@ -309,7 +309,8 @@ export const TweetEditor = ({
   const [date, setDate] = useState(initP.date || '');
   const [recurrence, setRecurrence] = useState(initP.recurrence || '');
   const [skill, setSkill] = useState<NoteSkill | undefined>(initP.skill);
-  const [kind, setKind] = useState<NoteKind | undefined>(getNoteKind(initP));
+  // Fresh entry → default to task. Existing entry → derive from properties.
+  const [kind, setKind] = useState<NoteKind>(initialPropsStr ? getNoteKind(initP) : 'task');
 
   // ── Backlink dropdown state ──
   const [blActive, setBlActive] = useState(false);
@@ -548,9 +549,9 @@ export const TweetEditor = ({
     const json = editor.getJSON();
     if (!hasTextContent(json)) return;
 
-    // For non-task kinds, strip task-only metadata so it doesn't linger on
+    // For note kind, strip task-only metadata so it doesn't linger on
     // the entry. User can re-classify back to task and re-enter values.
-    const payload: any = { type, ...(kind ? { kind } : {}) };
+    const payload: any = { type, kind };
     if (kind === 'task') {
       payload.status = status;
       payload.date = date;
@@ -571,7 +572,7 @@ export const TweetEditor = ({
       setDate('');
       setRecurrence('');
       setSkill(undefined);
-      setKind(undefined);
+      setKind('task');
     }
   }, [editor, type, kind, status, date, recurrence, skill, onSubmit, initialAst]);
   useEffect(() => { handleSubmitRef.current = handleSubmit; }, [handleSubmit]);
@@ -635,7 +636,7 @@ export const TweetEditor = ({
         <Toolbar
             editor={editor}
             onUpload={(files) => uploadFiles(files)}
-            onExpand={onExpand ? (ast) => onExpand(ast, JSON.stringify({ type, ...(kind ? { kind } : {}), status, date, recurrence, ...(skill ? { skill } : {}) })) : undefined}
+            onExpand={onExpand ? (ast) => onExpand(ast, JSON.stringify({ type, kind, status, date, recurrence, ...(skill ? { skill } : {}) })) : undefined}
             zenMode={zenMode}
             onCancel={onCancel}
             onInsertBacklink={handleInsertBacklink}
