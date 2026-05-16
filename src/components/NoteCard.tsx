@@ -2,7 +2,8 @@ import React, { useState, useCallback, useRef } from 'react';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
 import { useCrypto } from '../crypto/CryptoContext';
-import { IconCheck, IconPin } from './icons';
+import { IconCheck, IconPin, IconRepeat, IconCalendar } from './icons';
+import { CHIP_BASE, CHIP_SELECT, CHIP_ACTIVE, CHIP_HEIGHT } from './chipStyle';
 import { SkillChip, NoteSkill } from './SkillChip';
 import { getNoteKind, NoteKind } from '../utils/noteKind';
 import { getAllSkillNames } from '../db/notesCache';
@@ -78,7 +79,7 @@ const STATUS_BG_VAR: Record<string, string> = {
 
 // ── Inline editable prop chip ───────────────────────────────────────
 export function PropChip({
-  value, options, onChange, mono,
+  value, options, onChange,
 }: {
   value: string; options: string[]; onChange: (v: string) => void; mono?: boolean;
 }) {
@@ -87,41 +88,27 @@ export function PropChip({
   const bg    = isStatus ? (STATUS_BG_VAR[value]   || 'var(--bg-hover)') : 'var(--bg-hover)';
 
   return (
-    <div style={{ display: 'inline-block', position: 'relative' }}>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onMouseDown={e => e.stopPropagation()}
-        onClick={e => e.stopPropagation()}
-        style={{
-          appearance: 'none',
-          WebkitAppearance: 'none',
-          background: bg,
-          color,
-          border: '1px solid transparent',
-          borderRadius: '4px',
-          padding: '1px 8px',
-          fontSize: '0.7rem',
-          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-body)',
-          cursor: 'pointer',
-          userSelect: 'none',
-          lineHeight: 1.6,
-          transition: 'all 0.1s',
-          outline: 'none',
-          fontWeight: 600,
-          textAlign: 'center',
-          minWidth: '60px'
-        }}
-        onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.8'}
-        onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}
-      >
-        {options.map(opt => (
-          <option key={opt} value={opt} style={{ background: 'var(--bg)', color: (isStatus && STATUS_TEXT_VAR[opt]) ? STATUS_TEXT_VAR[opt] : 'var(--text)' }}>
-            {opt}
-          </option>
-        ))}
-      </select>
-    </div>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onMouseDown={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
+      style={{
+        ...CHIP_SELECT,
+        background: bg,
+        color,
+        borderColor: 'transparent',
+        fontWeight: 600,
+        textAlign: 'center',
+        minWidth: '60px',
+      }}
+    >
+      {options.map(opt => (
+        <option key={opt} value={opt} style={{ background: 'var(--bg)', color: (isStatus && STATUS_TEXT_VAR[opt]) ? STATUS_TEXT_VAR[opt] : 'var(--text)' }}>
+          {opt}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -137,15 +124,14 @@ export function DateChip({ value, onChange }: { value: string; onChange: (v: str
           defaultValue={value}
           onChange={e => { if (e.target.value) onChange(e.target.value); }}
           onBlur={e => {
-            // don't close if clicking the Сбросить button
             if ((e.relatedTarget as HTMLElement)?.dataset?.clearDate) return;
             setEditing(false);
           }}
           style={{
-            fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
-            background: 'var(--bg)', border: '1px solid var(--line-strong)',
-            borderRadius: '4px', padding: '1px 6px', color: 'var(--text)',
-            outline: 'none', cursor: 'pointer',
+            ...CHIP_BASE,
+            background: 'var(--bg)',
+            borderColor: 'var(--line-strong)',
+            color: 'var(--text)',
           }}
         />
         <button
@@ -165,32 +151,16 @@ export function DateChip({ value, onChange }: { value: string; onChange: (v: str
     <button
       type="button"
       onClick={e => { e.stopPropagation(); setEditing(true); }}
-      style={{
-        background: 'var(--bg-hover)', color: 'var(--text-faint)',
-        borderRadius: '4px', padding: '1px 7px',
-        fontSize: '0.7rem', border: '1px solid var(--line)',
-        fontFamily: 'var(--font-mono)', cursor: 'pointer', userSelect: 'none',
-        transition: 'background 0.1s', outline: 'none',
-      }}
-      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-active)'}
-      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
-    >{value}</button>
+      style={CHIP_BASE}
+    ><IconCalendar size={11} /><span>{value}</span></button>
   );
 }
 
 // ── Completion date chip (read-only) ────────────────────────────────
 export function CompletionDateChip({ value }: { value: string }) {
   return (
-    <span
-      style={{
-        background: 'var(--bg-hover)', color: 'var(--text-faint)',
-        borderRadius: '4px', padding: '1px 7px',
-        fontSize: '0.7rem', border: '1px solid var(--line)',
-        fontFamily: 'var(--font-mono)', userSelect: 'none',
-        display: 'inline-flex', alignItems: 'center', gap: '4px',
-      }}
-    >
-      <IconCheck size={11} /> {value}
+    <span style={{ ...CHIP_BASE, cursor: 'default' }}>
+      <IconCheck size={11} /><span>{value}</span>
     </span>
   );
 }
@@ -226,28 +196,25 @@ export function RecurrenceChip({ value, onChange }: { value: string; onChange: (
         }}
         onClick={e => e.stopPropagation()}
         style={{
-          width: '52px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
-          background: 'var(--bg)', border: '1px solid var(--line-strong)',
-          borderRadius: '4px', padding: '1px 6px', color: 'var(--text)',
-          outline: 'none',
+          ...CHIP_BASE,
+          width: '60px',
+          background: 'var(--bg)',
+          borderColor: 'var(--line-strong)',
+          color: 'var(--text)',
         }}
       />
     );
   }
+  const style = active
+    ? CHIP_ACTIVE('#6095ed', 'rgba(96, 149, 237, 0.12)', 'rgba(96, 149, 237, 0.30)')
+    : CHIP_BASE;
   return (
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-      style={{
-        background: active ? 'rgba(96, 149, 237, 0.12)' : 'var(--bg-hover)',
-        color: active ? '#6095ed' : 'var(--text-faint)',
-        borderRadius: '4px', padding: '1px 7px',
-        fontSize: '0.7rem', border: '1px solid ' + (active ? 'rgba(96, 149, 237, 0.3)' : 'var(--line)'),
-        fontFamily: 'var(--font-mono)', cursor: 'pointer', userSelect: 'none',
-        transition: 'all 0.1s', outline: 'none',
-      }}
+      style={style}
       title="Повторяемость: пусто = off, 0 = сразу, N = через N дней"
-    >🔁 {label}</button>
+    ><IconRepeat size={11} /><span>{label}</span></button>
   );
 }
 

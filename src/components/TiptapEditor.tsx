@@ -20,6 +20,7 @@ import { SkillChip, NoteSkill } from './SkillChip';
 import { KindChip } from './KindChip';
 import { getNoteKind, NoteKind } from '../utils/noteKind';
 import { getAllSkillNames } from '../db/notesCache';
+import { CHIP_BASE, CHIP_SELECT } from './chipStyle';
 import { createBacklinkExtension, BacklinkSuggestionCallbacks } from '../editor/extensions/BacklinkExtension';
 import { createHashtagExtension, HashtagCallbacks } from '../editor/extensions/HashtagExtension';
 import { HashtagDropdown } from './HashtagDropdown';
@@ -589,16 +590,8 @@ export const TweetEditor = ({
     return () => window.removeEventListener('keydown', handleEsc);
   }, [onCancel]);
 
-  const selStyle: React.CSSProperties = {
-    background: 'var(--bg-hover)',
-    color: 'var(--text-sub)',
-    border: '1px solid var(--line)',
-    borderRadius: 'var(--radius)',
-    fontSize: '0.8rem',
-    padding: '4px 8px',
-    cursor: 'pointer',
-    fontFamily: 'var(--font-body)',
-  };
+  const selStyle: React.CSSProperties = { ...CHIP_SELECT, color: 'var(--text-sub)' };
+  const dateInputStyle: React.CSSProperties = { ...CHIP_BASE, color: 'var(--text-sub)' };
   const optStyle: React.CSSProperties = { backgroundColor: 'var(--bg)', color: 'var(--text)' };
 
   const zenStatusTint: Record<string, string> = {
@@ -686,7 +679,7 @@ export const TweetEditor = ({
               {STATUSES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
             </select>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...selStyle }} />
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={dateInputStyle} />
               {date && (
                 <button type="button" onClick={() => setDate('')} style={{ background: 'transparent', border: 'none', color: 'var(--text-faint)', fontSize: '0.78rem', cursor: 'pointer', padding: '0 2px', fontFamily: 'var(--font-body)' }}>Сбросить</button>
               )}

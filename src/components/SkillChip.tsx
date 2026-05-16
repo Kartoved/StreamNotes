@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { IconTarget } from './icons';
+import { CHIP_BASE, CHIP_ACTIVE } from './chipStyle';
 
 export interface NoteSkill {
   name: string;
@@ -61,7 +63,9 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
   };
 
   const has = !!value?.name;
-  const label = has ? `🎯 ${value!.name} · ${value!.xp}xp` : '🎯 skill';
+  const chipStyle = has
+    ? CHIP_ACTIVE('#bd93f9', 'rgba(189, 147, 249, 0.12)', 'rgba(189, 147, 249, 0.30)')
+    : CHIP_BASE;
 
   // Suggestions: existing names filtered by current input, excluding exact match.
   const norm = normalizeName(name);
@@ -76,21 +80,10 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
         title={has ? `Навык: ${value!.name} (+${value!.xp} XP при выполнении)` : 'Привязать навык'}
-        style={{
-          background: has ? 'rgba(189, 147, 249, 0.12)' : 'var(--bg-hover)',
-          color: has ? '#bd93f9' : 'var(--text-faint)',
-          borderRadius: '4px',
-          padding: '1px 7px',
-          fontSize: '0.7rem',
-          border: '1px solid ' + (has ? 'rgba(189, 147, 249, 0.3)' : 'var(--line)'),
-          fontFamily: 'var(--font-mono)',
-          cursor: 'pointer',
-          userSelect: 'none',
-          outline: 'none',
-          whiteSpace: 'nowrap',
-        }}
+        style={chipStyle}
       >
-        {label}
+        <IconTarget size={11} />
+        {has ? <span>{value!.name} · {value!.xp}xp</span> : <span>skill</span>}
       </button>
 
       {open && (
