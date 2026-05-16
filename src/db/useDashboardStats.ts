@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDB } from './DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
+import { getNoteKind } from '../utils/noteKind';
 
 export interface DashboardStats {
   todoToday: number;
@@ -63,6 +64,7 @@ export function useDashboardStats(feedId: string | null): DashboardStats {
             ? (s: string) => decryptForFeed(s, row.feed_id)
             : decrypt;
           const props = JSON.parse(dec(row.properties));
+          if (getNoteKind(props) !== 'task') continue;
           const status = props.status;
           if (!status || status === 'none' || status === 'archived') continue;
 

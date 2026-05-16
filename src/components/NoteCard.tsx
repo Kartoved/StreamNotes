@@ -4,6 +4,8 @@ import { TiptapRender } from '../editor/TiptapViewer';
 import { useCrypto } from '../crypto/CryptoContext';
 import { IconCheck, IconPin } from './icons';
 import { SkillChip, NoteSkill } from './SkillChip';
+import { KindChip } from './KindChip';
+import { getNoteKind, NoteKind } from '../utils/noteKind';
 import { getAllSkillNames } from '../db/notesCache';
 import { playDoneSound } from '../utils/skillSound';
 
@@ -324,6 +326,7 @@ export const NoteCard = React.memo(function NoteCard({
   const [completedAt, setCompletedAt] = useState<string>(props.completed_at || '');
   const [recurrence, setRecurrence] = useState<string>(props.recurrence || '');
   const [skill, setSkill] = useState<NoteSkill | undefined>(props.skill);
+  const [kind, setKind] = useState<NoteKind | undefined>(getNoteKind(props));
 
   // Synchronize state when underlying note properties change
   React.useEffect(() => {
@@ -333,12 +336,24 @@ export const NoteCard = React.memo(function NoteCard({
     setCompletedAt(props.completed_at || '');
     setRecurrence(props.recurrence || '');
     setSkill(props.skill);
+    setKind(getNoteKind(props));
   }, [props]);
 
   // Save a single prop change to DB immediately
   const saveProp = useCallback(async (key: string, val: any) => {
-    const current: any = { ...props, status, type, date: targetDate, recurrence, skill, [key]: val };
+    const current: any = { ...props, status, type, date: targetDate, recurrence, skill, kind, [key]: val };
     if (key === 'skill' && val === undefined) delete current.skill;
+    if (key === 'kind') {
+      if (val === undefined) delete current.kind;
+      // Leaving task: strip task-only metadata so it stops showing on the card.
+      if (val !== 'task') {
+        current.status = 'none';
+        current.date = '';
+        current.recurrence = '';
+        delete current.skill;
+        delete current.completed_at;
+      }
+    }
     // Track when a note is marked as done
     if (key === 'status' && val === 'done') {
       const today = new Date();
@@ -426,12 +441,25 @@ export const NoteCard = React.memo(function NoteCard({
         }
       }
     }
-  }, [db, encrypt, decrypt, decryptForFeed, note, props, status, type, targetDate, recurrence, skill]);
+  }, [db, encrypt, decrypt, decryptForFeed, note, props, status, type, targetDate, recurrence, skill, kind]);
 
   const handleStatus     = (v: string) => { setStatus(v); saveProp('status', v); };
   const handleDate       = (v: string) => { setDate(v);   saveProp('date', v); };
   const handleRecurrence = (v: string) => { setRecurrence(v); saveProp('recurrence', v); };
   const handleSkill      = (v: NoteSkill | undefined) => { setSkill(v); saveProp('skill', v); };
+  const handleKind       = (v: NoteKind | undefined) => {
+    setKind(v);
+    // When switching away from task, strip task-only metadata from local state
+    // so the card stops rendering stale chips. saveProp will overwrite props.kind
+    // (and the cleared fields below) atomically.
+    if (v !== 'task') {
+      setStatus('none');
+      setDate('');
+      setRecurrence('');
+      setSkill(undefined);
+    }
+    saveProp('kind', v);
+  };
 
   // ── Touch gestures: swipe-to-reply + long-press context menu ───────
   const touchStartX = useRef(0);
@@ -652,19 +680,22 @@ export const NoteCard = React.memo(function NoteCard({
                 onMouseDown={e => e.stopPropagation()}
                 onDragStart={e => e.stopPropagation()}
               >
-                {showProps && status !== 'none' && (
+                {showProps && kind === undefined && (
+                  <KindChip value={kind} onChange={handleKind} />
+                )}
+                {showProps && kind === 'task' && status !== 'none' && (
                   <PropChip value={status} options={STATUSES} onChange={handleStatus} />
                 )}
-                {showProps && status !== 'none' && recurrence !== '' && !Number.isNaN(parseInt(recurrence)) && (
+                {showProps && kind === 'task' && status !== 'none' && recurrence !== '' && !Number.isNaN(parseInt(recurrence)) && (
                   <RecurrenceChip value={recurrence} onChange={handleRecurrence} />
                 )}
-                {showProps && targetDate && (
+                {showProps && kind === 'task' && targetDate && (
                   <DateChip value={targetDate} onChange={handleDate} />
                 )}
-                {showProps && status === 'done' && completedAt && (
+                {showProps && kind === 'task' && status === 'done' && completedAt && (
                   <CompletionDateChip value={completedAt} />
                 )}
-                {showProps && skill && (
+                {showProps && kind === 'task' && skill && (
                   <SkillChip value={skill} onChange={handleSkill} existingNames={getAllSkillNames()} />
                 )}
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>

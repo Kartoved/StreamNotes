@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDB } from './DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
+import { getNoteKind } from '../utils/noteKind';
 
 export interface SkillTotal {
   name: string;
@@ -40,6 +41,7 @@ export function useSkillStats(): SkillStats {
             ? (s: string) => decryptForFeed(s, row.feed_id)
             : decrypt;
           const p = JSON.parse(dec(row.properties));
+          if (getNoteKind(p) !== 'task') continue;
           if (p.status !== 'done') continue;
           const skill = p.skill;
           if (!skill || typeof skill.name !== 'string' || typeof skill.xp !== 'number') continue;

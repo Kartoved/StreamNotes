@@ -17,6 +17,8 @@ import { BacklinkDropdown } from './BacklinkDropdown';
 import { showToast } from './Toast';
 import { RecurrenceChip } from './NoteCard';
 import { SkillChip, NoteSkill } from './SkillChip';
+import { KindChip } from './KindChip';
+import { getNoteKind, NoteKind } from '../utils/noteKind';
 import { getAllSkillNames } from '../db/notesCache';
 import { createBacklinkExtension, BacklinkSuggestionCallbacks } from '../editor/extensions/BacklinkExtension';
 import { createHashtagExtension, HashtagCallbacks } from '../editor/extensions/HashtagExtension';
@@ -307,6 +309,7 @@ export const TweetEditor = ({
   const [date, setDate] = useState(initP.date || '');
   const [recurrence, setRecurrence] = useState(initP.recurrence || '');
   const [skill, setSkill] = useState<NoteSkill | undefined>(initP.skill);
+  const [kind, setKind] = useState<NoteKind | undefined>(getNoteKind(initP));
 
   // ── Backlink dropdown state ──
   const [blActive, setBlActive] = useState(false);
@@ -545,8 +548,20 @@ export const TweetEditor = ({
     const json = editor.getJSON();
     if (!hasTextContent(json)) return;
 
-    const propsJson = JSON.stringify({ type, status, date, recurrence, ...(skill ? { skill } : {}) });
-    onSubmit(JSON.stringify(json), propsJson);
+    // For non-task kinds, strip task-only metadata so it doesn't linger on
+    // the entry. User can re-classify back to task and re-enter values.
+    const payload: any = { type, ...(kind ? { kind } : {}) };
+    if (kind === 'task') {
+      payload.status = status;
+      payload.date = date;
+      payload.recurrence = recurrence;
+      if (skill) payload.skill = skill;
+    } else {
+      payload.status = 'none';
+      payload.date = '';
+      payload.recurrence = '';
+    }
+    onSubmit(JSON.stringify(json), JSON.stringify(payload));
 
     if (!initialAst) {
       // Reset editor
@@ -556,8 +571,9 @@ export const TweetEditor = ({
       setDate('');
       setRecurrence('');
       setSkill(undefined);
+      setKind(undefined);
     }
-  }, [editor, type, status, date, recurrence, skill, onSubmit, initialAst]);
+  }, [editor, type, kind, status, date, recurrence, skill, onSubmit, initialAst]);
   useEffect(() => { handleSubmitRef.current = handleSubmit; }, [handleSubmit]);
   
   // ── Escape: cancel reply / close zen ──
@@ -619,7 +635,7 @@ export const TweetEditor = ({
         <Toolbar
             editor={editor}
             onUpload={(files) => uploadFiles(files)}
-            onExpand={onExpand ? (ast) => onExpand(ast, JSON.stringify({ type, status, date, recurrence, ...(skill ? { skill } : {}) })) : undefined}
+            onExpand={onExpand ? (ast) => onExpand(ast, JSON.stringify({ type, ...(kind ? { kind } : {}), status, date, recurrence, ...(skill ? { skill } : {}) })) : undefined}
             zenMode={zenMode}
             onCancel={onCancel}
             onInsertBacklink={handleInsertBacklink}
@@ -660,17 +676,22 @@ export const TweetEditor = ({
         display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center',
         marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--line)',
       }}>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} style={selStyle}>
-          {STATUSES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
-        </select>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...selStyle }} />
-          {date && (
-            <button type="button" onClick={() => setDate('')} style={{ background: 'transparent', border: 'none', color: 'var(--text-faint)', fontSize: '0.78rem', cursor: 'pointer', padding: '0 2px', fontFamily: 'var(--font-body)' }}>Сбросить</button>
-          )}
-        </span>
-        <RecurrenceChip value={recurrence} onChange={setRecurrence} />
-        <SkillChip value={skill} onChange={setSkill} existingNames={getAllSkillNames()} />
+        <KindChip value={kind} onChange={setKind} />
+        {kind === 'task' && (
+          <>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} style={selStyle}>
+              {STATUSES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
+            </select>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...selStyle }} />
+              {date && (
+                <button type="button" onClick={() => setDate('')} style={{ background: 'transparent', border: 'none', color: 'var(--text-faint)', fontSize: '0.78rem', cursor: 'pointer', padding: '0 2px', fontFamily: 'var(--font-body)' }}>Сбросить</button>
+              )}
+            </span>
+            <RecurrenceChip value={recurrence} onChange={setRecurrence} />
+            <SkillChip value={skill} onChange={setSkill} existingNames={getAllSkillNames()} />
+          </>
+        )}
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
           {uploadProgress && <UploadRing done={uploadProgress.done} total={uploadProgress.total} />}
