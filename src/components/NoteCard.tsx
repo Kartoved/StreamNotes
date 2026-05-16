@@ -28,7 +28,14 @@ function formatNoteDate(createdAt: number): string {
   return `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
 }
 
-const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
+const STATUSES = ['todo', 'doing', 'done', 'archived'];
+
+// Legacy entries may have status='none' (the old default). Tasks always
+// have a real status now — fold 'none' into 'todo' at display time.
+function normalizeTaskStatus(s: string | undefined): string {
+  if (!s || s === 'none') return 'todo';
+  return s;
+}
 
 // ── Deterministic color from npub ──────────────────────────────────
 function npubColor(npub: string): string {
@@ -319,7 +326,9 @@ export const NoteCard = React.memo(function NoteCard({
     catch { return {}; }
   }, [note.properties]);
 
-  const [status, setStatus]     = useState<string>(props.status || 'none');
+  const [status, setStatus]     = useState<string>(
+    getNoteKind(props) === 'task' ? normalizeTaskStatus(props.status) : 'none'
+  );
   const [type, setType]         = useState<string>(props.type || 'sheaf');
   const [targetDate, setDate]   = useState<string>(props.date || '');
   const [completedAt, setCompletedAt] = useState<string>(props.completed_at || '');
@@ -329,7 +338,7 @@ export const NoteCard = React.memo(function NoteCard({
 
   // Synchronize state when underlying note properties change
   React.useEffect(() => {
-    setStatus(props.status || 'none');
+    setStatus(getNoteKind(props) === 'task' ? normalizeTaskStatus(props.status) : 'none');
     setType(props.type || 'sheaf');
     setDate(props.date || '');
     setCompletedAt(props.completed_at || '');
@@ -663,10 +672,10 @@ export const NoteCard = React.memo(function NoteCard({
                 onMouseDown={e => e.stopPropagation()}
                 onDragStart={e => e.stopPropagation()}
               >
-                {showProps && kind === 'task' && status !== 'none' && (
+                {showProps && kind === 'task' && (
                   <PropChip value={status} options={STATUSES} onChange={handleStatus} />
                 )}
-                {showProps && kind === 'task' && status !== 'none' && recurrence !== '' && !Number.isNaN(parseInt(recurrence)) && (
+                {showProps && kind === 'task' && recurrence !== '' && !Number.isNaN(parseInt(recurrence)) && (
                   <RecurrenceChip value={recurrence} onChange={handleRecurrence} />
                 )}
                 {showProps && kind === 'task' && targetDate && (

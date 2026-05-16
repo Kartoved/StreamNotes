@@ -65,8 +65,9 @@ export function useDashboardStats(feedId: string | null): DashboardStats {
             : decrypt;
           const props = JSON.parse(dec(row.properties));
           if (getNoteKind(props) !== 'task') continue;
-          const status = props.status;
-          if (!status || status === 'none' || status === 'archived') continue;
+          // Legacy tasks may carry status='none' — fold into 'todo' for stats.
+          const status = (!props.status || props.status === 'none') ? 'todo' : props.status;
+          if (status === 'archived') continue;
 
           if (status === 'todo') {
             const noteDate = props.date ? props.date.slice(0, 10) : null;

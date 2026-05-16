@@ -236,7 +236,7 @@ function Toolbar({
 }
 
 // ─── Properties Selectors ─────────────────────────────────────────────
-const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
+const STATUSES = ['todo', 'doing', 'done', 'archived'];
 
 // ─── hasTextContent helper ────────────────────────────────────────────
 const hasTextContent = (json: any): boolean => {
@@ -305,7 +305,9 @@ export const TweetEditor = ({
   const [editorKey, setEditorKey] = useState(0);
   const initP = initialPropsStr ? JSON.parse(initialPropsStr) : {};
   const [type, setType] = useState(initP.type || 'sheaf');
-  const [status, setStatus] = useState(initP.status || 'none');
+  const [status, setStatus] = useState(
+    initP.status && initP.status !== 'none' ? initP.status : 'todo'
+  );
   const [date, setDate] = useState(initP.date || '');
   const [recurrence, setRecurrence] = useState(initP.recurrence || '');
   const [skill, setSkill] = useState<NoteSkill | undefined>(initP.skill);
@@ -568,7 +570,7 @@ export const TweetEditor = ({
       // Reset editor
       setEditorKey(k => k + 1);
       setType('sheaf');
-      setStatus('none');
+      setStatus('todo');
       setDate('');
       setRecurrence('');
       setSkill(undefined);
