@@ -19,12 +19,13 @@ interface SkillChipProps {
   existingNames: string[];
 }
 
+type PopPos = { top?: number; bottom?: number; left?: number; right?: number };
+
 export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(value?.name || '');
   const [xp, setXp] = useState<number>(value?.xp ?? DEFAULT_SKILL_XP);
-  const [flipUp, setFlipUp] = useState(false);
-  const [flipLeft, setFlipLeft] = useState(false);
+  const [popPos, setPopPos] = useState<PopPos>({});
   const popoverRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -46,33 +47,40 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
     return () => window.removeEventListener('mousedown', onDown);
   }, [open]);
 
-  // Reposition after render and on keyboard resize so the popover
-  // doesn't disappear under the virtual keyboard on mobile.
+  // Reposition after render and on keyboard resize.
+  // Uses fixed coords from getBoundingClientRect so overflow:hidden on parents
+  // never clips the popover.
   useEffect(() => {
     if (!open) return;
 
     const reposition = () => {
       const btn = buttonRef.current;
       const pop = popoverRef.current;
-      if (!btn || !pop) return;
+      if (!btn) return;
       const btnRect = btn.getBoundingClientRect();
-      const popRect = pop.getBoundingClientRect();
+      const popH = pop?.offsetHeight ?? 160;
+      const popW = pop?.offsetWidth  ?? 220;
       const vv = window.visualViewport;
-      const vbottom = (vv?.offsetTop ?? 0) + (vv?.height ?? window.innerHeight);
+      const vbottom = (vv?.offsetTop  ?? 0) + (vv?.height ?? window.innerHeight);
       const vright  = (vv?.offsetLeft ?? 0) + (vv?.width  ?? window.innerWidth);
-      setFlipUp(btnRect.bottom + popRect.height + 8 > vbottom);
-      setFlipLeft(btnRect.left  + popRect.width  + 8 > vright);
+      const flipUp   = btnRect.bottom + popH + 8 > vbottom;
+      const flipLeft = btnRect.left   + popW + 8 > vright;
+      setPopPos({
+        ...(flipUp   ? { bottom: window.innerHeight - btnRect.top  + 4 } : { top: btnRect.bottom + 4 }),
+        ...(flipLeft ? { right:  window.innerWidth  - btnRect.right    } : { left: btnRect.left  }),
+      });
     };
 
-    // Run after paint so popoverRef has real dimensions.
     const id = requestAnimationFrame(reposition);
     const vv = window.visualViewport;
     vv?.addEventListener('resize', reposition);
     vv?.addEventListener('scroll', reposition);
+    window.addEventListener('scroll', reposition, true);
     return () => {
       cancelAnimationFrame(id);
       vv?.removeEventListener('resize', reposition);
       vv?.removeEventListener('scroll', reposition);
+      window.removeEventListener('scroll', reposition, true);
     };
   }, [open]);
 
@@ -124,13 +132,8 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
           onClick={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
           style={{
-            position: 'absolute',
-            ...(flipUp
-              ? { bottom: 'calc(100% + 4px)', top: 'auto' }
-              : { top: 'calc(100% + 4px)', bottom: 'auto' }),
-            ...(flipLeft
-              ? { right: 0, left: 'auto' }
-              : { left: 0, right: 'auto' }),
+            position: 'fixed',
+            ...popPos,
             zIndex: 1500,
             background: 'var(--bg)',
             border: '1px solid var(--line-strong)',
