@@ -2,12 +2,23 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 import { SyncEvents } from '../sync/events';
+import { showToast } from '../components/Toast';
 import {
   StreakState, EMPTY_STREAK,
   dateKey, recomputeStreak, streakMultiplier, msUntilNextMidnight,
 } from '../utils/streak';
 
 const STORAGE_KEY = 'streak';
+
+// Streak day thresholds that trigger a celebratory toast on advance.
+const MILESTONES = [7, 30, 100];
+
+function statesEqual(a: StreakState, b: StreakState): boolean {
+  return a.lastLogin === b.lastLogin
+    && a.current === b.current
+    && a.longest === b.longest
+    && a.freezes === b.freezes;
+}
 
 export interface StreakInfo {
   state: StreakState;
@@ -38,17 +49,22 @@ export function useStreak(): StreakInfo {
   // Re-check whether today's date has been recorded; persist if state changes.
   const recompute = useCallback(async () => {
     const today = dateKey(new Date());
-    const next = recomputeStreak(stateRef.current, today);
-    if (next === stateRef.current) return; // no change
-    if (
-      next.lastLogin === stateRef.current.lastLogin &&
-      next.current === stateRef.current.current &&
-      next.freezes === stateRef.current.freezes &&
-      next.longest === stateRef.current.longest
-    ) return;
+    const prev = stateRef.current;
+    const next = recomputeStreak(prev, today);
+    if (statesEqual(prev, next)) return;
     stateRef.current = next;
     setInfo({ state: next, multiplier: streakMultiplier(next.current) });
     await persist(next);
+
+    // Milestone celebration — only fires on actual streak advance, not on
+    // sync-driven hydration. Crossed = first milestone that prev was below
+    // and next reached or surpassed.
+    if (next.current > prev.current) {
+      const crossed = MILESTONES.find(m => prev.current < m && next.current >= m);
+      if (crossed) {
+        showToast(`🔥 ${crossed} дней подряд! Бонус к XP: +${Math.min(crossed, 100)}%`, 'success');
+      }
+    }
   }, [persist]);
 
   // Load from DB on mount; also subscribe to remote changes (CRDT sync).
@@ -76,9 +92,13 @@ export function useStreak(): StreakInfo {
             }
           } catch { /* corrupt entry — treat as empty */ }
         }
-        stateRef.current = parsed;
-        setInfo({ state: parsed, multiplier: streakMultiplier(parsed.current) });
-        // Recompute for today's date after loading
+        // Skip state update if nothing changed — fires on every user_settings
+        // change (incl. unrelated keys like nickname), keep it a cheap no-op.
+        if (!statesEqual(stateRef.current, parsed)) {
+          stateRef.current = parsed;
+          setInfo({ state: parsed, multiplier: streakMultiplier(parsed.current) });
+        }
+        // Recompute for today's date after loading (idempotent)
         recompute();
       } catch (err) {
         console.warn('[streak] load failed', err);
