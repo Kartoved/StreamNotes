@@ -29,6 +29,22 @@ npm run lint    # eslint
 - **Feed:** `src/components/Feed.tsx` — virtualized via `@tanstack/react-virtual`. Renders `NoteCard`s.
 - **Sync:** `src/sync/` — Nostr relay client + sync engine. State at `window.__syncEngine`.
 
+## Note classification
+
+There is **no separate `kind` field**. Classification is done purely via `status`:
+- `'note'` — plain note, no task chips shown, skill/date/recurrence are cleared on switch
+- `'todo'` / `'doing'` / `'done'` / `'archived'` — task statuses (GTD flow)
+
+`getNoteKind(props)` in `src/utils/noteKind.ts` still exists for backward-compat reads (legacy entries may have `kind='note'` or `status='none'`). A one-time migration (`sn_status_migration_v1` in localStorage) converts all legacy entries on first launch. Default for new notes: `'todo'`.
+
+## Pomodoro phases
+
+`PomodoroPhase`: `'idle' | 'work' | 'overtime' | 'readyForBreak' | 'break' | 'longBreak'`
+
+Flow: `idle` → `work` (25 min countdown) → `overtime` (counts UP in amber, notification fired) → user clicks **Закончить** → `readyForBreak` → user clicks **☕ Отдых** → `break`/`longBreak` → overtime again → **Закончить** → `idle`. Nothing auto-transitions except work→overtime and break→overtime at zero.
+
+`PomodoroActions`: `start`, `pause`, `resume`, `finish` (ends work/break overtime), `startBreak`, `reset`.
+
 ## Window globals (intentional)
 
 Components deep in the virtualizer can't reliably get props/context. Registered in `App.tsx` / `Feed.tsx`:
