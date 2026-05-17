@@ -1141,7 +1141,9 @@ function App() {
         const newParentId = row.parent_id && idMap.has(row.parent_id) ? idMap.get(row.parent_id)! : null;
         const encContent = tgtEnc(srcDec(row.content));
         const encProps = tgtEnc(srcDec(row.properties));
-        const sortKey = String(now + i++).padStart(20, '0');
+        // Match existing sort_key format (plain numeric string) so copies sort
+        // alongside other recently-created notes instead of jumping to the bottom.
+        const sortKey = (now + i++).toString();
         await db.exec(
           `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
           [newId, newParentId, nostrPubKey || 'local-user', encContent, sortKey, encProps, targetFeedId, now, now]
@@ -1149,7 +1151,8 @@ function App() {
       }
       await db.exec('COMMIT');
     } catch (e) {
-      await db.exec('ROLLBACK');
+      try { await db.exec('ROLLBACK'); } catch { /* */ }
+      if (handleFekError(e)) { setCopyNoteModal(null); return; }
       showToast('Ошибка при копировании', 'error');
       throw e;
     }
@@ -1792,7 +1795,7 @@ function App() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {feeds
-                .filter(f => f.id !== copyNoteModal.sourceFeedId)
+                .filter(f => f.id !== copyNoteModal.sourceFeedId && !f.is_archived)
                 .map(f => (
                   <button
                     key={f.id}
@@ -1811,7 +1814,7 @@ function App() {
                   </button>
                 ))
               }
-              {feeds.filter(f => f.id !== copyNoteModal.sourceFeedId).length === 0 && (
+              {feeds.filter(f => f.id !== copyNoteModal.sourceFeedId && !f.is_archived).length === 0 && (
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-faint)', textAlign: 'center', padding: '12px 0' }}>
                   Нет других лент
                 </div>

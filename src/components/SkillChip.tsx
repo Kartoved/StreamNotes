@@ -25,7 +25,7 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(value?.name || '');
   const [xp, setXp] = useState<number>(value?.xp ?? DEFAULT_SKILL_XP);
-  const [popPos, setPopPos] = useState<PopPos>({});
+  const [popPos, setPopPos] = useState<PopPos | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -50,8 +50,8 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
   // Reposition after render and on keyboard resize.
   // Uses fixed coords from getBoundingClientRect so overflow:hidden on parents
   // never clips the popover.
-  useEffect(() => {
-    if (!open) return;
+  React.useLayoutEffect(() => {
+    if (!open) { setPopPos(null); return; }
 
     const reposition = () => {
       const btn = buttonRef.current;
@@ -71,16 +71,17 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
       });
     };
 
-    const id = requestAnimationFrame(reposition);
+    reposition();
     const vv = window.visualViewport;
     vv?.addEventListener('resize', reposition);
     vv?.addEventListener('scroll', reposition);
     window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
     return () => {
-      cancelAnimationFrame(id);
       vv?.removeEventListener('resize', reposition);
       vv?.removeEventListener('scroll', reposition);
       window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
     };
   }, [open]);
 
@@ -133,7 +134,11 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
           onMouseDown={e => e.stopPropagation()}
           style={{
             position: 'fixed',
-            ...popPos,
+            top: popPos?.top,
+            bottom: popPos?.bottom,
+            left: popPos?.left,
+            right: popPos?.right,
+            visibility: popPos ? 'visible' : 'hidden',
             zIndex: 1500,
             background: 'var(--bg)',
             border: '1px solid var(--line-strong)',
