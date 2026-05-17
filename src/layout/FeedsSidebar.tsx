@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { IconX } from '../components/icons';
 import { encodeInviteLink, decodeInviteLink } from '../sharing/inviteLink';
 import { QRCodeCanvas } from '../components/QRCode';
@@ -8,6 +8,30 @@ import { xchacha20poly1305 } from '@noble/ciphers/chacha';
 import { randomBytes } from '@noble/ciphers/webcrypto';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import type { Feed as FeedData } from '../db/hooks';
+
+const FEED_ORDER_KEY = 'sn_feed_order';
+
+function loadFeedOrder(): string[] {
+  try { return JSON.parse(localStorage.getItem(FEED_ORDER_KEY) || '[]'); } catch { return []; }
+}
+
+function saveFeedOrder(ids: string[]) {
+  try { localStorage.setItem(FEED_ORDER_KEY, JSON.stringify(ids)); } catch { }
+}
+
+function applyOrder(feeds: FeedData[], order: string[]): FeedData[] {
+  if (!order.length) return feeds;
+  const map = new Map(feeds.map(f => [f.id, f]));
+  const sorted: FeedData[] = [];
+  // first: feeds in stored order
+  for (const id of order) {
+    const f = map.get(id);
+    if (f) { sorted.push(f); map.delete(id); }
+  }
+  // then: any new feeds not yet in order (appended at end)
+  for (const f of map.values()) sorted.push(f);
+  return sorted;
+}
 import { useCrypto } from '../crypto/CryptoContext';
 import {
   Notebook, FileText, ScrollText, BookOpen,
@@ -110,7 +134,8 @@ const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
       outline: active ? '2px solid var(--bg-aside)' : 'none',
       overflow: 'hidden',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      cursor: 'pointer', flexShrink: 0,
+      cursor: 'inherit', flexShrink: 0,
+      pointerEvents: 'none',
       transition: 'all 0.15s ease',
     }}>
       {LIcon
@@ -194,6 +219,102 @@ export const FeedsSidebar = ({
   const avatarRef = useRef<HTMLInputElement>(null);
   // Archive view toggle
   const [showArchive, setShowArchive] = useState(false);
+
+  // ── Drag-to-reorder state (order stored in localStorage, no DB needed) ──
+  const [feedOrder, setFeedOrder] = useState<string[]>(loadFeedOrder);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dragAbove, setDragAbove] = useState(false);
+
+  // When feeds list changes (new feed added/deleted), persist full id list.
+  useEffect(() => {
+    if (!feeds.length) return;
+    const order = loadFeedOrder();
+    const known = new Set(order);
+    const newIds = feeds.map(f => f.id).filter(id => !known.has(id));
+    if (newIds.length > 0) {
+      const updated = [...order, ...newIds];
+      saveFeedOrder(updated);
+      setFeedOrder(updated);
+    }
+  }, [feeds]);
+
+  const commitReorder = useCallback((dragId: string, targetId: string, above: boolean, visibleFeeds: FeedData[]) => {
+    if (dragId === targetId) return;
+    const ids = visibleFeeds.map(f => f.id);
+    const from = ids.indexOf(dragId);
+    const to   = ids.indexOf(targetId);
+    if (from === -1 || to === -1) return;
+    const next = [...ids];
+    next.splice(from, 1);
+    const insertAt = above ? (to > from ? to - 1 : to) : (to > from ? to : to + 1);
+    next.splice(Math.max(0, insertAt), 0, dragId);
+    saveFeedOrder(next);
+    setFeedOrder(next);
+  }, []);
+
+  const handleFeedDragStart = useCallback((e: React.DragEvent, id: string) => {
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedId(id);
+  }, []);
+
+  const handleFeedDragOver = useCallback((e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setDragOverId(id);
+    setDragAbove(e.clientY < rect.top + rect.height / 2);
+  }, []);
+
+  const handleFeedDragEnd = useCallback(() => {
+    setDraggedId(null);
+    setDragOverId(null);
+  }, []);
+
+  const handleFeedDrop = useCallback((e: React.DragEvent, targetId: string, visibleFeeds: FeedData[]) => {
+    e.preventDefault();
+    if (draggedId) commitReorder(draggedId, targetId, dragAbove, visibleFeeds);
+    setDraggedId(null);
+    setDragOverId(null);
+  }, [draggedId, dragAbove, commitReorder]);
+
+  // ── Mobile touch-drag ─────────────────────────────────────────────
+  const touchDragId = useRef<string | null>(null);
+
+  const handleFeedTouchStart = useCallback((e: React.TouchEvent, id: string) => {
+    const timer = setTimeout(() => {
+      touchDragId.current = id;
+      setDraggedId(id);
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, 450);
+    (e.currentTarget as HTMLElement).dataset.pressTimer = String(timer);
+  }, []);
+
+  const handleFeedTouchMove = useCallback((e: React.TouchEvent) => {
+    const timerStr = (e.currentTarget as HTMLElement).dataset.pressTimer;
+    if (timerStr) clearTimeout(Number(timerStr));
+    if (!touchDragId.current) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const feedItem = el?.closest('[data-feed-id]') as HTMLElement | null;
+    if (feedItem) {
+      const tid = feedItem.dataset.feedId!;
+      const rect = feedItem.getBoundingClientRect();
+      setDragOverId(tid);
+      setDragAbove(touch.clientY < rect.top + rect.height / 2);
+    }
+  }, []);
+
+  const handleFeedTouchEnd = useCallback((e: React.TouchEvent, visibleFeeds: FeedData[]) => {
+    const timerStr = (e.currentTarget as HTMLElement).dataset.pressTimer;
+    if (timerStr) clearTimeout(Number(timerStr));
+    const dragId = touchDragId.current;
+    touchDragId.current = null;
+    if (dragId && dragOverId) commitReorder(dragId, dragOverId, dragAbove, visibleFeeds);
+    setDraggedId(null);
+    setDragOverId(null);
+  }, [dragOverId, dragAbove, commitReorder]);
   // Pubkey sharing state
   const [recipientPubkey, setRecipientPubkey] = useState('');
   const [encryptedPayload, setEncryptedPayload] = useState('');
@@ -401,36 +522,63 @@ export const FeedsSidebar = ({
         <div style={{ fontSize: '1.4rem', marginBottom: '12px', userSelect: 'none', lineHeight: 1, color: 'var(--text)' }}>✦</div>
         <div className="feed-logo-sep" style={{ width: '28px', height: '1.5px', background: 'var(--line)', marginBottom: '16px' }} />
 
-        {feeds.filter(f => showArchive ? f.is_archived : !f.is_archived).map(feed => (
-          <div
-            key={feed.id}
-            className="feed-item"
-            onClick={() => onSelect(feed.id)}
-            style={{ padding: '6px 0', position: 'relative' }}
-          >
-            <FeedIcon feed={feed} active={feed.id === activeFeedId} />
-            <div className="feed-tooltip" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1, minWidth: 0 }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {showArchive ? `[архив] ${feed.name}` : feed.name}
-              </span>
-              <button
-                className="feed-edit-btn"
-                onClick={e => { e.stopPropagation(); openEdit(feed); }}
-                title="Настройки ленты"
+        {(() => {
+          const rawFeeds = feeds.filter(f => showArchive ? f.is_archived : !f.is_archived);
+          const visibleFeeds = showArchive ? rawFeeds : applyOrder(rawFeeds, feedOrder);
+          return visibleFeeds.map(feed => {
+            const isBeingDragged = draggedId === feed.id;
+            const isOver = dragOverId === feed.id;
+            return (
+              <div
+                key={feed.id}
+                data-feed-id={feed.id}
+                className="feed-item"
+                draggable={!showArchive}
+                onDragStart={e => handleFeedDragStart(e, feed.id)}
+                onDragOver={e => handleFeedDragOver(e, feed.id)}
+                onDragLeave={() => setDragOverId(null)}
+                onDragEnd={handleFeedDragEnd}
+                onDrop={e => handleFeedDrop(e, feed.id, visibleFeeds)}
+                onTouchStart={e => handleFeedTouchStart(e, feed.id)}
+                onTouchMove={handleFeedTouchMove}
+                onTouchEnd={e => handleFeedTouchEnd(e, visibleFeeds)}
+                onClick={() => !draggedId && onSelect(feed.id)}
                 style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: 'var(--text-faint)', padding: '2px 4px', flexShrink: 0,
-                  display: 'flex', alignItems: 'center', borderRadius: '4px',
+                  padding: '6px 0', position: 'relative',
+                  opacity: isBeingDragged ? 0.35 : 1,
+                  transition: 'opacity 0.15s',
+                  cursor: showArchive ? 'pointer' : (isBeingDragged ? 'grabbing' : 'grab'),
+                  userSelect: 'none',
+                  // Drop indicator line above or below
+                  ...(isOver && dragAbove  ? { borderTop:    '2px solid var(--accent)', paddingTop:    '4px' } : {}),
+                  ...(isOver && !dragAbove ? { borderBottom: '2px solid var(--accent)', paddingBottom: '4px' } : {}),
                 }}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-        ))}
+                <FeedIcon feed={feed} active={feed.id === activeFeedId} />
+                <div className="feed-tooltip" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1, minWidth: 0 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {showArchive ? `[архив] ${feed.name}` : feed.name}
+                  </span>
+                  <button
+                    className="feed-edit-btn"
+                    onClick={e => { e.stopPropagation(); openEdit(feed); }}
+                    title="Настройки ленты"
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--text-faint)', padding: '2px 4px', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', borderRadius: '4px',
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            );
+          });
+        })()}
 
         {/* Add feed */}
         <div className="feed-item" style={{ marginTop: '12px', padding: '6px 0' }}>

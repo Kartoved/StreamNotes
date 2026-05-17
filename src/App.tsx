@@ -503,6 +503,7 @@ function App() {
     showToast('Лента обновлена', 'success');
   }, [db, encrypt]);
 
+
   const handleImportSharedFeed = useCallback(async (payload: { flow_id: string; fek: string; name: string; relay?: string; role?: string; author_npub?: string; notes?: any[]; links?: any[] }) => {
     const { flow_id, fek, name, role = 'participant', author_npub } = payload;
 
