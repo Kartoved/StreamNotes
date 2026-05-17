@@ -311,8 +311,11 @@ export const TweetEditor = ({
   const [editorKey, setEditorKey] = useState(0);
   const initP = initialPropsStr ? JSON.parse(initialPropsStr) : {};
   const [type, setType] = useState(initP.type || 'sheaf');
+  // A fresh draft (no initial props, or `{}`) defaults to 'todo' — GTD inbox.
+  // Only honor 'note' kind when explicitly set on an existing entry.
+  const isNewEntry = !initialPropsStr || Object.keys(initP).length === 0;
   const [status, setStatus] = useState(
-    !initialPropsStr ? 'todo' :
+    isNewEntry ? 'todo' :
     getNoteKind(initP) === 'note' ? 'note' :
     (initP.status && initP.status !== 'none' ? initP.status : 'todo')
   );
