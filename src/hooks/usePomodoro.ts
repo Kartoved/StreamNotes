@@ -62,6 +62,7 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
   const endTimeRef = useRef<number | null>(null);       // countdown end wall-clock
   const overtimeStartRef = useRef<number | null>(null); // overtime start wall-clock
   const phaseRef = useRef<PomodoroPhase>('idle');
+  const prevPhaseRef = useRef<PomodoroPhase>('idle');   // phase that led into overtime
   const sessionCountRef = useRef(0);
   const isRunningRef = useRef(false);
 
@@ -82,27 +83,20 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
     }
   }, []);
 
-  // Work timer hit zero → start overtime (keep counting up until user clicks finish).
-  const handleWorkTimeUp = useCallback(() => {
+  // Any phase timer hit zero → enter overtime (count up until user clicks finish).
+  const handleTimeUp = useCallback(() => {
     clearTick();
     endTimeRef.current = null;
+    prevPhaseRef.current = phaseRef.current;
     overtimeStartRef.current = Date.now();
-    notify('Время вышло! Нажми «Закончить» когда будешь готов 🍅');
+    const msg = phaseRef.current === 'work'
+      ? 'Время вышло! Нажми «Закончить» когда будешь готов 🍅'
+      : 'Перерыв закончился! Нажми «Закончить» когда готов 🍅';
+    notify(msg);
     phaseRef.current = 'overtime';
     setPhase('overtime');
     setSecondsLeft(0);
     setIsRunning(true);
-  }, [clearTick, notify]);
-
-  // Break timer hit zero → return to idle.
-  const handleBreakFinish = useCallback(() => {
-    clearTick();
-    endTimeRef.current = null;
-    notify('Перерыв окончен! Время работать 🍅');
-    phaseRef.current = 'idle';
-    setPhase('idle');
-    setSecondsLeft(WORK_SECS);
-    setIsRunning(false);
   }, [clearTick, notify]);
 
   // Tick — handles both countdown and overtime count-up.
@@ -126,11 +120,7 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
 
       const remaining = Math.round((endTimeRef.current - Date.now()) / 1000);
       if (remaining <= 0) {
-        if (p === 'work') {
-          handleWorkTimeUp();
-        } else {
-          handleBreakFinish();
-        }
+        handleTimeUp();
       } else {
         setSecondsLeft(remaining);
       }
@@ -161,15 +151,14 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
       if (endTimeRef.current === null) return;
       const remaining = Math.round((endTimeRef.current - Date.now()) / 1000);
       if (remaining <= 0) {
-        if (p === 'work') handleWorkTimeUp();
-        else handleBreakFinish();
+        handleTimeUp();
       } else {
         setSecondsLeft(remaining);
       }
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [handleWorkTimeUp, handleBreakFinish]);
+  }, [handleTimeUp]);
 
   const requestNotificationPermission = useCallback(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -183,6 +172,7 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
       clearTick();
       endTimeRef.current = null;
       overtimeStartRef.current = null;
+      prevPhaseRef.current = 'idle';
       sessionCountRef.current = 0;
       setSessionCount(0);
       setTaskId(tid ?? null);
@@ -232,13 +222,21 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
       clearTick();
       endTimeRef.current = null;
       overtimeStartRef.current = null;
-      const newSessions = sessionCountRef.current + 1;
-      sessionCountRef.current = newSessions;
-      setSessionCount(newSessions);
-      setCompletedToday(incrementCompleted());
-      phaseRef.current = 'readyForBreak';
-      setPhase('readyForBreak');
-      setSecondsLeft(0);
+      const fromWork = prevPhaseRef.current === 'work';
+      if (fromWork) {
+        const newSessions = sessionCountRef.current + 1;
+        sessionCountRef.current = newSessions;
+        setSessionCount(newSessions);
+        setCompletedToday(incrementCompleted());
+        phaseRef.current = 'readyForBreak';
+        setPhase('readyForBreak');
+        setSecondsLeft(0);
+      } else {
+        // Finishing break overtime → back to idle for next work session.
+        phaseRef.current = 'idle';
+        setPhase('idle');
+        setSecondsLeft(WORK_SECS);
+      }
       setIsRunning(false);
     }, [clearTick]),
 

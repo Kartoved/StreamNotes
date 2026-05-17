@@ -93,7 +93,7 @@ const PHASE_TOTAL: Record<string, number> = {
 
 const PHASE_LABEL: Record<string, string> = {
   work: 'Работа',
-  overtime: 'Овертайм',
+  overtime: '+Время',
   readyForBreak: 'Готово!',
   break: 'Перерыв',
   longBreak: 'Длинный перерыв',
