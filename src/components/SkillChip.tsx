@@ -21,11 +21,24 @@ interface SkillChipProps {
 
 type PopPos = { top?: number; bottom?: number; left?: number; right?: number };
 
+function computePopPos(btn: HTMLElement, popH = 180, popW = 220): PopPos {
+  const btnRect = btn.getBoundingClientRect();
+  const vv = window.visualViewport;
+  const vbottom = (vv?.offsetTop  ?? 0) + (vv?.height ?? window.innerHeight);
+  const vright  = (vv?.offsetLeft ?? 0) + (vv?.width  ?? window.innerWidth);
+  const flipUp   = btnRect.bottom + popH + 8 > vbottom;
+  const flipLeft = btnRect.left   + popW + 8 > vright;
+  return {
+    ...(flipUp   ? { bottom: window.innerHeight - btnRect.top  + 4 } : { top: btnRect.bottom + 4 }),
+    ...(flipLeft ? { right:  window.innerWidth  - btnRect.right    } : { left: btnRect.left  }),
+  };
+}
+
 export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(value?.name || '');
   const [xp, setXp] = useState<number>(value?.xp ?? DEFAULT_SKILL_XP);
-  const [popPos, setPopPos] = useState<PopPos | null>(null);
+  const [popPos, setPopPos] = useState<PopPos>({ top: 0, left: 0 });
   const popoverRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -47,28 +60,16 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
     return () => window.removeEventListener('mousedown', onDown);
   }, [open]);
 
-  // Reposition after render and on keyboard resize.
-  // Uses fixed coords from getBoundingClientRect so overflow:hidden on parents
-  // never clips the popover.
+  // Re-measure after the popover is in the DOM (now we know its real size)
+  // and on viewport changes (scroll, resize, mobile keyboard).
   React.useLayoutEffect(() => {
-    if (!open) { setPopPos(null); return; }
+    if (!open) return;
 
     const reposition = () => {
       const btn = buttonRef.current;
-      const pop = popoverRef.current;
       if (!btn) return;
-      const btnRect = btn.getBoundingClientRect();
-      const popH = pop?.offsetHeight ?? 160;
-      const popW = pop?.offsetWidth  ?? 220;
-      const vv = window.visualViewport;
-      const vbottom = (vv?.offsetTop  ?? 0) + (vv?.height ?? window.innerHeight);
-      const vright  = (vv?.offsetLeft ?? 0) + (vv?.width  ?? window.innerWidth);
-      const flipUp   = btnRect.bottom + popH + 8 > vbottom;
-      const flipLeft = btnRect.left   + popW + 8 > vright;
-      setPopPos({
-        ...(flipUp   ? { bottom: window.innerHeight - btnRect.top  + 4 } : { top: btnRect.bottom + 4 }),
-        ...(flipLeft ? { right:  window.innerWidth  - btnRect.right    } : { left: btnRect.left  }),
-      });
+      const pop = popoverRef.current;
+      setPopPos(computePopPos(btn, pop?.offsetHeight, pop?.offsetWidth));
     };
 
     reposition();
@@ -84,6 +85,17 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
       window.removeEventListener('resize', reposition);
     };
   }, [open]);
+
+  // Toggle: when opening, compute coords synchronously from the click so the
+  // popover is already at the right place on its very first paint.
+  const toggle = () => {
+    setOpen(prev => {
+      if (!prev && buttonRef.current) {
+        setPopPos(computePopPos(buttonRef.current));
+      }
+      return !prev;
+    });
+  };
 
   const commit = () => {
     const norm = normalizeName(name);
@@ -119,7 +131,7 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
       <button
         ref={buttonRef}
         type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        onClick={(e) => { e.stopPropagation(); toggle(); }}
         title={has ? `Навык: ${value!.name} (+${value!.xp} XP при выполнении)` : 'Привязать навык'}
         style={chipStyle}
       >
@@ -134,11 +146,10 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
           onMouseDown={e => e.stopPropagation()}
           style={{
             position: 'fixed',
-            top: popPos?.top,
-            bottom: popPos?.bottom,
-            left: popPos?.left,
-            right: popPos?.right,
-            visibility: popPos ? 'visible' : 'hidden',
+            top: popPos.top,
+            bottom: popPos.bottom,
+            left: popPos.left,
+            right: popPos.right,
             zIndex: 1500,
             background: 'var(--bg)',
             border: '1px solid var(--line-strong)',
