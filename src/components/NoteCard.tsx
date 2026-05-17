@@ -562,7 +562,7 @@ export const NoteCard = React.memo(function NoteCard({
           borderRadius: 'var(--radius-lg)',
           padding: '12px 40px 8px 16px',
           position: 'relative',
-          overflow: 'hidden',
+          overflow: editingNoteId === note.id ? 'visible' : 'hidden',
           transition: swipeOffset !== 0 ? 'none' : 'border-color 0.12s, background 0.12s, transform 0.2s cubic-bezier(0.32, 0.72, 0, 1)',
           transform: swipeOffset !== 0 ? `translateX(${swipeOffset}px)` : 'none',
         }}>

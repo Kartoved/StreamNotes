@@ -19,26 +19,12 @@ interface SkillChipProps {
   existingNames: string[];
 }
 
-type PopPos = { top?: number; bottom?: number; left?: number; right?: number };
-
-function computePopPos(btn: HTMLElement, popH = 180, popW = 220): PopPos {
-  const btnRect = btn.getBoundingClientRect();
-  const vv = window.visualViewport;
-  const vbottom = (vv?.offsetTop  ?? 0) + (vv?.height ?? window.innerHeight);
-  const vright  = (vv?.offsetLeft ?? 0) + (vv?.width  ?? window.innerWidth);
-  const flipUp   = btnRect.bottom + popH + 8 > vbottom;
-  const flipLeft = btnRect.left   + popW + 8 > vright;
-  return {
-    ...(flipUp   ? { bottom: window.innerHeight - btnRect.top  + 4 } : { top: btnRect.bottom + 4 }),
-    ...(flipLeft ? { right:  window.innerWidth  - btnRect.right    } : { left: btnRect.left  }),
-  };
-}
-
 export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(value?.name || '');
   const [xp, setXp] = useState<number>(value?.xp ?? DEFAULT_SKILL_XP);
-  const [popPos, setPopPos] = useState<PopPos>({ top: 0, left: 0 });
+  const [flipUp, setFlipUp] = useState(false);
+  const [flipLeft, setFlipLeft] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -60,42 +46,35 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
     return () => window.removeEventListener('mousedown', onDown);
   }, [open]);
 
-  // Re-measure after the popover is in the DOM (now we know its real size)
-  // and on viewport changes (scroll, resize, mobile keyboard).
-  React.useLayoutEffect(() => {
+  // Reposition after render and on keyboard resize so the popover
+  // doesn't disappear under the virtual keyboard on mobile.
+  useEffect(() => {
     if (!open) return;
 
     const reposition = () => {
       const btn = buttonRef.current;
-      if (!btn) return;
       const pop = popoverRef.current;
-      setPopPos(computePopPos(btn, pop?.offsetHeight, pop?.offsetWidth));
+      if (!btn || !pop) return;
+      const btnRect = btn.getBoundingClientRect();
+      const popRect = pop.getBoundingClientRect();
+      const vv = window.visualViewport;
+      const vbottom = (vv?.offsetTop ?? 0) + (vv?.height ?? window.innerHeight);
+      const vright  = (vv?.offsetLeft ?? 0) + (vv?.width  ?? window.innerWidth);
+      setFlipUp(btnRect.bottom + popRect.height + 8 > vbottom);
+      setFlipLeft(btnRect.left  + popRect.width  + 8 > vright);
     };
 
-    reposition();
+    // Run after paint so popoverRef has real dimensions.
+    const id = requestAnimationFrame(reposition);
     const vv = window.visualViewport;
     vv?.addEventListener('resize', reposition);
     vv?.addEventListener('scroll', reposition);
-    window.addEventListener('scroll', reposition, true);
-    window.addEventListener('resize', reposition);
     return () => {
+      cancelAnimationFrame(id);
       vv?.removeEventListener('resize', reposition);
       vv?.removeEventListener('scroll', reposition);
-      window.removeEventListener('scroll', reposition, true);
-      window.removeEventListener('resize', reposition);
     };
   }, [open]);
-
-  // Toggle: when opening, compute coords synchronously from the click so the
-  // popover is already at the right place on its very first paint.
-  const toggle = () => {
-    setOpen(prev => {
-      if (!prev && buttonRef.current) {
-        setPopPos(computePopPos(buttonRef.current));
-      }
-      return !prev;
-    });
-  };
 
   const commit = () => {
     const norm = normalizeName(name);
@@ -131,7 +110,7 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
       <button
         ref={buttonRef}
         type="button"
-        onClick={(e) => { e.stopPropagation(); toggle(); }}
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
         title={has ? `Навык: ${value!.name} (+${value!.xp} XP при выполнении)` : 'Привязать навык'}
         style={chipStyle}
       >
@@ -145,11 +124,13 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
           onClick={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
           style={{
-            position: 'fixed',
-            top: popPos.top,
-            bottom: popPos.bottom,
-            left: popPos.left,
-            right: popPos.right,
+            position: 'absolute',
+            ...(flipUp
+              ? { bottom: 'calc(100% + 4px)', top: 'auto' }
+              : { top: 'calc(100% + 4px)', bottom: 'auto' }),
+            ...(flipLeft
+              ? { right: 0, left: 'auto' }
+              : { left: 0, right: 'auto' }),
             zIndex: 1500,
             background: 'var(--bg)',
             border: '1px solid var(--line-strong)',
