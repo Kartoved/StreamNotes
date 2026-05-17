@@ -905,6 +905,7 @@ function App() {
       status: 'done',
       skill: { name: skillName, xp: minutes, streakBonus },
       completed_at: yyyymmdd,
+      pomodoro: true,
     });
     const noteContent = JSON.stringify({
       type: 'doc',

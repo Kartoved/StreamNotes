@@ -139,12 +139,16 @@ describe('NoteCard — basic render', () => {
 });
 
 describe('NoteCard — props row (status / date chips)', () => {
-  it('does NOT show props row when status is "none" and no date', () => {
+  // Status chip always renders — `note` is just a status, not a separate kind.
+  // See CLAUDE.md "Note classification" and the sn_status_migration_v1 migration.
+  it('always shows the status combobox, defaulting to "note" for legacy/empty props', () => {
     render(<NoteCard {...defaultProps()} />);
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    expect(select).toBeInTheDocument();
+    expect(select.value).toBe('note');
   });
 
-  it('shows PropChip (select) when properties contain a non-"none" status', () => {
+  it('shows PropChip (select) when properties contain a non-"note" status', () => {
     const props = defaultProps({
       note: makeNote({ properties: JSON.stringify({ status: 'todo' }) }),
     });
@@ -156,24 +160,23 @@ describe('NoteCard — props row (status / date chips)', () => {
 
   it('shows DateChip (button) when properties contain a date', () => {
     const props = defaultProps({
-      note: makeNote({ properties: JSON.stringify({ date: '2024-12-31' }) }),
+      note: makeNote({ properties: JSON.stringify({ status: 'todo', date: '2024-12-31' }) }),
     });
     render(<NoteCard {...props} />);
     expect(screen.getByText('2024-12-31')).toBeInTheDocument();
   });
 
-  it('hides props row again when status is "done" via state sync useEffect', async () => {
-    // Render with "done" then re-render with "none" (simulate external DB update)
+  it('does NOT show date chip when status flips back to "note" (task chips hide)', async () => {
     const { rerender } = render(
-      <NoteCard {...defaultProps({ note: makeNote({ properties: JSON.stringify({ status: 'done' }) }) })} />
+      <NoteCard {...defaultProps({ note: makeNote({ properties: JSON.stringify({ status: 'todo', date: '2024-12-31' }) }) })} />
     );
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(screen.getByText('2024-12-31')).toBeInTheDocument();
 
     rerender(
       <NoteCard {...defaultProps({ note: makeNote({ properties: '{}' }) })} />
     );
     await waitFor(() => {
-      expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+      expect(screen.queryByText('2024-12-31')).not.toBeInTheDocument();
     });
   });
 });

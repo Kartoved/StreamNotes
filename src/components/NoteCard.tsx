@@ -488,6 +488,50 @@ export const NoteCard = React.memo(function NoteCard({
   // Task chips (date, skill, recurrence) are hidden when status is 'note'
   const showTaskChips = status !== 'note';
 
+  // Pomodoro session note: compact read-only log entry, not a real task card.
+  // The text content already encodes "🍅 Nмин · skill"; no chips/editor needed.
+  if (props.pomodoro === true) {
+    const time = formatNoteDate(note.created_at);
+    let plainText = '';
+    try {
+      const doc = JSON.parse(note.content);
+      const getText = (n: any): string => n.type === 'text' ? (n.text || '') : (n.content || []).map(getText).join('');
+      plainText = getText(doc);
+    } catch { plainText = '🍅'; }
+
+    return (
+      <div
+        key={virtualItem.key}
+        data-index={virtualItem.index}
+        data-note-id={note.id}
+        ref={virtualizer.measureElement}
+        className="note-card pomodoro-log"
+        onContextMenu={(e) => openContextMenu(e, note.id)}
+        style={{
+          position: 'absolute', top: 0, left: 0, width: '100%',
+          transform: `translateY(${virtualItem.start}px)`,
+          padding: `2px 6px 2px ${6 + indent * 16}px`,
+          opacity: draggedId === note.id ? 0.3 : 0.7,
+        }}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          padding: '4px 12px',
+          fontSize: '0.78rem',
+          color: 'var(--text-faint)',
+          fontFamily: 'var(--font-mono)',
+          background: 'transparent',
+          borderLeft: '2px solid var(--line)',
+        }}>
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {plainText}
+          </span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)' }}>{time}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       key={virtualItem.key}
