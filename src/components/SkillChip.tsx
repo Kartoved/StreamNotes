@@ -17,10 +17,9 @@ interface SkillChipProps {
   value?: NoteSkill;
   onChange: (next: NoteSkill | undefined) => void;
   existingNames: string[];
-  onCopyChip?: (name: string) => void;
 }
 
-export function SkillChip({ value, onChange, existingNames, onCopyChip }: SkillChipProps) {
+export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(value?.name || '');
   const [xp, setXp] = useState<number>(value?.xp ?? DEFAULT_SKILL_XP);
@@ -112,12 +111,6 @@ export function SkillChip({ value, onChange, existingNames, onCopyChip }: SkillC
         ref={buttonRef}
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
-        onContextMenu={(e) => {
-          if (!has || !onCopyChip) return;
-          e.preventDefault();
-          e.stopPropagation();
-          onCopyChip(value!.name);
-        }}
         title={has ? `Навык: ${value!.name} (+${value!.xp} XP при выполнении)` : 'Привязать навык'}
         style={chipStyle}
       >

@@ -8,7 +8,7 @@ import { useCrypto } from '../crypto/CryptoContext';
 import { storePendingBacklink } from '../utils/backlinkClipboard';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
-import { IconReply, IconEdit, IconMaximize, IconChevronUp, IconChevronDown, IconChevronRight, IconClipboard, IconPin, IconTimer, IconTrash } from './icons';
+import { IconReply, IconEdit, IconMaximize, IconChevronUp, IconChevronDown, IconChevronRight, IconClipboard, IconPin, IconTimer, IconTrash, IconTarget } from './icons';
 import { NoteCard } from './NoteCard';
 import { showToast } from './Toast';
 
@@ -102,7 +102,7 @@ interface FeedProps {
   selectedDate?: string | null;
   statusFilter?: string | null;
   onStartPomodoro?: (taskId: string, taskTitle: string) => void;
-  onCopyChip?: (name: string) => void;
+  onCopyNote?: (noteId: string) => void;
 }
 
 // Export helpers for use in sidebar
@@ -139,7 +139,7 @@ export const Feed = ({
   selectedDate = null,
   statusFilter = null,
   onStartPomodoro,
-  onCopyChip,
+  onCopyNote,
 }: FeedProps) => {
   const canWrite = myRole !== 'reader';
   const canEditOwn = myRole !== 'reader';
@@ -733,6 +733,7 @@ export const Feed = ({
                   }
                   closeContextMenu();
                 }},
+                onCopyNote ? { label: <MI icon={<IconTarget size={14}/>} text="Копировать в ленту..." />, action: () => { onCopyNote(contextMenu.noteId); closeContextMenu(); } } : false,
                 ...(canWrite ? [null as null, { label: <MI icon={<IconPin size={14}/>} text={ctxNote?.is_pinned ? 'Открепить' : 'Закрепить'} />, action: async () => { const wasPinned = !!ctxNote?.is_pinned; await db.exec(`UPDATE notes SET is_pinned = ? WHERE id = ?`, [wasPinned ? 0 : 1, contextMenu.noteId]); showToast(wasPinned ? 'Заметка откреплена' : 'Заметка закреплена', 'success'); closeContextMenu(); } }] : []),
                 ...(onStartPomodoro ? [null as null, { label: <MI icon={<IconTimer size={14}/>} text="Запустить помидор" />, action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
                 ...(userCanDelete ? [null as null, { label: <MI icon={<IconTrash size={14}/>} text="Удалить" />, action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true }] : []),
@@ -965,7 +966,6 @@ export const Feed = ({
                   collapsedChildCount={item.collapsedChildCount ?? 0}
                   backlinks={backlinksMap.get(item.note.id) ?? EMPTY_BACKLINKS}
                   defaultBacklinksOpen={!!parentId}
-                  onCopyChip={onCopyChip}
                 />
               );
             })}
