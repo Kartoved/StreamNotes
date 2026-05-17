@@ -23,6 +23,8 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(value?.name || '');
   const [xp, setXp] = useState<number>(value?.xp ?? DEFAULT_SKILL_XP);
+  const [flipUp, setFlipUp] = useState(false);
+  const [flipLeft, setFlipLeft] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -42,6 +44,36 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
     };
     window.addEventListener('mousedown', onDown);
     return () => window.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  // Reposition after render and on keyboard resize so the popover
+  // doesn't disappear under the virtual keyboard on mobile.
+  useEffect(() => {
+    if (!open) return;
+
+    const reposition = () => {
+      const btn = buttonRef.current;
+      const pop = popoverRef.current;
+      if (!btn || !pop) return;
+      const btnRect = btn.getBoundingClientRect();
+      const popRect = pop.getBoundingClientRect();
+      const vv = window.visualViewport;
+      const vbottom = (vv?.offsetTop ?? 0) + (vv?.height ?? window.innerHeight);
+      const vright  = (vv?.offsetLeft ?? 0) + (vv?.width  ?? window.innerWidth);
+      setFlipUp(btnRect.bottom + popRect.height + 8 > vbottom);
+      setFlipLeft(btnRect.left  + popRect.width  + 8 > vright);
+    };
+
+    // Run after paint so popoverRef has real dimensions.
+    const id = requestAnimationFrame(reposition);
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', reposition);
+    vv?.addEventListener('scroll', reposition);
+    return () => {
+      cancelAnimationFrame(id);
+      vv?.removeEventListener('resize', reposition);
+      vv?.removeEventListener('scroll', reposition);
+    };
   }, [open]);
 
   const commit = () => {
@@ -93,8 +125,12 @@ export function SkillChip({ value, onChange, existingNames }: SkillChipProps) {
           onMouseDown={e => e.stopPropagation()}
           style={{
             position: 'absolute',
-            top: 'calc(100% + 4px)',
-            left: 0,
+            ...(flipUp
+              ? { bottom: 'calc(100% + 4px)', top: 'auto' }
+              : { top: 'calc(100% + 4px)', bottom: 'auto' }),
+            ...(flipLeft
+              ? { right: 0, left: 'auto' }
+              : { left: 0, right: 'auto' }),
             zIndex: 1500,
             background: 'var(--bg)',
             border: '1px solid var(--line-strong)',

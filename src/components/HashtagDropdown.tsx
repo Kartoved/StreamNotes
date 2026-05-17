@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useDropdownPosition } from './useDropdownPosition';
 
 interface Props {
   query: string;
@@ -39,6 +40,11 @@ export const HashtagDropdown: React.FC<Props> = ({ query, position, onSelect, on
 
   useEffect(() => () => { if (keyHandlerRef) keyHandlerRef.current = null; }, []); // eslint-disable-line
 
+  // Auto-flip above trigger if dropdown would overflow visualViewport
+  // (mobile keyboard open). Hook must be called before the early-return.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const adjusted = useDropdownPosition(position, rootRef, [total]);
+
   if (total === 0) return null;
 
   const row = (active: boolean): React.CSSProperties => ({
@@ -54,14 +60,17 @@ export const HashtagDropdown: React.FC<Props> = ({ query, position, onSelect, on
   // for fixed descendants and pushes the dropdown off-screen).
   return createPortal((
     <div
+      ref={rootRef}
       style={{
-        position: 'fixed', top: position.top, left: position.left,
+        position: 'fixed', top: adjusted.top, left: adjusted.left,
         background: 'var(--bg)', border: '1px solid var(--line-strong)',
         borderRadius: 'var(--radius-lg)', zIndex: 10000,
         minWidth: 'min(160px, calc(100vw - 24px))',
         maxWidth: 'min(260px, calc(100vw - 24px))',
         boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-        overflow: 'hidden', maxHeight: '240px', overflowY: 'auto',
+        overflow: 'hidden',
+        maxHeight: 'min(240px, calc(100dvh - 24px))',
+        overflowY: 'auto',
       }}
       onMouseDown={e => e.preventDefault()}
     >

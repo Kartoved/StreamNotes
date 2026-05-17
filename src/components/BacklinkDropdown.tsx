@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
+import { useDropdownPosition } from './useDropdownPosition';
 
 export interface NoteOption {
   id: string;
@@ -65,6 +66,11 @@ export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, o
   const showCreate = query.length > 0 && !results.some(r => r.title.toLowerCase() === query.toLowerCase());
   const totalItems = results.length + (showCreate ? 1 : 0);
 
+  // Auto-flip above trigger if dropdown would overflow visualViewport
+  // (mobile keyboard open). Also clamp horizontally.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const adjusted = useDropdownPosition(position, rootRef, [totalItems, loading]);
+
   // Keyboard navigation — handler forwarded via ref to the Suggestion plugin's onKeyDown
   if (keyHandlerRef) {
     keyHandlerRef.current = (e: KeyboardEvent) => {
@@ -111,10 +117,11 @@ export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, o
   // card inline).
   return createPortal((
     <div
+      ref={rootRef}
       style={{
         position: 'fixed',
-        top: position.top,
-        left: position.left,
+        top: adjusted.top,
+        left: adjusted.left,
         background: 'var(--bg)',
         border: '1px solid var(--line-strong)',
         borderRadius: 'var(--radius-lg)',
@@ -123,7 +130,7 @@ export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, o
         maxWidth: 'calc(100vw - 24px)',
         boxShadow: 'var(--shadow-lg, 0 4px 20px rgba(0,0,0,0.15))',
         overflow: 'hidden',
-        maxHeight: '280px',
+        maxHeight: 'min(280px, calc(100dvh - 24px))',
         overflowY: 'auto',
       }}
       onMouseDown={e => e.preventDefault()}
