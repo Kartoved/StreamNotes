@@ -46,7 +46,9 @@ export function useSkillStats(): SkillStats {
           if (!skill || typeof skill.name !== 'string' || typeof skill.xp !== 'number') continue;
           const name = skill.name;
           const cur = map.get(name) || { totalXp: 0, doneCount: 0 };
-          cur.totalXp += Math.max(0, Math.floor(skill.xp));
+          const baseXp = Math.max(0, Math.floor(skill.xp));
+          const bonusPct = typeof skill.streakBonus === 'number' ? Math.max(0, skill.streakBonus) : 0;
+          cur.totalXp += Math.floor(baseXp * (1 + bonusPct / 100));
           cur.doneCount += 1;
           map.set(name, cur);
         } catch {

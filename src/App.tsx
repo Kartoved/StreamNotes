@@ -26,6 +26,7 @@ import { FeedsSidebar, parseLucideAvatar } from './layout/FeedsSidebar';
 import { RightSidebar } from './layout/RightSidebar';
 import { DashboardPanel } from './layout/DashboardPanel';
 import { usePomodoro } from './hooks/usePomodoro';
+import { useStreak } from './hooks/useStreak';
 import { revokeAllUrls } from './utils/opfsFiles';
 import { ToastContainer, showToast } from './components/Toast';
 import { saveBackup, listBackups, loadBackup, deleteBackup, shouldShowBackupReminder, type BackupEntry } from './utils/autoBackup';
@@ -874,6 +875,16 @@ function App() {
   // ── Pomodoro ───────────────────────────────────────────────────────
   const [pomodoroState, pomodoroActions] = usePomodoro();
 
+  // ── Streak (daily login + XP multiplier) ──────────────────────────
+  const streak = useStreak();
+  const streakRef = useRef(streak);
+  streakRef.current = streak;
+  useEffect(() => {
+    // Expose to NoteCard (lives inside virtualizer; can't take a prop cleanly).
+    (window as any).__streakMultiplier = () => streakRef.current.multiplier;
+    return () => { delete (window as any).__streakMultiplier; };
+  }, []);
+
   const allNotes = useNotes(null, activeFeedId);
 
   const allTags = React.useMemo(() => {
@@ -1375,6 +1386,7 @@ function App() {
         stats={dashboardStats}
         pomodoro={pomodoroState}
         pomodoroActions={pomodoroActions}
+        streak={streak}
         onOpenSkills={() => setShowSkills(true)}
       />
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { DashboardStats } from '../db/useDashboardStats';
 import { PomodoroState, PomodoroActions, formatPomodoroTime } from '../hooks/usePomodoro';
+import type { StreakInfo } from '../hooks/useStreak';
 import { IconX } from '../components/icons';
 
 // ── Progress Ring ─────────────────────────────────────────────────────
@@ -79,6 +80,7 @@ interface DashboardPanelProps {
   stats: DashboardStats;
   pomodoro: PomodoroState;
   pomodoroActions: PomodoroActions;
+  streak: StreakInfo;
   onOpenSkills?: () => void;
 }
 
@@ -102,7 +104,7 @@ const PHASE_LABEL: Record<string, string> = {
 
 export const DashboardPanel = ({
   activeStatusFilter, onStatusFilter, stats,
-  pomodoro, pomodoroActions, onOpenSkills,
+  pomodoro, pomodoroActions, streak, onOpenSkills,
 }: DashboardPanelProps) => {
   const { todoToday, doingToday, doneToday, totalToday, somedayCount, futureCount } = stats;
 
@@ -209,6 +211,42 @@ export const DashboardPanel = ({
           <span>🎯</span><span>Профиль и навыки</span>
         </button>
       )}
+
+      {/* Streak chip — daily login streak + freezes + XP multiplier */}
+      <button
+        onClick={onOpenSkills}
+        title={
+          `Стрик: ${streak.state.current} дн.` +
+          (streak.state.longest > streak.state.current ? ` · рекорд ${streak.state.longest}` : '') +
+          `\nЗаморозок: ${streak.state.freezes}/3 (1 каждые 7 дней)` +
+          `\nБонус к XP за задачи: +${streak.multiplier}%`
+        }
+        style={{
+          background: 'transparent', border: '1px solid var(--line)',
+          borderRadius: 'var(--radius)', color: 'var(--text-sub)',
+          padding: '6px 10px',
+          cursor: 'pointer', fontFamily: 'var(--font-body)',
+          margin: '0 4px', transition: 'all 0.1s',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>
+          <span style={{ filter: streak.state.current > 0 ? 'none' : 'grayscale(1) opacity(0.5)' }}>🔥</span>
+          <span style={{ fontWeight: 700, color: 'var(--text)' }}>{streak.state.current}</span>
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-faint)' }}>
+          <span style={{ filter: streak.state.freezes > 0 ? 'none' : 'grayscale(1) opacity(0.4)' }}>❄️</span>
+          <span>{streak.state.freezes}</span>
+        </span>
+        {streak.multiplier > 0 && (
+          <span style={{
+            fontSize: '0.65rem', fontFamily: 'var(--font-mono)',
+            color: '#f59e0b', fontWeight: 700,
+          }}>+{streak.multiplier}%</span>
+        )}
+      </button>
 
       {/* Divider */}
       <div style={{ height: '1px', background: 'var(--line)', margin: '0 4px' }} />

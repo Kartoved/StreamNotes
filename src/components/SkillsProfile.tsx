@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import { useSkillStats } from '../db/useSkillStats';
+import { useStreak } from '../hooks/useStreak';
+import { MAX_FREEZES, MULTIPLIER_CAP } from '../utils/streak';
 import { IconX } from './icons';
 
 interface SkillsProfileProps {
@@ -20,6 +22,7 @@ function levelFor(xp: number): { level: number; intoLevel: number; nextCost: num
 
 const SkillsProfile: React.FC<SkillsProfileProps> = ({ onClose }) => {
   const { totals, grandTotalXp } = useSkillStats();
+  const streak = useStreak();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -86,6 +89,34 @@ const SkillsProfile: React.FC<SkillsProfileProps> = ({ onClose }) => {
           <span style={{ fontSize: '0.78rem', color: 'var(--text-faint)' }}>
             суммарно XP по всем навыкам
           </span>
+        </div>
+
+        {/* Streak panel */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '16px',
+          padding: '14px 20px', borderBottom: '1px solid var(--line)',
+          flexWrap: 'wrap',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <span style={{ fontSize: '1.6rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>
+              🔥 {streak.state.current}
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)' }}>
+              {streak.state.current === 1 ? 'день' : 'дней подряд'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.72rem', color: 'var(--text-sub)', fontFamily: 'var(--font-mono)' }}>
+            <span>рекорд: <strong style={{ color: 'var(--text)' }}>{streak.state.longest}</strong></span>
+            <span>❄️ заморозок: <strong style={{ color: 'var(--text)' }}>{streak.state.freezes}/{MAX_FREEZES}</strong> <span style={{ color: 'var(--text-faint)' }}>(+1 каждые 7 дн.)</span></span>
+          </div>
+          <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+            <span style={{ fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: streak.multiplier > 0 ? '#f59e0b' : 'var(--text-faint)' }}>
+              +{streak.multiplier}%
+            </span>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)' }}>
+              бонус к XP {streak.multiplier >= MULTIPLIER_CAP ? '(макс)' : `· до +${MULTIPLIER_CAP}%`}
+            </span>
+          </div>
         </div>
 
         {/* List */}

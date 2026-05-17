@@ -343,10 +343,21 @@ export const NoteCard = React.memo(function NoteCard({
     if (key === 'status' && val === 'done') {
       const today = new Date();
       current.completed_at = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      // Snapshot streak multiplier at done-transition. Frozen here so future
+      // streak changes don't retroactively rescale historical XP.
+      if (current.skill && typeof current.skill.xp === 'number') {
+        const mult = (window as any).__streakMultiplier?.() ?? 0;
+        current.skill = { ...current.skill, streakBonus: mult };
+      }
       // Reward sound on done transition (only when transitioning to done from non-done).
       if (status !== 'done') playDoneSound();
     } else if (key === 'status' && val !== 'done') {
       delete current.completed_at;
+      // Strip streak bonus snapshot when leaving done — applies again on re-done.
+      if (current.skill && current.skill.streakBonus !== undefined) {
+        const { streakBonus: _drop, ...rest } = current.skill;
+        current.skill = rest;
+      }
     }
     await db.exec(
       `UPDATE notes SET properties = ?, updated_at = ? WHERE id = ?`,
