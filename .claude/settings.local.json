@@ -78,7 +78,8 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\karto\\\\Desktop\\\\StreamNotes\\\\StreamNotes\\\\src\" -Recurse -File)",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(git restore *)",
-      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\(JSON.stringify\\(Object.fromEntries\\(Object.entries\\(p.dependencies\\).filter\\(\\([k]\\) => k.includes\\('tiptap'\\)\\)\\), null, 2\\)\\)\")"
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\(JSON.stringify\\(Object.fromEntries\\(Object.entries\\(p.dependencies\\).filter\\(\\([k]\\) => k.includes\\('tiptap'\\)\\)\\), null, 2\\)\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)"
     ]
   }
 }

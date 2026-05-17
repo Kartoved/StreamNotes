@@ -735,7 +735,7 @@ export const Feed = ({
                 }},
                 onCopyNote ? { label: <MI icon={<IconTarget size={14}/>} text="Копировать в ленту..." />, action: () => { onCopyNote(contextMenu.noteId); closeContextMenu(); } } : false,
                 ...(canWrite ? [null as null, { label: <MI icon={<IconPin size={14}/>} text={ctxNote?.is_pinned ? 'Открепить' : 'Закрепить'} />, action: async () => { const wasPinned = !!ctxNote?.is_pinned; await db.exec(`UPDATE notes SET is_pinned = ? WHERE id = ?`, [wasPinned ? 0 : 1, contextMenu.noteId]); showToast(wasPinned ? 'Заметка откреплена' : 'Заметка закреплена', 'success'); closeContextMenu(); } }] : []),
-                ...(onStartPomodoro ? [null as null, { label: <MI icon={<IconTimer size={14}/>} text="Запустить помидор" />, action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
+                ...(onStartPomodoro ? [null as null, { label: <MI icon={<IconTimer size={14}/>} text="Запустить помодоро" />, action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
                 ...(userCanDelete ? [null as null, { label: <MI icon={<IconTrash size={14}/>} text="Удалить" />, action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true }] : []),
               ];
               return raw.filter(x => x !== false);

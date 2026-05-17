@@ -257,7 +257,7 @@ export const DashboardPanel = ({
         {/* Title + status */}
         <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-            Помидор
+            Помодоро
           </span>
           <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)' }}>
             {pomodoro.phase === 'idle' ? '' : pomodoro.isRunning ? PHASE_LABEL[pomodoro.phase] : 'Пауза'}

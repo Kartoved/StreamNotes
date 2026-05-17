@@ -72,7 +72,7 @@ export function usePomodoro(): [PomodoroState, PomodoroActions] {
 
   const notify = useCallback((msg: string) => {
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Помидор', { body: msg, icon: '/icon-192.png' });
+      new Notification('Помодоро', { body: msg, icon: '/icon-192.png' });
     }
   }, []);
 
