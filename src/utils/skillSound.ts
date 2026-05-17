@@ -12,27 +12,32 @@ function getCtx(): AudioContext | null {
   }
 }
 
-// Short two-tone rising ping played on task completion.
+// C5 → E5 → G5 arpeggio on task completion.
+// Triangle wave is warmer/softer than sine; each note 70 ms with quick decay.
 export function playDoneSound(): void {
   const c = getCtx();
   if (!c) return;
   try {
     if (c.state === 'suspended') c.resume();
     const t0 = c.currentTime;
+    const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+    const step = 0.07;
 
-    const osc = c.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, t0);
-    osc.frequency.exponentialRampToValueAtTime(1320, t0 + 0.14);
+    notes.forEach((freq, i) => {
+      const start = t0 + i * step;
+      const osc = c.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
 
-    const gain = c.createGain();
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(0.16, t0 + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.4);
+      const gain = c.createGain();
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.13, start + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.18);
 
-    osc.connect(gain).connect(c.destination);
-    osc.start(t0);
-    osc.stop(t0 + 0.42);
+      osc.connect(gain).connect(c.destination);
+      osc.start(start);
+      osc.stop(start + 0.2);
+    });
   } catch {
     // Ignore — sound is non-critical.
   }
