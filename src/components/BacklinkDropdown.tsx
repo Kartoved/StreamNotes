@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useDB } from '../db/DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
 
@@ -104,7 +105,11 @@ export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, o
     transition: '0.1s background',
   });
 
-  return (
+  // Portal to <body> so position: fixed escapes the feed virtualizer's
+  // transform (which becomes the containing block for fixed descendants
+  // and would otherwise push this dropdown off-screen when editing a
+  // card inline).
+  return createPortal((
     <div
       style={{
         position: 'fixed',
@@ -155,5 +160,5 @@ export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, o
         </>
       )}
     </div>
-  );
+  ), document.body);
 };

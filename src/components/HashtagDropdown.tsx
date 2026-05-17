@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Props {
   query: string;
@@ -47,7 +48,11 @@ export const HashtagDropdown: React.FC<Props> = ({ query, position, onSelect, on
     transition: 'background 0.1s',
   });
 
-  return (
+  // Portal to <body> so position: fixed is relative to the viewport, not
+  // some transformed ancestor (e.g. the feed virtualizer wraps each item
+  // in a transform: translateY(...), which becomes the containing block
+  // for fixed descendants and pushes the dropdown off-screen).
+  return createPortal((
     <div
       style={{
         position: 'fixed', top: position.top, left: position.left,
@@ -75,5 +80,5 @@ export const HashtagDropdown: React.FC<Props> = ({ query, position, onSelect, on
         >+ #{q}</div>
       )}
     </div>
-  );
+  ), document.body);
 };
