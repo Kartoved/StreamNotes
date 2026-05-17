@@ -605,6 +605,7 @@ body {
   .dashboard-panel { display: none !important; }
   .right-sidebar { width: 180px !important; }
   .main-content { padding: 0.5rem 1rem !important; }
+  .scroll-to-top-btn { right: calc(180px + 16px); }
 }
 
 /* ── Mobile (≤ 640px) ─────────────────────────────────────────────── */
@@ -866,7 +867,7 @@ body {
 .scroll-to-top-btn {
   position: fixed;
   bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  right: 24px;
+  right: calc(220px + 20px); /* right sidebar (220px) + gap */
   width: 42px;
   height: 42px;
   border-radius: 50%;
