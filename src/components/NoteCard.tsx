@@ -5,7 +5,7 @@ import { useCrypto } from '../crypto/CryptoContext';
 import { IconCheck, IconPin, IconRepeat, IconCalendar, IconReply } from './icons';
 import { CHIP_BASE, CHIP_SELECT, CHIP_ACTIVE, CHIP_HEIGHT } from './chipStyle';
 import { SkillChip, NoteSkill } from './SkillChip';
-import { getNoteKind, NoteKind } from '../utils/noteKind';
+import { getNoteKind } from '../utils/noteKind';
 import { getAllSkillNames } from '../db/notesCache';
 import { playDoneSound } from '../utils/skillSound';
 
@@ -29,16 +29,21 @@ function formatNoteDate(createdAt: number): string {
   return `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
 }
 
-const STATUSES = ['todo', 'doing', 'done', 'archived'];
+const STATUSES = ['note', 'todo', 'doing', 'done', 'archived'];
 
 // Stable empty reference so React.memo doesn't see a "new" array each render.
 const EMPTY_BACKLINKS: ReadonlyArray<{ id: string; snippet: string }> = [];
 
-// Legacy entries may have status='none' (the old default). Tasks always
-// have a real status now — fold 'none' into 'todo' at display time.
-function normalizeTaskStatus(s: string | undefined): string {
-  if (!s || s === 'none') return 'todo';
-  return s;
+const VALID_STATUSES = new Set(['note', 'todo', 'doing', 'done', 'archived']);
+
+// Derive the display status from raw properties, handling legacy formats.
+function normalizeStatus(props: any): string {
+  if (props.kind === 'note') return 'note';
+  const s = props.status;
+  if (s && VALID_STATUSES.has(s)) return s;
+  // Legacy status='none' or missing: classify by task signals
+  if (props.skill || props.recurrence || props.date) return 'todo';
+  return 'note';
 }
 
 // ── Deterministic color from npub ──────────────────────────────────
@@ -66,6 +71,7 @@ function AuthorBadge({ authorId, isLocal }: { authorId: string; isLocal: boolean
 
 // ── Status chip CSS-variable mappings ───────────────────────────────
 const STATUS_TEXT_VAR: Record<string, string> = {
+  note:     'var(--text-faint)',
   none:     'var(--text-faint)',
   todo:     'var(--chip-todo-text)',
   doing:    'var(--chip-doing-text)',
@@ -73,6 +79,7 @@ const STATUS_TEXT_VAR: Record<string, string> = {
   archived: 'var(--text-faint)',
 };
 const STATUS_BG_VAR: Record<string, string> = {
+  note:     'var(--bg-hover)',
   none:     'var(--bg-hover)',
   todo:     'var(--chip-todo-bg)',
   doing:    'var(--chip-doing-bg)',
@@ -300,37 +307,33 @@ export const NoteCard = React.memo(function NoteCard({
     catch { return {}; }
   }, [note.properties]);
 
-  const [status, setStatus]     = useState<string>(
-    getNoteKind(props) === 'task' ? normalizeTaskStatus(props.status) : 'none'
-  );
+  const [status, setStatus]     = useState<string>(normalizeStatus(props));
   const [type, setType]         = useState<string>(props.type || 'sheaf');
   const [targetDate, setDate]   = useState<string>(props.date || '');
   const [completedAt, setCompletedAt] = useState<string>(props.completed_at || '');
   const [recurrence, setRecurrence] = useState<string>(props.recurrence || '');
   const [skill, setSkill] = useState<NoteSkill | undefined>(props.skill);
-  const [kind, setKind] = useState<NoteKind>(getNoteKind(props));
   const [backlinksOpen, setBacklinksOpen] = useState(defaultBacklinksOpen);
   // If the open-by-default flag flips (we move in/out of expand mode), reflect it.
   React.useEffect(() => { setBacklinksOpen(defaultBacklinksOpen); }, [defaultBacklinksOpen]);
 
   // Synchronize state when underlying note properties change
   React.useEffect(() => {
-    setStatus(getNoteKind(props) === 'task' ? normalizeTaskStatus(props.status) : 'none');
+    setStatus(normalizeStatus(props));
     setType(props.type || 'sheaf');
     setDate(props.date || '');
     setCompletedAt(props.completed_at || '');
     setRecurrence(props.recurrence || '');
     setSkill(props.skill);
-    setKind(getNoteKind(props));
   }, [props]);
 
   // Save a single prop change to DB immediately
   const saveProp = useCallback(async (key: string, val: any) => {
-    const current: any = { ...props, status, type, date: targetDate, recurrence, skill, kind, [key]: val };
+    const current: any = { ...props, status, type, date: targetDate, recurrence, skill, [key]: val };
+    delete current.kind; // remove legacy kind field
     if (key === 'skill' && val === undefined) delete current.skill;
-    if (key === 'kind' && val !== 'task') {
-      // Leaving task: strip task-only metadata so it stops showing on the card.
-      current.status = 'none';
+    if (key === 'status' && val === 'note') {
+      // Switching to note: strip task-only metadata.
       current.date = '';
       current.recurrence = '';
       delete current.skill;
@@ -423,9 +426,18 @@ export const NoteCard = React.memo(function NoteCard({
         }
       }
     }
-  }, [db, encrypt, decrypt, decryptForFeed, note, props, status, type, targetDate, recurrence, skill, kind]);
+  }, [db, encrypt, decrypt, decryptForFeed, note, props, status, type, targetDate, recurrence, skill]);
 
-  const handleStatus     = (v: string) => { setStatus(v); saveProp('status', v); };
+  const handleStatus = (v: string) => {
+    setStatus(v);
+    if (v === 'note') {
+      setSkill(undefined);
+      setDate('');
+      setRecurrence('');
+      setCompletedAt('');
+    }
+    saveProp('status', v);
+  };
   const handleDate       = (v: string) => { setDate(v);   saveProp('date', v); };
   const handleRecurrence = (v: string) => { setRecurrence(v); saveProp('recurrence', v); };
   const handleSkill      = (v: NoteSkill | undefined) => { setSkill(v); saveProp('skill', v); };
@@ -478,16 +490,15 @@ export const NoteCard = React.memo(function NoteCard({
   const isDragOverSibling = dragOverInfo?.id === note.id && dragOverInfo?.zone === 'sibling';
 
   let baseBg = 'transparent';
-  if (status === 'done')     baseBg = 'rgba(34, 197, 94, 0.06)';
-  else if (status === 'todo')    baseBg = 'rgba(239, 68, 68, 0.06)';
-  else if (status === 'doing')   baseBg = 'rgba(96, 149, 237, 0.09)';
+  if (status === 'done')      baseBg = 'rgba(34, 197, 94, 0.06)';
+  else if (status === 'todo') baseBg = 'rgba(239, 68, 68, 0.06)';
+  else if (status === 'doing') baseBg = 'rgba(96, 149, 237, 0.09)';
   else if (status === 'archived') baseBg = 'var(--bg-hover)';
 
   let finalBg = isReplying ? 'var(--accent-bg)' : baseBg;
 
-  // Show prop row only if there's something meaningful
-  // Show prop row only if there's something meaningful
-  const showProps = (status && status !== 'none') || !!targetDate;
+  // Task chips (date, skill, recurrence) are hidden when status is 'note'
+  const showTaskChips = status !== 'note';
 
   return (
     <div
@@ -633,19 +644,17 @@ export const NoteCard = React.memo(function NoteCard({
                 onMouseDown={e => e.stopPropagation()}
                 onDragStart={e => e.stopPropagation()}
               >
-                {showProps && kind === 'task' && (
-                  <PropChip value={status} options={STATUSES} onChange={handleStatus} />
-                )}
-                {showProps && kind === 'task' && recurrence !== '' && !Number.isNaN(parseInt(recurrence)) && (
+                <PropChip value={status} options={STATUSES} onChange={handleStatus} />
+                {showTaskChips && recurrence !== '' && !Number.isNaN(parseInt(recurrence)) && (
                   <RecurrenceChip value={recurrence} onChange={handleRecurrence} />
                 )}
-                {showProps && kind === 'task' && targetDate && (
+                {showTaskChips && targetDate && (
                   <DateChip value={targetDate} onChange={handleDate} />
                 )}
-                {showProps && kind === 'task' && status === 'done' && completedAt && (
+                {showTaskChips && status === 'done' && completedAt && (
                   <CompletionDateChip value={completedAt} />
                 )}
-                {showProps && kind === 'task' && skill && (
+                {showTaskChips && skill && (
                   <SkillChip value={skill} onChange={handleSkill} existingNames={getAllSkillNames()} />
                 )}
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>

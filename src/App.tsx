@@ -740,6 +740,52 @@ function App() {
     }
   }, []);
 
+  // ── One-time migration: kind field → status='note' ─────────────────
+  // Runs once per device. Converts old kind='note'/status='none' entries
+  // to the new status='note' canonical form, and strips the legacy `kind` field.
+  useEffect(() => {
+    const MIGRATION_KEY = 'sn_status_migration_v1';
+    if (localStorage.getItem(MIGRATION_KEY)) return;
+
+    (async () => {
+      try {
+        const rows = await db.execO(
+          `SELECT id, properties, feed_id FROM notes WHERE is_deleted = 0 AND properties IS NOT NULL`
+        ) as any[];
+        let count = 0;
+        const now = Date.now();
+        for (const row of rows) {
+          try {
+            const dec = row.feed_id ? (s: string) => decryptForFeed(s, row.feed_id) : decrypt;
+            const enc = row.feed_id ? (s: string) => encryptForFeed(s, row.feed_id) : encrypt;
+            const props: any = JSON.parse(dec(row.properties));
+            let changed = false;
+
+            if (props.kind === 'note' || (!props.status || props.status === 'none') && !props.skill && !props.recurrence && !props.date) {
+              props.status = 'note';
+              changed = true;
+            } else if (!props.status || props.status === 'none') {
+              props.status = 'todo';
+              changed = true;
+            }
+
+            if (props.kind) { delete props.kind; changed = true; }
+
+            if (changed) {
+              await db.exec(
+                `UPDATE notes SET properties = ?, updated_at = ? WHERE id = ?`,
+                [enc(JSON.stringify(props)), now, row.id]
+              );
+              count++;
+            }
+          } catch { continue; }
+        }
+        localStorage.setItem(MIGRATION_KEY, '1');
+        if (count > 0) console.log(`[migration] status_v1: updated ${count} notes`);
+      } catch { /* non-fatal */ }
+    })();
+  }, [db, decrypt, decryptForFeed, encrypt, encryptForFeed]);
+
   const handleCloseWhatsNew = () => {
     localStorage.setItem('sn_whats_new_seen', APP_VERSION);
     setShowWhatsNew(false);
@@ -833,7 +879,7 @@ function App() {
       let props: any = {};
       try { props = JSON.parse(n.properties || '{}'); } catch { continue; }
       const status = props.status;
-      if (!status || status === 'none' || status === 'archived') continue;
+      if (!status || status === 'none' || status === 'note' || status === 'archived') continue;
       if (status === 'todo') {
         const noteDate = props.date ? props.date.slice(0, 10) : null;
         if (!noteDate) somedayCount++;

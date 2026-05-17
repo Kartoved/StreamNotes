@@ -127,7 +127,7 @@ export function formatNotesAsMarkdown(notes: NoteObj[], rootId: string | null = 
     if (note.id) propertiesLines.push(`id:: ${note.id}`);
     if (note.created_at) propertiesLines.push(`created_at:: ${new Date(note.created_at).toISOString()}`);
     if (note.author_id) propertiesLines.push(`author:: ${note.author_id.substring(0, 10)}...`);
-    if (propsObj.status && propsObj.status !== 'none') propertiesLines.push(`status:: ${propsObj.status}`);
+    if (propsObj.status && propsObj.status !== 'none' && propsObj.status !== 'note') propertiesLines.push(`status:: ${propsObj.status}`);
     if (propsObj.date) propertiesLines.push(`due_date:: ${propsObj.date}`);
 
     const textContent = tiptapToMarkdown(note.content).trim();

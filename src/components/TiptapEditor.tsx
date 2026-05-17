@@ -17,8 +17,7 @@ import { BacklinkDropdown } from './BacklinkDropdown';
 import { showToast } from './Toast';
 import { RecurrenceChip } from './NoteCard';
 import { SkillChip, NoteSkill } from './SkillChip';
-import { KindChip } from './KindChip';
-import { getNoteKind, NoteKind } from '../utils/noteKind';
+import { getNoteKind } from '../utils/noteKind';
 import { getAllSkillNames } from '../db/notesCache';
 import { CHIP_BASE, CHIP_SELECT } from './chipStyle';
 import { createBacklinkExtension, BacklinkSuggestionCallbacks } from '../editor/extensions/BacklinkExtension';
@@ -243,7 +242,7 @@ function Toolbar({
 }
 
 // ─── Properties Selectors ─────────────────────────────────────────────
-const STATUSES = ['todo', 'doing', 'done', 'archived'];
+const STATUSES = ['note', 'todo', 'doing', 'done', 'archived'];
 
 // ─── hasTextContent helper ────────────────────────────────────────────
 const hasTextContent = (json: any): boolean => {
@@ -313,13 +312,13 @@ export const TweetEditor = ({
   const initP = initialPropsStr ? JSON.parse(initialPropsStr) : {};
   const [type, setType] = useState(initP.type || 'sheaf');
   const [status, setStatus] = useState(
-    initP.status && initP.status !== 'none' ? initP.status : 'todo'
+    !initialPropsStr ? 'todo' :
+    getNoteKind(initP) === 'note' ? 'note' :
+    (initP.status && initP.status !== 'none' ? initP.status : 'todo')
   );
   const [date, setDate] = useState(initP.date || '');
   const [recurrence, setRecurrence] = useState(initP.recurrence || '');
   const [skill, setSkill] = useState<NoteSkill | undefined>(initP.skill);
-  // Fresh entry → default to task. Existing entry → derive from properties.
-  const [kind, setKind] = useState<NoteKind>(initialPropsStr ? getNoteKind(initP) : 'task');
 
   // ── Backlink dropdown state ──
   const [blActive, setBlActive] = useState(false);
@@ -587,17 +586,11 @@ export const TweetEditor = ({
     if (!hasTextContent(json)) return;
 
     // For note kind, strip task-only metadata so it doesn't linger on
-    // the entry. User can re-classify back to task and re-enter values.
-    const payload: any = { type, kind };
-    if (kind === 'task') {
-      payload.status = status;
+    const payload: any = { type, status };
+    if (status !== 'note') {
       payload.date = date;
       payload.recurrence = recurrence;
       if (skill) payload.skill = skill;
-    } else {
-      payload.status = 'none';
-      payload.date = '';
-      payload.recurrence = '';
     }
     onSubmit(JSON.stringify(json), JSON.stringify(payload));
 
@@ -609,9 +602,8 @@ export const TweetEditor = ({
       setDate('');
       setRecurrence('');
       setSkill(undefined);
-      setKind('task');
     }
-  }, [editor, type, kind, status, date, recurrence, skill, onSubmit, initialAst]);
+  }, [editor, type, status, date, recurrence, skill, onSubmit, initialAst]);
   useEffect(() => { handleSubmitRef.current = handleSubmit; }, [handleSubmit]);
   
   // ── Escape: cancel reply / close zen ──
@@ -665,7 +657,7 @@ export const TweetEditor = ({
         <Toolbar
             editor={editor}
             onUpload={(files) => uploadFiles(files)}
-            onExpand={onExpand ? (ast) => onExpand(ast, JSON.stringify({ type, kind, status, date, recurrence, ...(skill ? { skill } : {}) })) : undefined}
+            onExpand={onExpand ? (ast) => onExpand(ast, JSON.stringify({ type, status, date, recurrence, ...(skill ? { skill } : {}) })) : undefined}
             zenMode={zenMode}
             onCancel={onCancel}
             onInsertBacklink={handleInsertBacklink}
@@ -707,12 +699,11 @@ export const TweetEditor = ({
         display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center',
         marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--line)',
       }}>
-        <KindChip value={kind} onChange={setKind} />
-        {kind === 'task' && (
+        <select value={status} onChange={(e) => setStatus(e.target.value)} style={selStyle}>
+          {STATUSES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
+        </select>
+        {status !== 'note' && (
           <>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} style={selStyle}>
-              {STATUSES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
-            </select>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={dateInputStyle} />
               {date && (

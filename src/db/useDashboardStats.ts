@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDB } from './DBContext';
 import { useCrypto } from '../crypto/CryptoContext';
-import { getNoteKind } from '../utils/noteKind';
 
 export interface DashboardStats {
   todoToday: number;
@@ -64,8 +63,8 @@ export function useDashboardStats(feedId: string | null): DashboardStats {
             ? (s: string) => decryptForFeed(s, row.feed_id)
             : decrypt;
           const props = JSON.parse(dec(row.properties));
-          if (getNoteKind(props) !== 'task') continue;
-          // Legacy tasks may carry status='none' — fold into 'todo' for stats.
+          if (props.status === 'note' || props.kind === 'note') continue;
+          // Legacy entries may carry status='none' — fold into 'todo' for stats.
           const status = (!props.status || props.status === 'none') ? 'todo' : props.status;
           if (status === 'archived') continue;
 

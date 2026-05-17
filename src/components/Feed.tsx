@@ -107,7 +107,7 @@ interface FeedProps {
 // Export helpers for use in sidebar
 export { extractTags, extractPlainText };
 
-const STATUSES = ['none', 'todo', 'doing', 'done', 'archived'];
+const STATUSES = ['note', 'todo', 'doing', 'done', 'archived'];
 const TYPES = ['sheaf', 'task', 'document'];
 
 const EMPTY_TAGS: Set<string> = new Set();
