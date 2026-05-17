@@ -372,19 +372,28 @@ export const TweetEditor = ({
   const htCallbacksRef = useRef<HashtagCallbacks>({
     onOpen: () => {}, onUpdate: () => {}, onClose: () => {}, onKeyDown: () => false,
   });
+  const getHtPos = (clientRect: (() => DOMRect | null) | null) => {
+    const rect = clientRect?.();
+    if (rect) return { top: rect.bottom + 6, left: rect.left };
+    // Fallback: position below the editor container when decorator rect unavailable
+    const containerRect = editorContainerRef.current?.getBoundingClientRect();
+    if (containerRect) return { top: containerRect.bottom + 4, left: containerRect.left + 8 };
+    return null;
+  };
+
   htCallbacksRef.current = {
     onOpen: ({ query, clientRect, command }) => {
       htCommandRef.current = command;
       setHtActive(true);
       setHtQuery(query);
-      const rect = clientRect?.();
-      if (rect) setHtPos({ top: rect.bottom + 6, left: rect.left });
+      const pos = getHtPos(clientRect);
+      if (pos) setHtPos(pos);
     },
     onUpdate: ({ query, clientRect, command }) => {
       htCommandRef.current = command;
       setHtQuery(query);
-      const rect = clientRect?.();
-      if (rect) setHtPos({ top: rect.bottom + 6, left: rect.left });
+      const pos = getHtPos(clientRect);
+      if (pos) setHtPos(pos);
     },
     onClose: () => { setHtActive(false); setHtQuery(''); htCommandRef.current = null; },
     onKeyDown: (event) => htDropdownKeyRef.current?.(event) ?? false,
@@ -398,6 +407,7 @@ export const TweetEditor = ({
   // Upload progress: { done, total } | null
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const editorRef = useRef<any>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
 
   const initialContent = React.useMemo(() => {
     if (!initialAst) return undefined;
@@ -631,7 +641,7 @@ export const TweetEditor = ({
   };
 
   return (
-    <div style={zenMode ? {
+    <div ref={editorContainerRef} style={zenMode ? {
       position: 'fixed', inset: 0, zIndex: 3000,
       background: 'var(--bg)',
       color: 'var(--text)',
