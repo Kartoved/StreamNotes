@@ -404,33 +404,51 @@ function App() {
   }, [db]);
 
   // ── Visibility cleanup: free memory when backgrounded (prevents Safari tab kill) ──
+  // iOS Safari fires visibilitychange multiple times in rapid succession when the
+  // app is foregrounded — debounce so we don't thrash sync engine start/stop.
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const onVisChange = () => {
-      if (document.visibilityState === 'hidden') {
-        revokeAllUrls();
-        try { (window as any).__syncEngine?.stop(); } catch (err) { console.warn('[sync] stop on hide failed', err); }
-      } else {
-        try { (window as any).__syncEngine?.start(); } catch (err) { console.warn('[sync] start on visible failed', err); }
-      }
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (document.visibilityState === 'hidden') {
+          revokeAllUrls();
+          try { (window as any).__syncEngine?.stop(); } catch (err) { console.warn('[sync] stop on hide failed', err); }
+        } else {
+          try { (window as any).__syncEngine?.start(); } catch (err) { console.warn('[sync] start on visible failed', err); }
+        }
+      }, 150);
     };
     document.addEventListener('visibilitychange', onVisChange);
-    return () => document.removeEventListener('visibilitychange', onVisChange);
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      document.removeEventListener('visibilitychange', onVisChange);
+    };
   }, []);
 
   // ── iOS virtual keyboard: publish visual-viewport height as --vvh ──
   // Zen editor & modals use `height: var(--vvh, 100dvh)` so the keyboard
-  // doesn't overlap the input area.
+  // doesn't overlap the input area. rAF-throttle: iOS fires resize/scroll
+  // events at very high frequency while the keyboard animates in/out.
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
+    let rafId: number | null = null;
     const update = () => {
-      document.documentElement.style.setProperty('--vvh', `${vv.height}px`);
-      document.documentElement.style.setProperty('--vv-offset', `${vv.offsetTop}px`);
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        try {
+          document.documentElement.style.setProperty('--vvh', `${vv.height}px`);
+          document.documentElement.style.setProperty('--vv-offset', `${vv.offsetTop}px`);
+        } catch { /* ignore */ }
+      });
     };
     update();
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
     return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
     };

@@ -6,7 +6,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' (вместо 'autoUpdate') — новый SW ждёт, пока юзер сам не
+      // перезагрузит страницу. Иначе на iOS Safari страница может неожиданно
+      // перезагрузиться, когда iOS пересоберёт SW после возврата из бэкграунда.
+      registerType: 'prompt',
       includeAssets: ['icons/*.svg'],
       manifest: {
         name: 'Sheafy',
