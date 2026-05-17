@@ -882,42 +882,14 @@ body {
 }
 
 
-/* ── Desktop drag handle (shown on card hover, hidden on mobile) ──── */
-.desktop-drag-handle {
-  display: none;
+/* ── Drag handle — top-right of every card, always visible. ──────── */
+.drag-handle {
   position: absolute;
-  left: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px;
-  height: 44px;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-faint);
-  cursor: grab;
-  z-index: 5;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-.desktop-drag-handle:active { cursor: grabbing; }
-.note-card-inner:hover .desktop-drag-handle { opacity: 0.5; }
-
-@media (min-width: 641px) {
-  .desktop-drag-handle { display: flex; }
-  .note-card-inner .note-content { padding-left: 4px; }
-}
-
-[data-theme="dark"] .note-card-inner .note-content { padding-left: 8px; }
-
-/* ── Mobile drag handle (hidden on desktop) ──────────────────────── */
-.mobile-drag-handle {
-  display: none;
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 28px;
-  height: 44px;
+  top: 4px;
+  right: 4px;
+  width: 32px;
+  height: 32px;
+  display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-faint);
@@ -925,13 +897,10 @@ body {
   touch-action: none;
   z-index: 5;
   opacity: 0.5;
+  transition: opacity 0.15s, color 0.15s;
 }
-
-@media (max-width: 640px) {
-  .mobile-drag-handle { display: flex; }
-  /* Make room for drag handle */
-  .note-card-inner .note-content { padding-right: 28px; }
-}
+.drag-handle:hover  { opacity: 1; }
+.drag-handle:active { cursor: grabbing; }
 
 /* ── Swipe-to-reply hint ──────────────────────────────────────────── */
 .swipe-reply-hint {
