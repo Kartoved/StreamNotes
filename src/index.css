@@ -495,6 +495,7 @@ body {
   line-height: 1.85;
   letter-spacing: 0.01em;
   user-select: text;
+  overflow: hidden; /* BFC: contains list margins so bullet doesn't bleed into chips */
 }
 
 .note-content p { margin: 0; }
