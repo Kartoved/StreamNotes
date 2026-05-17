@@ -27,9 +27,13 @@ const PomodoroRing = ({ secondsLeft, totalSecs, size = 64, phase }: {
   const sw = size >= 100 ? 6 : 4;
   const r = (size - sw * 2) / 2;
   const circ = 2 * Math.PI * r;
-  const pct = totalSecs > 0 ? secondsLeft / totalSecs : 0;
+  const isOvertime = phase === 'overtime';
+  const isReady = phase === 'readyForBreak';
+  const pct = (isOvertime || isReady) ? 0 : (totalSecs > 0 ? secondsLeft / totalSecs : 0);
   const dash = pct * circ;
-  const color = phase === 'work' ? 'var(--text)' : 'var(--text-sub)';
+  const color = (phase === 'work') ? 'var(--text)'
+    : isOvertime ? '#f59e0b'
+    : 'var(--text-sub)';
 
   return (
     <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
@@ -80,6 +84,8 @@ interface DashboardPanelProps {
 
 const PHASE_TOTAL: Record<string, number> = {
   work: 25 * 60,
+  overtime: 25 * 60,
+  readyForBreak: 25 * 60,
   break: 5 * 60,
   longBreak: 15 * 60,
   idle: 25 * 60,
@@ -87,9 +93,11 @@ const PHASE_TOTAL: Record<string, number> = {
 
 const PHASE_LABEL: Record<string, string> = {
   work: 'Работа',
+  overtime: 'Овертайм',
+  readyForBreak: 'Готово!',
   break: 'Перерыв',
   longBreak: 'Длинный перерыв',
-  idle: 'Готов',
+  idle: '',
 };
 
 export const DashboardPanel = ({
@@ -107,6 +115,8 @@ export const DashboardPanel = ({
   };
 
   const totalSecs = PHASE_TOTAL[pomodoro.phase] ?? PHASE_TOTAL.idle;
+  const isOvertime = pomodoro.phase === 'overtime';
+  const isReadyForBreak = pomodoro.phase === 'readyForBreak';
 
   return (
     <div className="dashboard-panel" style={{
@@ -229,13 +239,18 @@ export const DashboardPanel = ({
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             gap: '2px',
           }}>
-            <span style={{
-              fontSize: '1.45rem', fontWeight: 700,
-              color: 'var(--text)', fontFamily: 'var(--font-mono)',
-              letterSpacing: '-0.03em', lineHeight: 1,
-            }}>
-              {formatPomodoroTime(pomodoro.secondsLeft)}
-            </span>
+            {isReadyForBreak ? (
+              <span style={{ fontSize: '1.3rem', lineHeight: 1 }}>✓</span>
+            ) : (
+              <span style={{
+                fontSize: '1.45rem', fontWeight: 700,
+                color: isOvertime ? '#f59e0b' : 'var(--text)',
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '-0.03em', lineHeight: 1,
+              }}>
+                {isOvertime ? '+' : ''}{formatPomodoroTime(pomodoro.secondsLeft)}
+              </span>
+            )}
           </div>
         </div>
 
@@ -254,20 +269,77 @@ export const DashboardPanel = ({
         </div>
 
         {/* Control buttons */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {pomodoro.phase === 'idle' ? (
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {pomodoro.phase === 'idle' && (
             <button onClick={() => pomodoroActions.start()} style={iconBtnStyle(true)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             </button>
-          ) : pomodoro.isRunning ? (
-            <button onClick={pomodoroActions.pause} style={iconBtnStyle(true)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-            </button>
-          ) : (
-            <button onClick={pomodoroActions.resume} style={iconBtnStyle(true)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-            </button>
           )}
+
+          {(pomodoro.phase === 'work' || isOvertime) && (
+            <>
+              {pomodoro.isRunning ? (
+                <button onClick={pomodoroActions.pause} style={iconBtnStyle(true)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+              ) : (
+                <button onClick={pomodoroActions.resume} style={iconBtnStyle(true)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+              )}
+              <button
+                onClick={pomodoroActions.finish}
+                title="Закончить"
+                style={{
+                  ...iconBtnStyle(isOvertime),
+                  ...(isOvertime ? { background: '#f59e0b', border: 'none' } : {}),
+                  width: 'auto', padding: '0 10px', borderRadius: '16px',
+                  fontSize: '0.72rem', fontWeight: 600, fontFamily: 'var(--font-body)',
+                  gap: '4px',
+                }}
+              >
+                Закончить
+              </button>
+            </>
+          )}
+
+          {isReadyForBreak && (
+            <>
+              <button
+                onClick={pomodoroActions.startBreak}
+                style={{
+                  ...iconBtnStyle(true),
+                  width: 'auto', padding: '0 10px', borderRadius: '16px',
+                  fontSize: '0.72rem', fontWeight: 600, fontFamily: 'var(--font-body)',
+                }}
+              >
+                ☕ Отдых
+              </button>
+              <button
+                onClick={() => pomodoroActions.start(pomodoro.taskId, pomodoro.taskTitle)}
+                style={{
+                  ...iconBtnStyle(false),
+                  width: 'auto', padding: '0 10px', borderRadius: '16px',
+                  fontSize: '0.72rem', fontFamily: 'var(--font-body)',
+                }}
+              >
+                🍅 Ещё
+              </button>
+            </>
+          )}
+
+          {(pomodoro.phase === 'break' || pomodoro.phase === 'longBreak') && (
+            pomodoro.isRunning ? (
+              <button onClick={pomodoroActions.pause} style={iconBtnStyle(true)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+              </button>
+            ) : (
+              <button onClick={pomodoroActions.resume} style={iconBtnStyle(true)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+            )
+          )}
+
           {pomodoro.phase !== 'idle' && (
             <button onClick={pomodoroActions.reset} style={iconBtnStyle(false)}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
