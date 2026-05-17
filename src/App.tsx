@@ -891,6 +891,45 @@ function App() {
     return encrypt(text);
   }, [activeFeedId, encryptForFeed, encrypt]);
 
+  const handleRenameTag = useCallback(async (oldTag: string, newTag: string) => {
+    const oldRaw = oldTag.replace(/^#/, '');
+    const newRaw = newTag.replace(/^#/, '');
+    const escaped = oldRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const tagRe = new RegExp(`#${escaped}(?![\\w\\u0400-\\u04FF0-9_])`, 'gi');
+    const now = Date.now();
+    let count = 0;
+    for (const note of allNotes) {
+      if (!tagRe.test(note.content)) { tagRe.lastIndex = 0; continue; }
+      tagRe.lastIndex = 0;
+      const newContent = note.content.replace(tagRe, `#${newRaw}`);
+      const fid = note.feed_id || activeFeedId;
+      const enc = fid ? (s: string) => encryptForFeed(s, fid) : encrypt;
+      putDecryptCache(note.id, now, newContent, note.properties);
+      await db.exec(`UPDATE notes SET content = ?, updated_at = ? WHERE id = ?`, [enc(newContent), now, note.id]);
+      count++;
+    }
+    if (count > 0) showToast(`${oldTag} → ${newTag} (${count} заметок)`, 'success');
+  }, [allNotes, activeFeedId, encrypt, encryptForFeed, db]);
+
+  const handleRenameSkill = useCallback(async (oldName: string, newName: string) => {
+    const now = Date.now();
+    let count = 0;
+    for (const note of allNotes) {
+      let props: Record<string, unknown> = {};
+      try { props = JSON.parse(note.properties || '{}'); } catch { continue; }
+      const skill = props.skill as { name: string; xp: number } | undefined;
+      if (!skill || skill.name !== oldName) continue;
+      skill.name = newName;
+      const newPropsJson = JSON.stringify(props);
+      const fid = note.feed_id || activeFeedId;
+      const enc = fid ? (s: string) => encryptForFeed(s, fid) : encrypt;
+      putDecryptCache(note.id, now, note.content, newPropsJson);
+      await db.exec(`UPDATE notes SET properties = ?, updated_at = ? WHERE id = ?`, [enc(newPropsJson), now, note.id]);
+      count++;
+    }
+    if (count > 0) showToast(`«${oldName}» → «${newName}» (${count} заметок)`, 'success');
+  }, [allNotes, activeFeedId, encrypt, encryptForFeed, db]);
+
   const handleFekError = (err: unknown): boolean => {
     if (err instanceof FekMissingError) {
       showToast(`Ключ шифрования для ленты не загружен — сохранение невозможно. Перезагрузите приложение или проверьте invite.`, 'error');
@@ -1491,6 +1530,8 @@ function App() {
         selectedSkills={selectedSkills}
         toggleSkill={toggleSkill}
         clearSkills={() => setSelectedSkills(new Set())}
+        onRenameTag={handleRenameTag}
+        onRenameSkill={handleRenameSkill}
       />
 
       {fullscreenDraft && (

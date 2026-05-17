@@ -73,7 +73,8 @@
       "Bash(tar -xf /tmp/design.html -C /tmp/)",
       "Bash(npm pkg *)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
-      "Bash(node -e \"require.resolve\\('@tiptap/pm/state'\\)\")"
+      "Bash(node -e \"require.resolve\\('@tiptap/pm/state'\\)\")",
+      "Bash(grep -E \"\\\\.\\(tsx?|json\\)$\")"
     ]
   }
 }

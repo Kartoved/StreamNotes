@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MiniCalendar } from './MiniCalendar';
 import { IconX } from '../components/icons';
 
 export interface SkillStat { name: string; open: number; done: number }
+
+interface CtxMenu {
+  type: 'tag' | 'skill';
+  name: string;
+  x: number;
+  y: number;
+}
 
 interface RightSidebarProps {
   searchQuery: string;
@@ -18,6 +25,8 @@ interface RightSidebarProps {
   selectedSkills: Set<string>;
   toggleSkill: (skill: string) => void;
   clearSkills: () => void;
+  onRenameTag?: (oldTag: string, newTag: string) => Promise<void>;
+  onRenameSkill?: (oldName: string, newName: string) => Promise<void>;
 }
 
 export const RightSidebar = ({
@@ -34,7 +43,54 @@ export const RightSidebar = ({
   selectedSkills,
   toggleSkill,
   clearSkills,
+  onRenameTag,
+  onRenameSkill,
 }: RightSidebarProps) => {
+  const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
+  const [renaming, setRenaming] = useState<{ type: 'tag' | 'skill'; name: string } | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    return () => document.removeEventListener('mousedown', close);
+  }, [ctxMenu]);
+
+  useEffect(() => {
+    if (renaming) renameInputRef.current?.focus();
+  }, [renaming]);
+
+  const handleCtxMenu = (e: React.MouseEvent, type: 'tag' | 'skill', name: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ type, name, x: e.clientX, y: e.clientY });
+  };
+
+  const startRename = () => {
+    if (!ctxMenu) return;
+    const initial = ctxMenu.type === 'tag' ? ctxMenu.name.replace(/^#/, '') : ctxMenu.name;
+    setRenaming({ type: ctxMenu.type, name: ctxMenu.name });
+    setRenameValue(initial);
+    setCtxMenu(null);
+  };
+
+  const submitRename = async () => {
+    if (!renaming) return;
+    const trimmed = renameValue.trim();
+    if (trimmed && renaming.type === 'tag') {
+      const newTag = '#' + trimmed.replace(/^#/, '');
+      if (newTag !== renaming.name) await onRenameTag?.(renaming.name, newTag);
+    } else if (trimmed && renaming.type === 'skill') {
+      if (trimmed !== renaming.name) await onRenameSkill?.(renaming.name, trimmed);
+    }
+    setRenaming(null);
+  };
+
+  const cancelRename = () => setRenaming(null);
+
   return (
     <div className="right-sidebar" style={{
       width: '220px', flexShrink: 0,
@@ -108,11 +164,32 @@ export const RightSidebar = ({
           </div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {allTags.map(tag => (
-              <span
-                key={tag}
-                className={`tag-pill${selectedTags.has(tag) ? ' active' : ''}`}
-                onClick={() => toggleTag(tag)}
-              >{tag}</span>
+              renaming?.type === 'tag' && renaming.name === tag ? (
+                <input
+                  key={tag}
+                  ref={renameInputRef}
+                  value={renameValue}
+                  onChange={e => setRenameValue(e.target.value)}
+                  onBlur={submitRename}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); submitRename(); }
+                    if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+                  }}
+                  style={{
+                    fontSize: '0.72rem', fontFamily: 'var(--font-body)',
+                    background: 'var(--bg-panel)', border: '1px solid var(--accent)',
+                    color: 'var(--text)', borderRadius: 'var(--radius)',
+                    padding: '2px 8px', outline: 'none', minWidth: '60px', maxWidth: '120px',
+                  }}
+                />
+              ) : (
+                <span
+                  key={tag}
+                  className={`tag-pill${selectedTags.has(tag) ? ' active' : ''}`}
+                  onClick={() => toggleTag(tag)}
+                  onContextMenu={e => handleCtxMenu(e, 'tag', tag)}
+                >{tag}</span>
+              )
             ))}
           </div>
         </div>
@@ -133,10 +210,30 @@ export const RightSidebar = ({
             {skillStats.map(s => {
               const active = selectedSkills.has(s.name);
               const faded = s.open === 0;
-              return (
+              return renaming?.type === 'skill' && renaming.name === s.name ? (
+                <div key={s.name} style={{ padding: '2px 8px' }}>
+                  <input
+                    ref={renameInputRef}
+                    value={renameValue}
+                    onChange={e => setRenameValue(e.target.value)}
+                    onBlur={submitRename}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { e.preventDefault(); submitRename(); }
+                      if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+                    }}
+                    style={{
+                      width: '100%', fontSize: '0.78rem', fontFamily: 'var(--font-mono)',
+                      background: 'var(--bg-panel)', border: '1px solid var(--accent)',
+                      color: 'var(--text)', borderRadius: 'var(--radius)',
+                      padding: '2px 6px', outline: 'none',
+                    }}
+                  />
+                </div>
+              ) : (
                 <div
                   key={s.name}
                   onClick={() => toggleSkill(s.name)}
+                  onContextMenu={e => handleCtxMenu(e, 'skill', s.name)}
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '4px 8px', borderRadius: 'var(--radius)',
@@ -165,6 +262,38 @@ export const RightSidebar = ({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {ctxMenu && (
+        <div
+          onMouseDown={e => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            top: ctxMenu.y,
+            left: ctxMenu.x,
+            zIndex: 9999,
+            background: 'var(--bg-panel)',
+            border: '1px solid var(--line)',
+            borderRadius: 'var(--radius)',
+            padding: '4px 0',
+            minWidth: '140px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+          }}
+        >
+          <button
+            onClick={startRename}
+            style={{
+              display: 'block', width: '100%', textAlign: 'left',
+              padding: '7px 14px', background: 'none', border: 'none',
+              color: 'var(--text)', fontSize: '0.8rem', fontFamily: 'var(--font-body)',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+          >
+            Переименовать
+          </button>
         </div>
       )}
     </div>
