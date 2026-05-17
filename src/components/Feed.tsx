@@ -673,7 +673,7 @@ export const Feed = ({
 
   const ConfirmModal = ({ text, onConfirm, onCancel }: { text: string; onConfirm: () => void; onCancel: () => void }) => (
     <div onClick={onCancel} style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '300px', backdropFilter: 'blur(12px)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div data-modal-panel onClick={e => e.stopPropagation()} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '300px', backdropFilter: 'blur(12px)', display: 'flex', flexDirection: 'column', gap: '16px', boxSizing: 'border-box' }}>
         <div style={{ fontSize: '0.95rem', color: 'var(--text-main)', lineHeight: 1.5 }}>{text}</div>
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
           <button onClick={onCancel} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: '6px', padding: '6px 16px', cursor: 'pointer', fontSize: '0.82rem' }}>Отмена</button>

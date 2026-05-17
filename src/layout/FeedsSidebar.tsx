@@ -501,12 +501,14 @@ export const FeedsSidebar = ({
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}
         >
           <div
+            data-modal-panel
             onClick={e => e.stopPropagation()}
             style={{
               background: 'var(--bg)', border: '1px solid var(--line)',
               borderRadius: 'var(--radius-lg)', padding: '24px', width: '400px',
               display: 'flex', flexDirection: 'column', gap: '14px',
               boxShadow: 'var(--shadow-md)',
+              boxSizing: 'border-box',
             }}
           >
             <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)' }}>Поделиться шифлоу</div>
@@ -644,12 +646,14 @@ export const FeedsSidebar = ({
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}
         >
           <div
+            data-modal-panel
             onClick={e => e.stopPropagation()}
             style={{
               background: 'var(--bg)', border: '1px solid var(--line)',
               borderRadius: 'var(--radius-lg)', padding: '24px', width: '400px',
               display: 'flex', flexDirection: 'column', gap: '14px',
               boxShadow: 'var(--shadow-md)',
+              boxSizing: 'border-box',
             }}
           >
             <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)' }}>Import Shared Flow</div>
@@ -688,12 +692,14 @@ export const FeedsSidebar = ({
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}
         >
           <div
+            data-modal-panel
             onClick={e => e.stopPropagation()}
             style={{
               background: 'var(--bg)', border: '1px solid var(--line)',
               borderRadius: '12px', padding: '28px 28px 24px',
               width: '420px', display: 'flex', flexDirection: 'column', gap: '0',
               boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+              boxSizing: 'border-box',
             }}
           >
             {/* Header */}

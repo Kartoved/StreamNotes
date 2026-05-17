@@ -58,7 +58,8 @@ export const HashtagDropdown: React.FC<Props> = ({ query, position, onSelect, on
         position: 'fixed', top: position.top, left: position.left,
         background: 'var(--bg)', border: '1px solid var(--line-strong)',
         borderRadius: 'var(--radius-lg)', zIndex: 10000,
-        minWidth: '160px', maxWidth: '260px',
+        minWidth: 'min(160px, calc(100vw - 24px))',
+        maxWidth: 'min(260px, calc(100vw - 24px))',
         boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
         overflow: 'hidden', maxHeight: '240px', overflowY: 'auto',
       }}

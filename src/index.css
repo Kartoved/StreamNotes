@@ -799,6 +799,67 @@ body {
 
   /* ── Show tab bar on mobile ── */
   .mobile-tab-bar { display: flex !important; }
+
+  /* ── iOS zoom-on-focus: force min 16px on text inputs/textareas ──
+     Safari zooms when a focused field has computed font-size < 16px.
+     Apply only to text-entry controls; selects open a native picker and
+     don't zoom, so we leave their styling alone. */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="date"],
+  input[type="datetime-local"],
+  input:not([type]),
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* ── Tag pills: allow wrapping & truncation on narrow screens ── */
+  .tag-pill {
+    max-width: 100%;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  /* ── Drag handle: bigger touch target on mobile ── */
+  .drag-handle {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  /* ── FAB & scroll-to-top: respect right notch / inset ── */
+  .mobile-fab {
+    right: calc(20px + env(safe-area-inset-right, 0px)) !important;
+  }
+  .scroll-to-top-btn {
+    right: calc(20px + env(safe-area-inset-right, 0px)) !important;
+  }
+
+  /* ── Generic modal sizing: any fixed-width modal becomes responsive.
+        Hooks into the standard pattern: a fixed inset:0 overlay containing
+        a single child panel with inline width. Forces the panel to fill
+        the safe-area-padded overlay. */
+  [data-modal-panel] {
+    width: 100% !important;
+    max-width: 440px !important;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px) !important;
+    overflow-y: auto !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* ── Ultra-narrow phones (iPhone SE / older Android) ──────────────── */
+@media (max-width: 360px) {
+  .note-card-inner {
+    padding: 11px 10px !important;
+  }
+  .main-content {
+    padding: 0.5rem 0.5rem !important;
+  }
 }
 
 /* ── Scroll to top button ─────────────────────────────────────────── */
