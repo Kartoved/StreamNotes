@@ -118,23 +118,6 @@ function defaultProps(overrides = {}) {
 // ── Tests ──────────────────────────────────────────────────────────────
 
 describe('NoteCard — basic render', () => {
-  // Author header is hidden until collab mode ships — see project_attachment_hidden pattern.
-  // Re-enable when AuthorBadge is reattached to the card UI.
-  it.skip('renders "you" label for local author', () => {
-    render(<NoteCard {...defaultProps()} />);
-    expect(screen.getByText('you')).toBeInTheDocument();
-  });
-
-  it.skip('renders truncated author ID for remote author in non-shared feed', () => {
-    const props = defaultProps({
-      note: makeNote({ author_id: 'npub1abc123def456' }),
-      localNpub: 'someone-else',
-    });
-    render(<NoteCard {...props} />);
-    // Shows first 8 chars of the non-matching author_id
-    expect(screen.getByText('npub1abc')).toBeInTheDocument();
-  });
-
   it('renders a timestamp', () => {
     render(<NoteCard {...defaultProps()} />);
     // The time should appear somewhere (exact format is locale-dependent)
@@ -345,32 +328,5 @@ describe('NoteCard — edge cases', () => {
     const { container } = render(<NoteCard {...props} />);
     const card = container.querySelector('.note-card') as HTMLElement;
     expect(card.style.opacity).toBe('1');
-  });
-});
-
-// AuthorBadge is intentionally not rendered until collab mode is implemented.
-describe.skip('NoteCard — shared feed author badge', () => {
-  it('shows AuthorBadge with "you" for local npub in shared feed', () => {
-    const npub = 'npub1localuser';
-    const props = defaultProps({
-      isSharedFeed: true,
-      localNpub: npub,
-      note: makeNote({ author_id: npub }),
-    });
-    render(<NoteCard {...props} />);
-    expect(screen.getByText('you')).toBeInTheDocument();
-  });
-
-  it('shows truncated remote npub in shared feed for non-local author', () => {
-    const localNpub = 'npub1local';
-    const remoteNpub = 'npub1remotexyz9876';
-    const props = defaultProps({
-      isSharedFeed: true,
-      localNpub,
-      note: makeNote({ author_id: remoteNpub }),
-    });
-    render(<NoteCard {...props} />);
-    // AuthorBadge shows first 6 chars + … + last 4 chars
-    expect(screen.getByText(/npub1r.*9876/)).toBeInTheDocument();
   });
 });

@@ -292,6 +292,16 @@ export const DashboardPanel = ({
           </div>
         </div>
 
+        {/* XP counter — accrued minutes from current session (=XP that'll be saved) */}
+        {pomodoro.accumulatedMinutes > 0 && (
+          <span style={{
+            fontSize: '0.7rem', color: 'var(--accent)', fontFamily: 'var(--font-mono)',
+            fontWeight: 600, letterSpacing: '0.02em',
+          }}>
+            +{pomodoro.accumulatedMinutes} XP
+          </span>
+        )}
+
         {/* Session dots (4 per cycle) */}
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           {[0, 1, 2, 3].map(i => {

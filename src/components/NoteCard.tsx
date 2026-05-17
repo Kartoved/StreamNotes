@@ -46,29 +46,6 @@ function normalizeStatus(props: any): string {
   return 'note';
 }
 
-// ── Deterministic color from npub ──────────────────────────────────
-function npubColor(npub: string): string {
-  let hash = 0;
-  for (let i = 0; i < npub.length; i++) hash = ((hash << 5) - hash + npub.charCodeAt(i)) | 0;
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 55%, 55%)`;
-}
-
-function AuthorBadge({ authorId, isLocal }: { authorId: string; isLocal: boolean }) {
-  const { nickname } = useCrypto();
-  const color = npubColor(authorId);
-  const label = isLocal ? nickname : `${authorId.slice(0, 6)}…${authorId.slice(-4)}`;
-  return (
-    <span style={{
-      fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.02em',
-      color: 'var(--text-sub)',
-      fontFamily: 'var(--font-mono)',
-    }}>
-      {label}
-    </span>
-  );
-}
-
 // ── Status chip CSS-variable mappings ───────────────────────────────
 const STATUS_TEXT_VAR: Record<string, string> = {
   note:     'var(--text-faint)',

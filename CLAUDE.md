@@ -70,7 +70,6 @@ Components deep in the virtualizer can't reliably get props/context. Registered 
 ## Hidden-by-default features
 
 - **File attachment button** — hidden via `display: none` at `TiptapEditor.tsx:190`. Full upload pipeline intact. Unhide when file sync ships.
-- **Author badge in NoteCard** — not rendered (collab mode pending). `AuthorBadge` function still exported, tests skipped.
 
 ## Testing
 

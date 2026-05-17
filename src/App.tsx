@@ -875,7 +875,55 @@ function App() {
   const [dashboardStatusFilter, setDashboardStatusFilter] = useState<string | null>(null);
 
   // ── Pomodoro ───────────────────────────────────────────────────────
-  const [pomodoroState, pomodoroActions] = usePomodoro();
+  // Persist accumulated pomodoro minutes as a synthetic "done" note so they
+  // contribute to skill XP via the existing useSkillStats pipeline. Skill name
+  // defaults to "помодоро"; if the task this session was attached to has its
+  // own skill, that name is used instead so the time credits to that skill.
+  const handlePomodoroSessionComplete = useCallback(async (minutes: number, sessionTaskId: string | null) => {
+    if (!db || minutes <= 0) return;
+    let skillName = 'помодоро';
+    let noteFeedId: string | null = activeFeedId;
+    if (sessionTaskId) {
+      try {
+        const rows = await db.execO(
+          `SELECT properties, feed_id FROM notes WHERE id = ? AND is_deleted = 0`,
+          [sessionTaskId]
+        ) as any[];
+        if (rows[0]) {
+          noteFeedId = rows[0].feed_id ?? activeFeedId;
+          const dec = rows[0].feed_id ? (s: string) => decryptForFeed(s, rows[0].feed_id) : decrypt;
+          const props = JSON.parse(dec(rows[0].properties) || '{}');
+          if (props.skill?.name) skillName = props.skill.name;
+        }
+      } catch { /* fall through with defaults */ }
+    }
+    const tgtEnc = noteFeedId ? (s: string) => encryptForFeed(s, noteFeedId!) : encrypt;
+    const today = new Date();
+    const yyyymmdd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const streakBonus = (window as any).__streakMultiplier?.() ?? 0;
+    const noteProps = JSON.stringify({
+      status: 'done',
+      skill: { name: skillName, xp: minutes, streakBonus },
+      completed_at: yyyymmdd,
+    });
+    const noteContent = JSON.stringify({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: `🍅 ${minutes} мин · ${skillName}` }] }],
+    });
+    const id = 'note-' + uid();
+    const now = Date.now();
+    try {
+      await db.exec(
+        `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+        [id, sessionTaskId, nostrPubKey || 'local-user', tgtEnc(noteContent), now.toString(), tgtEnc(noteProps), noteFeedId, now, now]
+      );
+    } catch (e) {
+      if (handleFekError(e)) return;
+      console.warn('Pomodoro session save failed:', e);
+    }
+  }, [db, activeFeedId, decrypt, decryptForFeed, encrypt, encryptForFeed, nostrPubKey]);
+
+  const [pomodoroState, pomodoroActions] = usePomodoro({ onSessionComplete: handlePomodoroSessionComplete });
 
   // ── Streak (daily login + XP multiplier) ──────────────────────────
   const streak = useStreak();
