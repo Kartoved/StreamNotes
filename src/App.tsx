@@ -835,6 +835,7 @@ function App() {
   const [replyingToTweetId, setReplyingToTweetId] = useState<string | null>(null);
   const [editingTweet, setEditingTweet] = useState<any>(null);
   const [fullscreenDraft, setFullscreenDraft] = useState<{ ast: string; propsJson: string; onSubmit: (ast: string, pj: string) => void } | null>(null);
+  const [copyChipModal, setCopyChipModal] = useState<{ chipName: string; sourceFeedId: string | null } | null>(null);
   const fullscreenDraftRef = useRef(fullscreenDraft);
   fullscreenDraftRef.current = fullscreenDraft;
 
@@ -1088,6 +1089,86 @@ function App() {
       if (handleFekError(err)) return;
       throw err;
     }
+  };
+
+  // ── Copy chip to feed ──────────────────────────────────────────────
+  const executeCopyChip = async (chipName: string, sourceFeedId: string | null, targetFeedId: string | null) => {
+    if (!db) return;
+    const srcDec = sourceFeedId ? (s: string) => decryptForFeed(s, sourceFeedId) : decrypt;
+    const tgtEnc = targetFeedId ? (s: string) => encryptForFeed(s, targetFeedId) : encrypt;
+
+    // All non-deleted notes in source feed
+    const allRows: any[] = sourceFeedId
+      ? await db.execO(`SELECT id, parent_id, content, properties, sort_key, author_id, created_at FROM notes WHERE feed_id = ? AND is_deleted = 0`, [sourceFeedId])
+      : await db.execO(`SELECT id, parent_id, content, properties, sort_key, author_id, created_at FROM notes WHERE feed_id IS NULL AND is_deleted = 0`);
+
+    // Find roots: notes that have the chip
+    const chipNoteIds = new Set<string>();
+    const rowsById = new Map<string, any>();
+    for (const row of allRows) {
+      rowsById.set(row.id, row);
+      try {
+        const p = JSON.parse(srcDec(row.properties) || '{}');
+        if (p.skill?.name === chipName) chipNoteIds.add(row.id);
+      } catch { /* skip corrupt row */ }
+    }
+
+    if (chipNoteIds.size === 0) {
+      showToast('Заметки с этим навыком не найдены', 'info');
+      return;
+    }
+
+    // BFS: collect chip roots + all their descendants
+    const childrenOf = new Map<string, string[]>();
+    for (const row of allRows) {
+      if (row.parent_id) {
+        if (!childrenOf.has(row.parent_id)) childrenOf.set(row.parent_id, []);
+        childrenOf.get(row.parent_id)!.push(row.id);
+      }
+    }
+    const allIdsToCopy = new Set<string>(chipNoteIds);
+    const queue = [...chipNoteIds];
+    while (queue.length) {
+      const id = queue.shift()!;
+      for (const childId of childrenOf.get(id) ?? []) {
+        if (!allIdsToCopy.has(childId)) {
+          allIdsToCopy.add(childId);
+          queue.push(childId);
+        }
+      }
+    }
+
+    // Map old IDs → new IDs
+    const idMap = new Map<string, string>();
+    for (const oldId of allIdsToCopy) idMap.set(oldId, 'note-' + uid());
+
+    const now = Date.now();
+    await db.exec('BEGIN');
+    try {
+      let i = 0;
+      for (const oldId of allIdsToCopy) {
+        const row = rowsById.get(oldId);
+        if (!row) continue;
+        const newId = idMap.get(oldId)!;
+        // Roots (chip notes whose parent isn't being copied) become top-level
+        const newParentId = row.parent_id && idMap.has(row.parent_id) ? idMap.get(row.parent_id)! : null;
+        const encContent = tgtEnc(srcDec(row.content));
+        const encProps = tgtEnc(srcDec(row.properties));
+        const sortKey = String(now + i++).padStart(20, '0');
+        await db.exec(
+          `INSERT INTO notes (id, parent_id, author_id, content, sort_key, properties, feed_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+          [newId, newParentId, nostrPubKey || 'local-user', encContent, sortKey, encProps, targetFeedId, now, now]
+        );
+      }
+      await db.exec('COMMIT');
+    } catch (e) {
+      await db.exec('ROLLBACK');
+      showToast('Ошибка при копировании', 'error');
+      throw e;
+    }
+
+    showToast(`Скопировано ${allIdsToCopy.size} заметок`, 'success');
+    setCopyChipModal(null);
   };
 
   // ── Export / Import ────────────────────────────────────────────────
@@ -1588,6 +1669,7 @@ function App() {
             selectedDate={selectedDate}
             statusFilter={dashboardStatusFilter}
             onStartPomodoro={(taskId, taskTitle) => pomodoroActions.start(taskId, taskTitle)}
+            onCopyChip={(name) => setCopyChipModal({ chipName: name, sourceFeedId: activeFeedId })}
           />
         </div>
       </div>
@@ -1704,6 +1786,62 @@ function App() {
         <Suspense fallback={null}>
           <Lightbox url={lightboxEntry.url} name={lightboxEntry.name} onClose={() => setLightboxEntry(null)} />
         </Suspense>
+      )}
+      {copyChipModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 5000, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+          onClick={() => setCopyChipModal(null)}
+        >
+          <div
+            style={{ background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius)', padding: '20px', minWidth: '260px', maxWidth: '380px', width: '100%' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontWeight: 600, fontSize: '0.92rem', marginBottom: '4px' }}>
+              Копировать шиф «{copyChipModal.chipName}»
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-sub)', marginBottom: '14px' }}>
+              Все заметки с этим навыком и их дочерние будут скопированы в выбранную ленту
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {feeds
+                .filter(f => f.id !== copyChipModal.sourceFeedId)
+                .map(f => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => executeCopyChip(copyChipModal.chipName, copyChipModal.sourceFeedId, f.id)}
+                    style={{
+                      background: 'var(--bg-hover)', border: '1px solid var(--line)', borderRadius: '6px',
+                      padding: '10px 14px', textAlign: 'left', cursor: 'pointer',
+                      fontSize: '0.85rem', color: 'var(--text)', fontFamily: 'var(--font-body)',
+                      transition: 'border-color 0.1s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--line)')}
+                  >
+                    {f.name || f.id}
+                  </button>
+                ))
+              }
+              {feeds.filter(f => f.id !== copyChipModal.sourceFeedId).length === 0 && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-faint)', textAlign: 'center', padding: '12px 0' }}>
+                  Нет других лент
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setCopyChipModal(null)}
+              style={{
+                marginTop: '14px', width: '100%', background: 'transparent', border: '1px solid var(--line)',
+                borderRadius: '6px', padding: '8px', fontSize: '0.8rem', color: 'var(--text-faint)',
+                cursor: 'pointer', fontFamily: 'var(--font-body)',
+              }}
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
       )}
       <ToastContainer />
     </div>

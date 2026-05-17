@@ -264,6 +264,7 @@ interface NoteCardProps {
   collapsedChildCount?: number;
   backlinks?: ReadonlyArray<{ id: string; snippet: string }>;
   defaultBacklinksOpen?: boolean;
+  onCopyChip?: (name: string) => void;
 }
 
 export const NoteCard = React.memo(function NoteCard({
@@ -299,6 +300,7 @@ export const NoteCard = React.memo(function NoteCard({
   collapsedChildCount = 0,
   backlinks = EMPTY_BACKLINKS,
   defaultBacklinksOpen = false,
+  onCopyChip,
 }: NoteCardProps) {
   const { decryptForFeed } = useCrypto();
   // note.properties is already decrypted by useNotes → getOrDecrypt
@@ -666,7 +668,7 @@ export const NoteCard = React.memo(function NoteCard({
                   <CompletionDateChip value={completedAt} />
                 )}
                 {showTaskChips && skill && (
-                  <SkillChip value={skill} onChange={handleSkill} existingNames={getAllSkillNames()} />
+                  <SkillChip value={skill} onChange={handleSkill} existingNames={getAllSkillNames()} onCopyChip={onCopyChip} />
                 )}
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {backlinks.length > 0 && (

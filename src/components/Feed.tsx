@@ -102,6 +102,7 @@ interface FeedProps {
   selectedDate?: string | null;
   statusFilter?: string | null;
   onStartPomodoro?: (taskId: string, taskTitle: string) => void;
+  onCopyChip?: (name: string) => void;
 }
 
 // Export helpers for use in sidebar
@@ -138,6 +139,7 @@ export const Feed = ({
   selectedDate = null,
   statusFilter = null,
   onStartPomodoro,
+  onCopyChip,
 }: FeedProps) => {
   const canWrite = myRole !== 'reader';
   const canEditOwn = myRole !== 'reader';
@@ -963,6 +965,7 @@ export const Feed = ({
                   collapsedChildCount={item.collapsedChildCount ?? 0}
                   backlinks={backlinksMap.get(item.note.id) ?? EMPTY_BACKLINKS}
                   defaultBacklinksOpen={!!parentId}
+                  onCopyChip={onCopyChip}
                 />
               );
             })}
