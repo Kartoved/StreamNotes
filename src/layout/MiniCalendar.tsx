@@ -87,10 +87,11 @@ export const MiniCalendar = ({
               {day}
               {hasNotes && !isSelected && (
                 <div style={{
-                  position: 'absolute', bottom: '2px', left: '50%',
+                  position: 'absolute', bottom: '1px', left: '50%',
                   transform: 'translateX(-50%)',
-                  width: '4px', height: '4px',
-                  borderRadius: '50%', background: 'var(--text-sub)',
+                  width: '5px', height: '5px',
+                  borderRadius: '50%',
+                  background: isToday ? 'var(--text)' : 'var(--text-sub)',
                 }} />
               )}
             </div>

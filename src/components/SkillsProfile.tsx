@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useSkillStats } from '../db/useSkillStats';
 import { useStreak } from '../hooks/useStreak';
 import { MAX_FREEZES, MULTIPLIER_CAP } from '../utils/streak';
-import { IconX } from './icons';
+import { IconX, IconFlame, IconSnowflake } from './icons';
 
 interface SkillsProfileProps {
   onClose: () => void;
@@ -98,8 +98,8 @@ const SkillsProfile: React.FC<SkillsProfileProps> = ({ onClose }) => {
           flexWrap: 'wrap',
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <span style={{ fontSize: '1.6rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>
-              🔥 {streak.state.current}
+            <span style={{ fontSize: '1.6rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <IconFlame size={20} />{streak.state.current}
             </span>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)' }}>
               {streak.state.current === 1 ? 'день' : 'дней подряд'}
@@ -107,10 +107,10 @@ const SkillsProfile: React.FC<SkillsProfileProps> = ({ onClose }) => {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.72rem', color: 'var(--text-sub)', fontFamily: 'var(--font-mono)' }}>
             <span>рекорд: <strong style={{ color: 'var(--text)' }}>{streak.state.longest}</strong></span>
-            <span>❄️ заморозок: <strong style={{ color: 'var(--text)' }}>{streak.state.freezes}/{MAX_FREEZES}</strong> <span style={{ color: 'var(--text-faint)' }}>(+1 каждые 7 дн.)</span></span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><IconSnowflake size={11} /> заморозок: <strong style={{ color: 'var(--text)' }}>{streak.state.freezes}/{MAX_FREEZES}</strong> <span style={{ color: 'var(--text-faint)' }}>(+1 каждые 7 дн.)</span></span>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-            <span style={{ fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: streak.multiplier > 0 ? '#f59e0b' : 'var(--text-faint)' }}>
+            <span style={{ fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: streak.multiplier > 0 ? 'var(--text)' : 'var(--text-faint)' }}>
               +{streak.multiplier}%
             </span>
             <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)' }}>

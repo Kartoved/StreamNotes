@@ -2,7 +2,7 @@ import React from 'react';
 import type { DashboardStats } from '../db/useDashboardStats';
 import { PomodoroState, PomodoroActions, formatPomodoroTime } from '../hooks/usePomodoro';
 import type { StreakInfo } from '../hooks/useStreak';
-import { IconX } from '../components/icons';
+import { IconX, IconFlame, IconSnowflake, IconTarget2 } from '../components/icons';
 
 // ── Progress Ring ─────────────────────────────────────────────────────
 const ProgressRing = ({ done, total, size = 72 }: { done: number; total: number; size?: number }) => {
@@ -208,7 +208,7 @@ export const DashboardPanel = ({
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
-          <span>🎯</span><span>Профиль и навыки</span>
+          <IconTarget2 size={13} /><span>Профиль и навыки</span>
         </button>
       )}
 
@@ -232,18 +232,22 @@ export const DashboardPanel = ({
         onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>
-          <span style={{ filter: streak.state.current > 0 ? 'none' : 'grayscale(1) opacity(0.5)' }}>🔥</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>
+          <span style={{ color: streak.state.current > 0 ? 'var(--text)' : 'var(--text-faint)', display: 'flex' }}>
+            <IconFlame size={13} />
+          </span>
           <span style={{ fontWeight: 700, color: 'var(--text)' }}>{streak.state.current}</span>
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-faint)' }}>
-          <span style={{ filter: streak.state.freezes > 0 ? 'none' : 'grayscale(1) opacity(0.4)' }}>❄️</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-faint)' }}>
+          <span style={{ color: streak.state.freezes > 0 ? 'var(--text-sub)' : 'var(--text-faint)', display: 'flex' }}>
+            <IconSnowflake size={12} />
+          </span>
           <span>{streak.state.freezes}</span>
         </span>
         {streak.multiplier > 0 && (
           <span style={{
             fontSize: '0.65rem', fontFamily: 'var(--font-mono)',
-            color: '#f59e0b', fontWeight: 700,
+            color: 'var(--text-sub)', fontWeight: 700, letterSpacing: '0.02em',
           }}>+{streak.multiplier}%</span>
         )}
       </button>

@@ -83,7 +83,9 @@
       "Bash(node -e \"console.log\\(require\\('./package.json'\\).version\\)\")",
       "Bash(curl -s http://localhost:5173/)",
       "Bash(taskkill /F /IM node.exe)",
-      "Bash(exit 0)"
+      "Bash(exit 0)",
+      "Bash(claude --version)",
+      "Bash(npm view *)"
     ]
   }
 }

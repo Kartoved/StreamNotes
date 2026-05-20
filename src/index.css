@@ -19,7 +19,7 @@
   --sidebar-bg:   #f7f6f3;
   --radius:       4px;
   --radius-lg:    6px;
-  --font-body:    'Courier Prime', 'Courier New', monospace;
+  --font-body:    'Inter', system-ui, sans-serif;
   --font-mono:    'DM Mono', 'Courier New', monospace;
   --shadow-sm:    0 1px 2px rgba(15, 15, 15, 0.05);
   --shadow-md:    0 3px 12px rgba(15, 15, 15, 0.1), 0 1px 4px rgba(15, 15, 15, 0.06);
@@ -34,42 +34,42 @@
 }
 
 [data-theme="dark"] {
-  /* ── Palette from V6 Hi-Fi design ── */
-  --bg:           #1c2032;
-  --bg-page:      #141724;
-  --bg-hover:     rgba(255, 255, 255, 0.05);
-  --bg-active:    rgba(124, 156, 255, 0.12);
-  --bg-aside:     #181b2a;
-  --text:         #e9ecf5;
-  --text-sub:     #8990a8;
-  --text-faint:   #3a3f55;
-  --accent:       #7c9cff;
-  --accent-warm:  #d39a4a;
-  --accent-bg:    #2a3255;
-  --line:         #272c40;
-  --line-strong:  #3a3f55;
-  --card-bg:      #1c2032;
-  --sidebar-bg:   #181b2a;
-  --radius:       10px;
-  --radius-lg:    14px;
-  --font-body:    'Inter', sans-serif;
-  --font-mono:    'JetBrains Mono', 'DM Mono', monospace;
-  --shadow-sm:    0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md:    0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3);
-  --shadow-lg:    0 10px 32px rgba(0, 0, 0, 0.6);
-  /* Status chip colors */
-  --chip-todo-bg:   #222a48;
-  --chip-todo-text: #8aa6ff;
-  --chip-doing-bg:  rgba(96, 149, 237, 0.18);
-  --chip-doing-text:#6095ed;
-  --chip-done-bg:   #1f2f24;
-  --chip-done-text: #85c197;
-  /* Note left-border accent colors */
-  --note-accent-todo:     #6b8afd;
-  --note-accent-doing:    #a78bfa;
-  --note-accent-done:     #66a877;
-  --note-accent-archived: #3a3f55;
-  --note-accent-none:     #3a3f55;
+  /* ── Geometric Dark Minimalism — neutral near-black ── */
+  --bg:           #141414;
+  --bg-page:      #0a0a0a;
+  --bg-hover:     rgba(255, 255, 255, 0.04);
+  --bg-active:    rgba(255, 255, 255, 0.08);
+  --bg-aside:     #0d0d0d;
+  --text:         #ededed;
+  --text-sub:     #8a8a8a;
+  --text-faint:   #4a4a4a;
+  --accent:       #ededed;
+  --accent-warm:  #c89a55;
+  --accent-bg:    rgba(255, 255, 255, 0.06);
+  --line:         rgba(255, 255, 255, 0.07);
+  --line-strong:  rgba(255, 255, 255, 0.13);
+  --card-bg:      #161616;
+  --sidebar-bg:   #0d0d0d;
+  --radius:       8px;
+  --radius-lg:    12px;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'DM Mono', 'JetBrains Mono', monospace;
+  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md:    0 4px 14px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-lg:    0 10px 30px rgba(0, 0, 0, 0.7);
+  /* Status chip colors — muted, tuned to neutral palette */
+  --chip-todo-bg:   rgba(196, 90, 90, 0.14);
+  --chip-todo-text: #d97a7a;
+  --chip-doing-bg:  rgba(91, 135, 214, 0.14);
+  --chip-doing-text:#7aa3e6;
+  --chip-done-bg:   rgba(93, 157, 111, 0.14);
+  --chip-done-text: #82bf95;
+  /* Note left-border accent — todo=red, doing=blue, done=green, archived=gray, note=none */
+  --note-accent-todo:     #c45a5a;
+  --note-accent-doing:    #5b87d6;
+  --note-accent-done:     #5d9d6f;
+  --note-accent-archived: #4a4a4a;
+  --note-accent-none:     transparent;
 }
 
 [data-theme="aurora"] {
@@ -514,14 +514,19 @@ body {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* ── Dark theme: left accent border by status ─────────────────────── */
+/* ── Dark theme: left accent border by status (plain notes have no stripe) ── */
 [data-theme="dark"] .note-card-inner::before {
+  content: none;
+}
+[data-theme="dark"] .note-card-inner[data-status="todo"]::before,
+[data-theme="dark"] .note-card-inner[data-status="doing"]::before,
+[data-theme="dark"] .note-card-inner[data-status="done"]::before,
+[data-theme="dark"] .note-card-inner[data-status="archived"]::before {
   content: "";
   position: absolute;
   left: 0; top: 12px; bottom: 12px;
   width: 3px;
   border-radius: 2px;
-  background: var(--note-accent-none);
 }
 [data-theme="dark"] .note-card-inner[data-status="todo"]::before     { background: var(--note-accent-todo); }
 [data-theme="dark"] .note-card-inner[data-status="doing"]::before    { background: var(--note-accent-doing); }

@@ -95,6 +95,26 @@ export const IconNote = ({ size = 15 }: { size?: number }) => (
   </svg>
 );
 
+export const IconFlame = ({ size = 15 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...S}>
+    <path d="M12 2c1 4 5 5 5 10a5 5 0 11-10 0c0-2 1-3 1-5 0 1 1 2 2 2 0-3 1-5 2-7z" />
+  </svg>
+);
+
+export const IconSnowflake = ({ size = 15 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...S}>
+    <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07" />
+  </svg>
+);
+
+export const IconTarget2 = ({ size = 15 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...S}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="5" />
+    <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 export const IconReply = ({ size = 15 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" {...S}>
     <path d="M9 10l-5 5 5 5" />
