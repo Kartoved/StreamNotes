@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { TweetEditor } from './TiptapEditor';
 import { TiptapRender } from '../editor/TiptapViewer';
 import { useCrypto } from '../crypto/CryptoContext';
-import { IconCheck, IconPin, IconRepeat, IconCalendar, IconReply } from './icons';
+import { IconCheck, IconPin, IconRepeat, IconCalendar, IconReply, IconTimer } from './icons';
 import { CHIP_BASE, CHIP_SELECT, CHIP_ACTIVE, CHIP_HEIGHT } from './chipStyle';
 import { SkillChip, NoteSkill } from './SkillChip';
 import { getNoteKind } from '../utils/noteKind';
@@ -497,7 +497,10 @@ export const NoteCard = React.memo(function NoteCard({
       const doc = JSON.parse(note.content);
       const getText = (n: any): string => n.type === 'text' ? (n.text || '') : (n.content || []).map(getText).join('');
       plainText = getText(doc);
-    } catch { plainText = '🍅'; }
+    } catch { plainText = ''; }
+
+    // Strip leading 🍅 emoji stored in content — replaced by icon in render
+    const displayText = plainText.replace(/^🍅\s*/, '');
 
     return (
       <div
@@ -523,8 +526,11 @@ export const NoteCard = React.memo(function NoteCard({
           background: 'transparent',
           borderLeft: '2px solid var(--line)',
         }}>
+          <span style={{ display: 'flex', flexShrink: 0, color: '#f97316' }}>
+            <IconTimer size={13} />
+          </span>
           <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {plainText}
+            {displayText}
           </span>
           <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)' }}>{time}</span>
         </div>

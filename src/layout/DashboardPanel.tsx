@@ -3,7 +3,7 @@ import { Play, Pause, SkipForward, Coffee, RotateCcw, X } from 'lucide-react';
 import type { DashboardStats } from '../db/useDashboardStats';
 import { PomodoroState, PomodoroActions, formatPomodoroTime } from '../hooks/usePomodoro';
 import type { StreakInfo } from '../hooks/useStreak';
-import { IconX, IconTarget2, StreakFlame, FreezeCrystal, XpBolt } from '../components/icons';
+import { IconX, IconTarget2, IconChevronRight, StreakFlame, FreezeCrystal, XpBolt } from '../components/icons';
 
 // ── Progress Ring ─────────────────────────────────────────────────────
 const ProgressRing = ({ done, total, size = 72 }: { done: number; total: number; size?: number }) => {
@@ -114,6 +114,8 @@ interface DashboardPanelProps {
   pomodoroActions: PomodoroActions;
   streak: StreakInfo;
   onOpenSkills?: () => void;
+  nickname?: string;
+  nostrPubKey?: string;
 }
 
 const PHASE_TOTAL: Record<string, number> = {
@@ -137,6 +139,7 @@ const PHASE_LABEL: Record<string, string> = {
 export const DashboardPanel = ({
   activeStatusFilter, onStatusFilter, stats,
   pomodoro, pomodoroActions, streak, onOpenSkills,
+  nickname = 'you', nostrPubKey,
 }: DashboardPanelProps) => {
   const { todoToday, doingToday, doneToday, totalToday, somedayCount, futureCount } = stats;
 
@@ -226,22 +229,44 @@ export const DashboardPanel = ({
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Profile / Skills entry */}
+      {/* Profile row */}
       {onOpenSkills && (
         <button
           onClick={onOpenSkills}
           style={{
-            background: 'transparent', border: '1px solid var(--line)',
-            borderRadius: 'var(--radius)', color: 'var(--text-sub)',
-            fontSize: '0.72rem', padding: '6px 10px',
-            cursor: 'pointer', fontFamily: 'var(--font-body)',
-            margin: '0 4px', transition: 'all 0.1s',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+            background: 'transparent', border: 'none',
+            borderRadius: 'var(--radius)', padding: '6px 8px',
+            cursor: 'pointer', margin: '0 4px',
+            display: 'flex', alignItems: 'center', gap: '9px',
+            transition: 'background 0.1s', width: '100%', textAlign: 'left',
           }}
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
-          <IconTarget2 size={13} /><span>Профиль и навыки</span>
+          {/* Avatar circle */}
+          <div style={{
+            width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
+            background: 'var(--accent-bg)',
+            border: '1px solid var(--line-strong)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '0.72rem', fontWeight: 700, color: 'var(--accent)',
+            fontFamily: 'var(--font-mono)',
+          }}>
+            {nickname.slice(0, 2).toUpperCase()}
+          </div>
+          {/* Name + npub */}
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {nickname}
+            </span>
+            {nostrPubKey && (
+              <span style={{ fontSize: '0.62rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
+                {nostrPubKey.slice(0, 6)}…{nostrPubKey.slice(-4)}
+              </span>
+            )}
+          </div>
+          {/* Chevron */}
+          <IconChevronRight size={13} />
         </button>
       )}
 

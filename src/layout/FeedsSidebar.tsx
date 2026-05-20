@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { IconX } from '../components/icons';
 import { encodeInviteLink, decodeInviteLink } from '../sharing/inviteLink';
 import { QRCodeCanvas } from '../components/QRCode';
@@ -657,8 +658,8 @@ export const FeedsSidebar = ({
         </div>
       </div>
 
-      {/* Context menu */}
-      {ctxMenu && (
+      {/* Context menu + modals — rendered via portal to escape sidebar overflow/stacking context */}
+      {ctxMenu && createPortal((
         <div
           onClick={e => e.stopPropagation()}
           style={{
@@ -736,10 +737,10 @@ export const FeedsSidebar = ({
             Удалить
           </button>
         </div>
-      )}
+      ), document.body)}
 
       {/* Share modal */}
-      {modal === 'share' && (
+      {modal === 'share' && createPortal((
         <div
           onClick={() => setModal(null)}
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}
@@ -881,10 +882,10 @@ export const FeedsSidebar = ({
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Import modal */}
-      {modal === 'import' && (
+      {modal === 'import' && createPortal((
         <div
           onClick={() => setModal(null)}
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}
@@ -927,10 +928,10 @@ export const FeedsSidebar = ({
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Create/Edit modal */}
-      {modal && modal !== 'share' && modal !== 'import' && (
+      {modal && modal !== 'share' && modal !== 'import' && createPortal((
         <div
           onClick={() => setModal(null)}
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}
@@ -1097,7 +1098,7 @@ export const FeedsSidebar = ({
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </>
   );
 };

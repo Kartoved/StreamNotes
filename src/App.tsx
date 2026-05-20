@@ -1510,6 +1510,8 @@ function App() {
         pomodoroActions={pomodoroActions}
         streak={streak}
         onOpenSkills={() => setShowSkills(true)}
+        nickname={nickname}
+        nostrPubKey={nostrPubKey || undefined}
       />
 
       {/* ── Main content ── */}
