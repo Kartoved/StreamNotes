@@ -27,6 +27,7 @@ import { RightSidebar } from './layout/RightSidebar';
 import { DashboardPanel } from './layout/DashboardPanel';
 import { usePomodoro } from './hooks/usePomodoro';
 import { useStreak } from './hooks/useStreak';
+import { useSkillStats } from './db/useSkillStats';
 import { revokeAllUrls } from './utils/opfsFiles';
 import { ToastContainer, showToast } from './components/Toast';
 import { saveBackup, listBackups, loadBackup, deleteBackup, shouldShowBackupReminder, type BackupEntry } from './utils/autoBackup';
@@ -928,6 +929,7 @@ function App() {
 
   // ── Streak (daily login + XP multiplier) ──────────────────────────
   const streak = useStreak();
+  const { grandTotalXp } = useSkillStats();
   const streakRef = useRef(streak);
   streakRef.current = streak;
   useEffect(() => {
@@ -1512,6 +1514,7 @@ function App() {
         onOpenSkills={() => setShowSkills(true)}
         nickname={nickname}
         nostrPubKey={nostrPubKey || undefined}
+        grandTotalXp={grandTotalXp}
       />
 
       {/* ── Main content ── */}

@@ -116,6 +116,7 @@ interface DashboardPanelProps {
   onOpenSkills?: () => void;
   nickname?: string;
   nostrPubKey?: string;
+  grandTotalXp?: number;
 }
 
 const PHASE_TOTAL: Record<string, number> = {
@@ -136,10 +137,20 @@ const PHASE_LABEL: Record<string, string> = {
   idle: '',
 };
 
+function levelFor(xp: number) {
+  let level = 1, remaining = xp;
+  while (true) {
+    const cost = 100 * level;
+    if (remaining < cost) return { level, intoLevel: remaining, nextCost: cost };
+    remaining -= cost;
+    level += 1;
+  }
+}
+
 export const DashboardPanel = ({
   activeStatusFilter, onStatusFilter, stats,
   pomodoro, pomodoroActions, streak, onOpenSkills,
-  nickname = 'you', nostrPubKey,
+  nickname = 'you', nostrPubKey, grandTotalXp = 0,
 }: DashboardPanelProps) => {
   const { todoToday, doingToday, doneToday, totalToday, somedayCount, futureCount } = stats;
 
@@ -192,10 +203,13 @@ export const DashboardPanel = ({
           }}>
             {nickname.slice(0, 2).toUpperCase()}
           </div>
-          {/* Name + npub */}
+          {/* Name + level */}
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
             <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {nickname}
+            </span>
+            <span style={{ fontSize: '0.62rem', color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.04em' }}>
+              LVL {levelFor(grandTotalXp).level}
             </span>
           </div>
           {/* Chevron */}
