@@ -568,7 +568,6 @@ export const FeedsSidebar = ({
                 onTouchEnd={e => handleFeedTouchEnd(e, visibleFeeds)}
                 onClick={() => !draggedId && onSelect(feed.id)}
                 onContextMenu={e => openCtxMenu(e, feed)}
-                onMouseDown={e => { if (e.button === 2) openCtxMenu(e, feed); }}
                 style={{
                   padding: '6px 0', position: 'relative',
                   opacity: isBeingDragged ? 0.35 : 1,
@@ -580,7 +579,9 @@ export const FeedsSidebar = ({
                   ...(isOver && !dragAbove ? { borderBottom: '2px solid var(--accent)', paddingBottom: '4px' } : {}),
                 }}
               >
-                <FeedIcon feed={feed} active={feed.id === activeFeedId} />
+                <div onContextMenu={e => openCtxMenu(e, feed)} style={{ display: 'flex', flexShrink: 0 }}>
+                  <FeedIcon feed={feed} active={feed.id === activeFeedId} />
+                </div>
                 <div className="feed-tooltip">
                   {showArchive ? `[архив] ${feed.name}` : feed.name}
                 </div>
@@ -651,9 +652,9 @@ export const FeedsSidebar = ({
         </div>
       </div>
 
-      {/* Context menu + modals — rendered via portal to escape sidebar overflow/stacking context */}
+      {/* Context menu — rendered via portal (className required for extension blocker + CSS) */}
       {ctxMenu && createPortal((
-        <>
+        <div className="sn-portal-feed-ctx">
           {/* Transparent overlay — catches click/contextmenu outside menu */}
           <div
             style={{ position: 'fixed', inset: 0, zIndex: 2999 }}
@@ -738,12 +739,13 @@ export const FeedsSidebar = ({
             Удалить
           </button>
         </div>
-        </>
+        </div>
       ), document.body)}
 
       {/* Share modal */}
       {modal === 'share' && createPortal((
         <div
+          className="sn-portal-feed-share"
           onClick={() => setModal(null)}
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}
         >
@@ -889,6 +891,7 @@ export const FeedsSidebar = ({
       {/* Import modal */}
       {modal === 'import' && createPortal((
         <div
+          className="sn-portal-feed-import"
           onClick={() => setModal(null)}
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}
         >
@@ -935,6 +938,7 @@ export const FeedsSidebar = ({
       {/* Create/Edit modal */}
       {modal && modal !== 'share' && modal !== 'import' && createPortal((
         <div
+          className="sn-portal-feed-edit"
           onClick={() => setModal(null)}
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}
         >

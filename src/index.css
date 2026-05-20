@@ -1092,7 +1092,7 @@ input::-ms-clear { display: none !important; }
 
 body > iframe,
 #root ~ iframe,
-body > div:not(#root),
+body > div:not(#root):not([class*="sn-portal-"]),
 #root ~ div:not([class]):not([id]) {
   display: none !important;
   visibility: hidden !important;
