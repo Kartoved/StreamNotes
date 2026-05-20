@@ -154,7 +154,7 @@ export const RightSidebar = ({
       {allTags.length > 0 && (
         <div style={{ padding: '0 4px', marginTop: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', gap: '8px' }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '4px' }}>Теги</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '4px' }}>Теги</div>
             {selectedTags.size > 0 && (
               <button
                 onClick={clearTags}
@@ -198,7 +198,7 @@ export const RightSidebar = ({
       {skillStats.length > 0 && (
         <div style={{ padding: '0 4px', marginTop: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', gap: '8px' }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '4px' }}>Навыки</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '4px' }}>Навыки</div>
             {selectedSkills.size > 0 && (
               <button
                 onClick={clearSkills}

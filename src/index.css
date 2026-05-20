@@ -34,42 +34,128 @@
 }
 
 [data-theme="dark"] {
-  /* ── Geometric Dark Minimalism — neutral near-black ── */
-  --bg:           #141414;
-  --bg-page:      #0a0a0a;
-  --bg-hover:     rgba(255, 255, 255, 0.04);
-  --bg-active:    rgba(255, 255, 255, 0.08);
-  --bg-aside:     #0d0d0d;
-  --text:         #ededed;
-  --text-sub:     #8a8a8a;
-  --text-faint:   #4a4a4a;
-  --accent:       #ededed;
-  --accent-warm:  #c89a55;
-  --accent-bg:    rgba(255, 255, 255, 0.06);
-  --line:         rgba(255, 255, 255, 0.07);
-  --line-strong:  rgba(255, 255, 255, 0.13);
-  --card-bg:      #161616;
-  --sidebar-bg:   #0d0d0d;
-  --radius:       8px;
-  --radius-lg:    12px;
+  /* ── Blue-tinted dark (V6 palette) with semantic status stripes ── */
+  --bg:           #1c2032;
+  --bg-page:      #141724;
+  --bg-hover:     rgba(255, 255, 255, 0.05);
+  --bg-active:    rgba(124, 156, 255, 0.12);
+  --bg-aside:     #181b2a;
+  --text:         #e9ecf5;
+  --text-sub:     #8990a8;
+  --text-faint:   #3a3f55;
+  --accent:       #7c9cff;
+  --accent-warm:  #d39a4a;
+  --accent-bg:    #2a3255;
+  --line:         #272c40;
+  --line-strong:  #3a3f55;
+  --card-bg:      #1c2032;
+  --sidebar-bg:   #181b2a;
+  --radius:       10px;
+  --radius-lg:    14px;
   --font-body:    'Inter', system-ui, sans-serif;
   --font-mono:    'DM Mono', 'JetBrains Mono', monospace;
-  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-md:    0 4px 14px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.35);
-  --shadow-lg:    0 10px 30px rgba(0, 0, 0, 0.7);
-  /* Status chip colors — muted, tuned to neutral palette */
-  --chip-todo-bg:   rgba(196, 90, 90, 0.14);
-  --chip-todo-text: #d97a7a;
-  --chip-doing-bg:  rgba(91, 135, 214, 0.14);
-  --chip-doing-text:#7aa3e6;
-  --chip-done-bg:   rgba(93, 157, 111, 0.14);
-  --chip-done-text: #82bf95;
-  /* Note left-border accent — todo=red, doing=blue, done=green, archived=gray, note=none */
+  --shadow-sm:    0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md:    0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg:    0 10px 32px rgba(0, 0, 0, 0.6);
+  /* Status chip colors — semantic (todo=red, doing=blue, done=green) */
+  --chip-todo-bg:   rgba(196, 90, 90, 0.16);
+  --chip-todo-text: #e08a8a;
+  --chip-doing-bg:  rgba(91, 135, 214, 0.18);
+  --chip-doing-text:#8aa6ff;
+  --chip-done-bg:   rgba(93, 157, 111, 0.16);
+  --chip-done-text: #85c197;
+  /* Note left-border accent — semantic; plain notes have no stripe */
   --note-accent-todo:     #c45a5a;
   --note-accent-doing:    #5b87d6;
   --note-accent-done:     #5d9d6f;
-  --note-accent-archived: #4a4a4a;
+  --note-accent-archived: #3a3f55;
   --note-accent-none:     transparent;
+}
+
+/* ══════════════════════════════════════════════════════════════════ */
+/* ── Ember — warm dark, Todoist-style red-orange accent          ── */
+/* ══════════════════════════════════════════════════════════════════ */
+
+[data-theme="ember"] {
+  /* ── Slate Navy — Cryfin-style dark fintech ── */
+  --bg:           #1e2840;
+  --bg-page:      #181f30;
+  --bg-hover:     rgba(255, 255, 255, 0.04);
+  --bg-active:    rgba(78, 180, 200, 0.12);
+  --bg-aside:     #141a28;
+  --text:         #e4eaf5;
+  --text-sub:     #98aac8;
+  --text-faint:   #6878a8;
+  --accent:       #4a7cf0;
+  --accent-warm:  #7aa0f0;
+  --accent-bg:    rgba(74, 124, 240, 0.12);
+  --line:         rgba(255, 255, 255, 0.06);
+  --line-strong:  rgba(255, 255, 255, 0.11);
+  --card-bg:      #1e2840;
+  --sidebar-bg:   #131926;
+  --radius:       10px;
+  --radius-lg:    16px;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'DM Mono', 'JetBrains Mono', monospace;
+  --shadow-sm:    0 1px 4px rgba(0, 0, 0, 0.45);
+  --shadow-md:    0 4px 20px rgba(0, 0, 0, 0.50), 0 1px 5px rgba(0, 0, 0, 0.30);
+  --shadow-lg:    0 12px 36px rgba(0, 0, 0, 0.65);
+  /* Status chips */
+  --chip-todo-bg:   rgba(220, 90, 80, 0.16);
+  --chip-todo-text: #e88880;
+  --chip-doing-bg:  rgba(74, 124, 240, 0.16);
+  --chip-doing-text:#7aa0f0;
+  --chip-done-bg:   rgba(100, 188, 148, 0.16);
+  --chip-done-text: #80c8a0;
+  /* Note left-border accents */
+  --note-accent-todo:     #c85858;
+  --note-accent-doing:    #4a7cf0;
+  --note-accent-done:     #60b888;
+  --note-accent-archived: #6878a8;
+  --note-accent-none:     transparent;
+}
+
+/* Ember: apply the same status-stripe rules as dark theme */
+[data-theme="ember"] .note-card-inner::before { content: none; }
+[data-theme="ember"] .note-card-inner[data-status="todo"]::before,
+[data-theme="ember"] .note-card-inner[data-status="doing"]::before,
+[data-theme="ember"] .note-card-inner[data-status="done"]::before,
+[data-theme="ember"] .note-card-inner[data-status="archived"]::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 12px; bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+}
+[data-theme="ember"] .note-card-inner[data-status="todo"]::before     { background: var(--note-accent-todo); }
+[data-theme="ember"] .note-card-inner[data-status="doing"]::before    { background: var(--note-accent-doing); }
+[data-theme="ember"] .note-card-inner[data-status="done"]::before     { background: var(--note-accent-done); }
+[data-theme="ember"] .note-card-inner[data-status="archived"]::before { background: var(--note-accent-archived); }
+
+[data-theme="ember"] .note-card-inner {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+[data-theme="ember"] .note-card-inner:hover {
+  border-color: var(--line-strong);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 6px 22px rgba(0, 0, 0, 0.50);
+}
+
+/* Ember: header glass */
+[data-theme="ember"] .app-header {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(20, 26, 40, 0.80) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Ember: sidebar */
+[data-theme="ember"] .feeds-sidebar {
+  background: var(--sidebar-bg) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
 [data-theme="aurora"] {
@@ -562,11 +648,8 @@ body {
 }
 .search-bar::placeholder { color: var(--text-faint); }
 .search-bar:focus {
-  border-color: var(--line-strong);
-  box-shadow: 0 0 0 2px rgba(55, 53, 47, 0.08);
-}
-[data-theme="dark"] .search-bar:focus {
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
 }
 
 /* ── Tag pills ────────────────────────────────────────────────────── */
@@ -1065,6 +1148,31 @@ input[type="password"] ~ iframe { display: none !important; }
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* ── Streak icon animations ─────────────────────────────────────── */
+@keyframes streak-pulse {
+  0%, 100% { transform: scale(1);    opacity: 1;    }
+  40%       { transform: scale(1.18); opacity: 1;    }
+  60%       { transform: scale(0.96); opacity: 0.85; }
+}
+
+@keyframes freeze-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes xp-flash {
+  0%, 100% { opacity: 1;    transform: scale(1);    }
+  50%       { opacity: 0.6; transform: scale(0.92); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *[style*="streak-pulse"],
+  *[style*="freeze-spin"],
+  *[style*="xp-flash"] {
+    animation: none !important;
+  }
 }
 
 /* ── Mobile: disable heavy backdrop-filter for glass themes ─────── */

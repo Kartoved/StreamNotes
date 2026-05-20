@@ -67,14 +67,14 @@ export const MiniCalendar = ({
                 cursor: hasNotes ? 'pointer' : 'default',
                 fontSize: '0.85rem',          /* was 0.78rem — ×1.3 */
                 background: isSelected
-                  ? 'var(--text)'
+                  ? 'var(--accent)'
                   : isToday
                     ? 'var(--bg-hover)'
                     : 'transparent',
                 color: isSelected
-                  ? 'var(--bg)'
+                  ? '#fff'
                   : isToday
-                    ? 'var(--text)'
+                    ? 'var(--accent)'
                     : hasNotes
                       ? 'var(--text)'
                       : 'var(--text-faint)',
@@ -91,7 +91,7 @@ export const MiniCalendar = ({
                   transform: 'translateX(-50%)',
                   width: '5px', height: '5px',
                   borderRadius: '50%',
-                  background: isToday ? 'var(--text)' : 'var(--text-sub)',
+                  background: isToday ? 'var(--accent)' : 'var(--text-sub)',
                 }} />
               )}
             </div>

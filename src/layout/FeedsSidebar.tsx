@@ -130,7 +130,7 @@ const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
       width: '40px', height: '40px',
       borderRadius: active ? '12px' : '10px',
       background: isImageAvatar ? 'transparent' : (feed.color || 'var(--bg-aside)'),
-      border: active ? '2px solid var(--text)' : '1px solid transparent',
+      border: active ? '2px solid var(--accent)' : '1px solid transparent',
       outline: active ? '2px solid var(--bg-aside)' : 'none',
       overflow: 'hidden',
       display: 'flex', alignItems: 'center', justifyContent: 'center',

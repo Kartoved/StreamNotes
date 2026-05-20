@@ -1,8 +1,9 @@
 import React from 'react';
+import { Play, Pause, SkipForward, Coffee, RotateCcw, X } from 'lucide-react';
 import type { DashboardStats } from '../db/useDashboardStats';
 import { PomodoroState, PomodoroActions, formatPomodoroTime } from '../hooks/usePomodoro';
 import type { StreakInfo } from '../hooks/useStreak';
-import { IconX, IconFlame, IconSnowflake, IconTarget2 } from '../components/icons';
+import { IconX, IconTarget2, StreakFlame, FreezeCrystal, XpBolt } from '../components/icons';
 
 // ── Progress Ring ─────────────────────────────────────────────────────
 const ProgressRing = ({ done, total, size = 72 }: { done: number; total: number; size?: number }) => {
@@ -21,27 +22,48 @@ const ProgressRing = ({ done, total, size = 72 }: { done: number; total: number;
   );
 };
 
+// ── Phase color palette ───────────────────────────────────────────────
+const PHASE_COLOR: Record<string, string> = {
+  idle:         'var(--accent)',
+  work:         '#f97316',
+  overtime:     '#f59e0b',
+  readyForBreak:'#60b888',
+  break:        '#60b888',
+  longBreak:    '#60b888',
+};
+const PHASE_GLOW: Record<string, string> = {
+  idle:         'transparent',
+  work:         'rgba(249,115,22,0.20)',
+  overtime:     'rgba(245,158,11,0.22)',
+  readyForBreak:'rgba(96,184,136,0.20)',
+  break:        'rgba(96,184,136,0.20)',
+  longBreak:    'rgba(96,184,136,0.20)',
+};
+
 // ── Pomodoro Ring ─────────────────────────────────────────────────────
-const PomodoroRing = ({ secondsLeft, totalSecs, size = 64, phase }: {
+const PomodoroRing = ({ secondsLeft, totalSecs, size = 120, phase }: {
   secondsLeft: number; totalSecs: number; size?: number; phase: string;
 }) => {
-  const sw = size >= 100 ? 6 : 4;
+  const sw = 6;
   const r = (size - sw * 2) / 2;
   const circ = 2 * Math.PI * r;
   const isOvertime = phase === 'overtime';
   const isReady = phase === 'readyForBreak';
-  const pct = (isOvertime || isReady) ? 0 : (totalSecs > 0 ? secondsLeft / totalSecs : 0);
+  const pct = (isOvertime || isReady) ? 0 : (totalSecs > 0 ? secondsLeft / totalSecs : 1);
   const dash = pct * circ;
-  const color = (phase === 'work') ? 'var(--text)'
-    : isOvertime ? '#f59e0b'
-    : 'var(--text-sub)';
+  const color = PHASE_COLOR[phase] ?? 'var(--text-faint)';
 
   return (
     <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={sw} />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={sw}
-        strokeDasharray={`${dash} ${circ - dash}`} strokeLinecap="round"
-        style={{ transition: 'stroke-dasharray 0.8s linear' }} />
+      {/* Track */}
+      <circle cx={size/2} cy={size/2} r={r} fill="none"
+        stroke="var(--line)" strokeWidth={sw} />
+      {/* Progress */}
+      <circle cx={size/2} cy={size/2} r={r} fill="none"
+        stroke={color} strokeWidth={sw}
+        strokeDasharray={`${dash} ${circ - dash}`}
+        strokeLinecap="round"
+        style={{ transition: 'stroke-dasharray 0.8s linear, stroke 0.5s ease' }} />
     </svg>
   );
 };
@@ -212,7 +234,7 @@ export const DashboardPanel = ({
         </button>
       )}
 
-      {/* Streak chip — daily login streak + freezes + XP multiplier */}
+      {/* Streak card */}
       <button
         onClick={onOpenSkills}
         title={
@@ -222,34 +244,43 @@ export const DashboardPanel = ({
           `\nБонус к XP за задачи: +${streak.multiplier}%`
         }
         style={{
-          background: 'transparent', border: '1px solid var(--line)',
+          background: 'var(--bg-hover)', border: '1px solid var(--line)',
           borderRadius: 'var(--radius)', color: 'var(--text-sub)',
-          padding: '6px 10px',
+          padding: '12px 12px 10px',
           cursor: 'pointer', fontFamily: 'var(--font-body)',
-          margin: '0 4px', transition: 'all 0.1s',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px',
+          margin: '0 4px', transition: 'border-color 0.15s, background 0.15s',
+          display: 'flex', flexDirection: 'column', gap: '10px',
+          textAlign: 'left',
         }}
-        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--line-strong)')}
+        onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--line)')}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>
-          <span style={{ color: streak.state.current > 0 ? 'var(--text)' : 'var(--text-faint)', display: 'flex' }}>
-            <IconFlame size={13} />
+        {/* Row 1: flame + big number + label */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <StreakFlame size={22} active={streak.state.current > 0} />
+          <span style={{ fontSize: '1.6rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text)', lineHeight: 1 }}>
+            {streak.state.current}
           </span>
-          <span style={{ fontWeight: 700, color: 'var(--text)' }}>{streak.state.current}</span>
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-faint)' }}>
-          <span style={{ color: streak.state.freezes > 0 ? 'var(--text-sub)' : 'var(--text-faint)', display: 'flex' }}>
-            <IconSnowflake size={12} />
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: '2px' }}>
+            {streak.state.current === 1 ? 'день' : 'дней'}
           </span>
-          <span>{streak.state.freezes}</span>
-        </span>
-        {streak.multiplier > 0 && (
-          <span style={{
-            fontSize: '0.65rem', fontFamily: 'var(--font-mono)',
-            color: 'var(--text-sub)', fontWeight: 700, letterSpacing: '0.02em',
-          }}>+{streak.multiplier}%</span>
-        )}
+        </div>
+
+        {/* Row 2: freeze */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }}>
+          <FreezeCrystal size={15} active={streak.state.freezes > 0} />
+          <span style={{ color: 'var(--text)', fontWeight: 600 }}>{streak.state.freezes}</span>
+          <span style={{ color: 'var(--text-faint)', fontSize: '0.68rem' }}>/ 3 заморозки</span>
+        </div>
+
+        {/* Row 3: XP bolt */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }}>
+          <XpBolt size={15} active={streak.multiplier > 0} />
+          <span style={{ color: streak.multiplier > 0 ? '#f59e0b' : 'var(--text-faint)', fontWeight: 700 }}>
+            +{streak.multiplier}%
+          </span>
+          <span style={{ color: 'var(--text-faint)', fontSize: '0.68rem' }}>бонус XP</span>
+        </div>
       </button>
 
       {/* Divider */}
@@ -258,167 +289,153 @@ export const DashboardPanel = ({
       {/* ── Pomodoro ── */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '8px 4px 4px' }}>
 
-        {/* Title + status */}
+        {/* Title + phase label */}
         <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
             Помодоро
           </span>
-          <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)' }}>
-            {pomodoro.phase === 'idle' ? '' : pomodoro.isRunning ? PHASE_LABEL[pomodoro.phase] : 'Пауза'}
-          </span>
+          {pomodoro.phase !== 'idle' && (
+            <span style={{ fontSize: '0.62rem', color: PHASE_COLOR[pomodoro.phase], fontWeight: 500, letterSpacing: '0.03em' }}>
+              {pomodoro.isRunning ? PHASE_LABEL[pomodoro.phase] : 'Пауза'}
+            </span>
+          )}
         </div>
 
-        {/* Large ring */}
-        <div style={{ position: 'relative' }}>
-          <PomodoroRing
-            secondsLeft={pomodoro.secondsLeft}
-            totalSecs={totalSecs}
-            size={120}
-            phase={pomodoro.phase}
-          />
+        {/* Ring with glow */}
+        <div style={{
+          position: 'relative',
+          borderRadius: '50%',
+          boxShadow: pomodoro.phase !== 'idle' ? `0 0 28px 4px ${PHASE_GLOW[pomodoro.phase]}` : 'none',
+          transition: 'box-shadow 0.6s ease',
+        }}>
+          <PomodoroRing secondsLeft={pomodoro.secondsLeft} totalSecs={totalSecs} size={120} phase={pomodoro.phase} />
           <div style={{
             position: 'absolute', inset: 0,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            gap: '2px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px',
           }}>
             {isReadyForBreak ? (
-              <span style={{ fontSize: '1.3rem', lineHeight: 1 }}>✓</span>
+              <span style={{ fontSize: '1.6rem', color: '#60b888', lineHeight: 1 }}>✓</span>
             ) : (
-              <span style={{
-                fontSize: '1.45rem', fontWeight: 700,
-                color: isOvertime ? '#f59e0b' : 'var(--text)',
-                fontFamily: 'var(--font-mono)',
-                letterSpacing: '-0.03em', lineHeight: 1,
-              }}>
-                {isOvertime ? '+' : ''}{formatPomodoroTime(pomodoro.secondsLeft)}
-              </span>
+              <>
+                <span style={{
+                  fontSize: '1.5rem', fontWeight: 700,
+                  color: PHASE_COLOR[pomodoro.phase] ?? 'var(--text)',
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '-0.03em', lineHeight: 1,
+                  transition: 'color 0.5s ease',
+                }}>
+                  {isOvertime ? '+' : ''}{formatPomodoroTime(pomodoro.secondsLeft)}
+                </span>
+                {pomodoro.accumulatedMinutes > 0 && (
+                  <span style={{ fontSize: '0.62rem', color: '#f59e0b', fontFamily: 'var(--font-mono)', fontWeight: 600, marginTop: '2px' }}>
+                    +{pomodoro.accumulatedMinutes} XP
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
 
-        {/* XP counter — accrued minutes from current session (=XP that'll be saved) */}
-        {pomodoro.accumulatedMinutes > 0 && (
-          <span style={{
-            fontSize: '0.7rem', color: 'var(--accent)', fontFamily: 'var(--font-mono)',
-            fontWeight: 600, letterSpacing: '0.02em',
-          }}>
-            +{pomodoro.accumulatedMinutes} XP
-          </span>
-        )}
-
-        {/* Session dots (4 per cycle) */}
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+        {/* Session pills (4 per cycle) */}
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', width: '100%', padding: '0 8px' }}>
           {[0, 1, 2, 3].map(i => {
             const filled = i < (pomodoro.sessionCount % 4) || (pomodoro.sessionCount > 0 && pomodoro.sessionCount % 4 === 0 && i < 4);
             return (
               <div key={i} style={{
-                width: '6px', height: '6px', borderRadius: '50%',
-                background: filled ? 'var(--text)' : 'var(--line)',
-                transition: 'background 0.3s',
+                flex: 1, height: '4px', borderRadius: '2px',
+                background: filled ? PHASE_COLOR[pomodoro.phase === 'idle' ? 'work' : pomodoro.phase] : 'var(--line)',
+                transition: 'background 0.4s',
               }} />
             );
           })}
         </div>
 
-        {/* Control buttons */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+        {/* Controls */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
+
+          {/* Main action: big circular button */}
           {pomodoro.phase === 'idle' && (
-            <button onClick={() => pomodoroActions.start()} style={iconBtnStyle(true)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <button onClick={() => pomodoroActions.start()} style={primaryBtnStyle}>
+              <Play size={18} strokeWidth={2} fill="currentColor" />
             </button>
           )}
 
           {(pomodoro.phase === 'work' || isOvertime) && (
             <>
-              {pomodoro.isRunning ? (
-                <button onClick={pomodoroActions.pause} style={iconBtnStyle(true)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                </button>
-              ) : (
-                <button onClick={pomodoroActions.resume} style={iconBtnStyle(true)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                </button>
-              )}
+              <button onClick={pomodoro.isRunning ? pomodoroActions.pause : pomodoroActions.resume} style={primaryBtnStyle}>
+                {pomodoro.isRunning
+                  ? <Pause size={18} strokeWidth={2} fill="currentColor" />
+                  : <Play size={18} strokeWidth={2} fill="currentColor" />}
+              </button>
               <button
                 onClick={pomodoroActions.finish}
                 title="Закончить"
                 style={{
                   ...iconBtnStyle(isOvertime),
-                  ...(isOvertime ? { background: '#f59e0b', border: 'none' } : {}),
-                  width: 'auto', padding: '0 10px', borderRadius: '16px',
-                  fontSize: '0.72rem', fontWeight: 600, fontFamily: 'var(--font-body)',
-                  gap: '4px',
+                  ...(isOvertime ? { background: '#f59e0b', border: 'none', color: '#000' } : {}),
+                  width: '36px', height: '36px',
                 }}
               >
-                Закончить
+                <SkipForward size={15} strokeWidth={2} />
               </button>
             </>
           )}
 
           {isReadyForBreak && (
             <>
-              <button
-                onClick={pomodoroActions.startBreak}
-                style={{
-                  ...iconBtnStyle(true),
-                  width: 'auto', padding: '0 10px', borderRadius: '16px',
-                  fontSize: '0.72rem', fontWeight: 600, fontFamily: 'var(--font-body)',
-                }}
-              >
-                ☕ Отдых
+              <button onClick={pomodoroActions.startBreak} style={{ ...secondaryBtnStyle, color: '#60b888', borderColor: 'rgba(96,184,136,0.4)' }}>
+                <Coffee size={14} strokeWidth={2} />
+                <span>Отдых</span>
               </button>
-              <button
-                onClick={() => pomodoroActions.start(pomodoro.taskId, pomodoro.taskTitle)}
-                style={{
-                  ...iconBtnStyle(false),
-                  width: 'auto', padding: '0 10px', borderRadius: '16px',
-                  fontSize: '0.72rem', fontFamily: 'var(--font-body)',
-                }}
-              >
-                🍅 Ещё
+              <button onClick={() => pomodoroActions.start(pomodoro.taskId, pomodoro.taskTitle)} style={secondaryBtnStyle}>
+                <Play size={13} strokeWidth={2} />
+                <span>Ещё</span>
               </button>
             </>
           )}
 
           {(pomodoro.phase === 'break' || pomodoro.phase === 'longBreak') && (
-            pomodoro.isRunning ? (
-              <button onClick={pomodoroActions.pause} style={iconBtnStyle(true)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-              </button>
-            ) : (
-              <button onClick={pomodoroActions.resume} style={iconBtnStyle(true)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-              </button>
-            )
+            <button onClick={pomodoro.isRunning ? pomodoroActions.pause : pomodoroActions.resume} style={primaryBtnStyle}>
+              {pomodoro.isRunning
+                ? <Pause size={18} strokeWidth={2} fill="currentColor" />
+                : <Play size={18} strokeWidth={2} fill="currentColor" />}
+            </button>
           )}
 
           {pomodoro.phase !== 'idle' && (
-            <button onClick={pomodoroActions.reset} style={iconBtnStyle(false)}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            <button onClick={pomodoroActions.reset} style={{ ...iconBtnStyle(false), width: '28px', height: '28px' }}>
+              <RotateCcw size={12} strokeWidth={2} />
             </button>
           )}
         </div>
 
-        {/* Task */}
+        {/* Task chip */}
         {pomodoro.taskTitle ? (
-          <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
+          <div style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: '4px',
+            background: 'var(--bg-hover)', borderRadius: 'var(--radius)',
+            padding: '5px 8px', border: '1px solid var(--line)',
+          }}>
             <span style={{
-              fontSize: '0.65rem', color: 'var(--text-sub)',
+              flex: 1, fontSize: '0.65rem', color: 'var(--text-sub)',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              maxWidth: '120px',
             }} title={pomodoro.taskTitle}>
               {pomodoro.taskTitle}
             </span>
-            <button onClick={() => pomodoroActions.reset()} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0, display: 'flex' }}><IconX size={13} /></button>
+            <button onClick={() => pomodoroActions.reset()} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', padding: 0, lineHeight: 1, display: 'flex', flexShrink: 0 }}>
+              <X size={11} strokeWidth={2} />
+            </button>
           </div>
         ) : (
-          <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)', cursor: 'default' }}>
-            {pomodoro.phase === 'idle' ? 'Задача не выбрана' : ''}
-          </span>
+          pomodoro.phase === 'idle' && (
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)', textAlign: 'center' }}>
+              Начни фокус-сессию
+            </span>
+          )
         )}
 
         {/* Completed today */}
-        <div style={{ fontSize: '0.65rem', color: 'var(--text-faint)', textAlign: 'center' }}>
+        <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', textAlign: 'center' }}>
           {pomodoro.completedToday} выполнено сегодня
         </div>
       </div>
@@ -435,7 +452,36 @@ function iconBtnStyle(primary: boolean): React.CSSProperties {
     color: primary ? 'var(--bg)' : 'var(--text-faint)',
     cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    transition: 'opacity 0.15s',
+    transition: 'opacity 0.15s, transform 0.15s',
     flexShrink: 0,
   };
 }
+
+const primaryBtnStyle: React.CSSProperties = {
+  width: '48px', height: '48px',
+  borderRadius: '50%',
+  border: 'none',
+  background: 'var(--accent)',
+  color: '#fff',
+  cursor: 'pointer',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  boxShadow: '0 4px 14px rgba(74,124,240,0.35)',
+  transition: 'transform 0.15s, box-shadow 0.15s',
+  flexShrink: 0,
+};
+
+const secondaryBtnStyle: React.CSSProperties = {
+  height: '30px',
+  borderRadius: '15px',
+  border: '1px solid var(--line-strong)',
+  background: 'transparent',
+  color: 'var(--text-sub)',
+  cursor: 'pointer',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  gap: '5px',
+  padding: '0 10px',
+  fontSize: '0.72rem', fontWeight: 600,
+  fontFamily: 'var(--font-body)',
+  transition: 'border-color 0.15s, color 0.15s',
+  flexShrink: 0,
+};

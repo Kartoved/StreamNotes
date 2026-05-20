@@ -1,4 +1,4 @@
-export type ThemeId = 'light' | 'dark' | 'aurora' | 'calopteryx' | 'test' | 'holo';
+export type ThemeId = 'light' | 'dark' | 'ember' | 'aurora' | 'calopteryx' | 'test' | 'holo';
 
 export interface ThemeMeta {
   id: ThemeId;
@@ -41,6 +41,19 @@ export const THEMES: ThemeMeta[] = [
       line:     '#2d2d2a',
       text:     '#e8e8e3',
       textSub:  '#4a4a44',
+    },
+  },
+  {
+    id: 'ember',
+    label: 'Slate',
+    defaultFont: 'Inter (Base)',
+    preview: {
+      sidebar:  '#131926',
+      bg:       '#181f30',
+      card:     '#1e2840',
+      line:     'rgba(255,255,255,0.07)',
+      text:     '#e4eaf5',
+      textSub:  '#4a7cf0',
     },
   },
   {

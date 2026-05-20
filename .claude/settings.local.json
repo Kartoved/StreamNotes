@@ -85,7 +85,9 @@
       "Bash(taskkill /F /IM node.exe)",
       "Bash(exit 0)",
       "Bash(claude --version)",
-      "Bash(npm view *)"
+      "Bash(npm view *)",
+      "WebFetch(domain:www.skills.sh)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

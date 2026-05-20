@@ -794,12 +794,13 @@ export const Feed = ({
                 key={opt.id}
                 onClick={() => { setViewMode(opt.id); if (opt.id === 'kanban') setGroupMode('none'); }}
                 style={{
-                  background: viewMode === opt.id ? 'var(--bg)' : 'transparent',
-                  color: viewMode === opt.id ? 'var(--text)' : 'var(--text-faint)',
-                  border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer',
+                  background: viewMode === opt.id ? 'var(--accent-bg)' : 'transparent',
+                  color: viewMode === opt.id ? 'var(--accent)' : 'var(--text-faint)',
+                  border: viewMode === opt.id ? '1px solid rgba(74,124,240,0.25)' : '1px solid transparent',
+                  padding: '4px 8px', borderRadius: '4px', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem',
                   fontWeight: viewMode === opt.id ? 600 : 400,
-                  boxShadow: viewMode === opt.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  boxShadow: 'none',
                   transition: 'all 0.1s',
                 }}
               >
