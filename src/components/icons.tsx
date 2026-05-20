@@ -69,7 +69,7 @@ export const FreezeCrystal = ({
 }) => (
   <span style={{
     display: 'inline-flex',
-    color: active ? '#38bdf8' : 'var(--text-faint)',
+    color: active ? '#4a7cf0' : 'var(--text-faint)',
     filter: active ? 'none' : 'grayscale(1) opacity(0.5)',
     transition: 'color 0.3s, filter 0.3s',
     animation: active ? 'freeze-spin 8s linear infinite' : 'none',
@@ -88,7 +88,7 @@ export const XpBolt = ({
 }) => (
   <span style={{
     display: 'inline-flex',
-    color: active ? '#f59e0b' : 'var(--text-faint)',
+    color: active ? '#4ade80' : 'var(--text-faint)',
     filter: active ? 'none' : 'grayscale(1) opacity(0.45)',
     animation: active ? 'xp-flash 3s ease-in-out infinite' : 'none',
     transition: 'color 0.3s, filter 0.3s',

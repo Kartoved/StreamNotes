@@ -117,7 +117,7 @@ const SkillsProfile: React.FC<SkillsProfileProps> = ({ onClose }) => {
           <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
               <XpBolt size={16} active={streak.multiplier > 0} />
-              <span style={{ color: streak.multiplier > 0 ? '#f59e0b' : 'var(--text-faint)' }}>
+              <span style={{ color: streak.multiplier > 0 ? '#4ade80' : 'var(--text-faint)' }}>
                 +{streak.multiplier}%
               </span>
             </span>

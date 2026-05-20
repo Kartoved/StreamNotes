@@ -287,7 +287,7 @@ export const DashboardPanel = ({
         {/* Row 3: XP bolt */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }}>
           <XpBolt size={15} active={streak.multiplier > 0} />
-          <span style={{ color: streak.multiplier > 0 ? '#f59e0b' : 'var(--text-faint)', fontWeight: 700 }}>
+          <span style={{ color: streak.multiplier > 0 ? '#4ade80' : 'var(--text-faint)', fontWeight: 700 }}>
             +{streak.multiplier}%
           </span>
           <span style={{ color: 'var(--text-faint)', fontSize: '0.68rem' }}>бонус XP</span>
