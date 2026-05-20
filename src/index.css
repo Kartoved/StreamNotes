@@ -619,7 +619,8 @@ body {
   /* ── Main content (feed tab — default) ── */
   .main-content {
     padding: 0.5rem 0.75rem !important;
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    /* tab-bar 56px + FAB clearance (~84px) so the last card never sits under the FAB */
+    padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)) !important;
     overscroll-behavior: contain;
   }
   /* Lock scroll-parent height so the virtualizer can measure without
@@ -737,6 +738,11 @@ body {
     z-index: 200;
     overflow-y: auto;
     overscroll-behavior: contain;
+    animation: mobile-overlay-in 0.18s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  @keyframes mobile-overlay-in {
+    from { transform: translateX(-12%); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
   }
   .mobile-feeds-overlay .feeds-sidebar {
     display: flex !important;
@@ -827,11 +833,9 @@ body {
     overflow-wrap: anywhere;
   }
 
-  /* ── Drag handle: bigger touch target on mobile ── */
-  .drag-handle {
-    width: 40px !important;
-    height: 40px !important;
-  }
+  /* ── Drag handle: hidden on mobile — DnD is desktop-only, the tap-target
+        was hijacking taps near the top-right of the card. ── */
+  .drag-handle { display: none !important; }
 
   /* ── FAB & scroll-to-top: respect right notch / inset ── */
   .mobile-fab {
@@ -891,9 +895,10 @@ body {
 }
 
 @media (max-width: 640px) {
-  /* On mobile FAB (+ button) is at bottom 80px — put scroll-to-top above it */
+  /* FAB hides when scroll-to-top is visible (see App.tsx), so they can share
+     the same slot above the tab-bar instead of stacking. */
   .scroll-to-top-btn {
-    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
     right: 20px;
   }
 }

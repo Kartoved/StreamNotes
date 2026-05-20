@@ -42,10 +42,11 @@ export const HashtagDropdown: React.FC<Props> = ({ query, position, onSelect, on
 
   // Auto-flip above trigger if dropdown would overflow visualViewport
   // (mobile keyboard open). Hook must be called before the early-return.
+  const showHint = total === 0 && q.length === 0; // typed # but no tags yet
   const rootRef = useRef<HTMLDivElement>(null);
-  const adjusted = useDropdownPosition(position, rootRef, [total]);
+  const adjusted = useDropdownPosition(position, rootRef, [total, showHint]);
 
-  if (total === 0) return null;
+  if (total === 0 && !showHint) return null;
 
   const row = (active: boolean): React.CSSProperties => ({
     padding: '7px 12px', cursor: 'pointer',
@@ -61,6 +62,7 @@ export const HashtagDropdown: React.FC<Props> = ({ query, position, onSelect, on
   return createPortal((
     <div
       ref={rootRef}
+      className="sn-portal-dropdown"
       style={{
         position: 'fixed', top: adjusted.top, left: adjusted.left,
         background: 'var(--bg)', border: '1px solid var(--line-strong)',
@@ -88,6 +90,11 @@ export const HashtagDropdown: React.FC<Props> = ({ query, position, onSelect, on
           onMouseEnter={() => setSelectedIdx(filtered.length)}
           style={{ ...row(selectedIdx === filtered.length), color: 'var(--text-faint)', fontStyle: 'italic' }}
         >+ #{q}</div>
+      )}
+      {showHint && (
+        <div style={{ padding: '7px 12px', fontSize: '0.78rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
+          введи название тега
+        </div>
       )}
     </div>
   ), document.body);

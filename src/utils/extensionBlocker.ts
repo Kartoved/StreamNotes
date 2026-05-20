@@ -15,6 +15,10 @@ const OWN_IDS = new Set(['root']);
 function isOwnElement(el: Element): boolean {
   // Direct children we manage
   if (OWN_IDS.has(el.id)) return true;
+  // Our React portals (Hashtag/Backlink dropdowns, touch drag ghost, etc.) —
+  // anything with a className we control. Without this guard the observer
+  // nukes legitimate portal dropdowns the moment they mount.
+  if (typeof el.className === 'string' && el.className.startsWith('sn-portal-')) return true;
   // <script> and <link> / <style> tags are fine
   const tag = el.tagName;
   if (tag === 'SCRIPT' || tag === 'LINK' || tag === 'STYLE' || tag === 'NOSCRIPT') return true;

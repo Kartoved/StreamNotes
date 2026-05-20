@@ -1469,7 +1469,7 @@ function App() {
         if (target.closest?.('.note-card-swipeable')) return;
         // Skip edge swipes (< 20px from edge) — let Android system back gesture handle those
         if (touchStartX.current < 20 || touchStartX.current > window.innerWidth - 20) return;
-        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (Math.abs(dx) > 60 && Math.abs(dy) < 40 && Math.abs(dx) > Math.abs(dy) * 2.2) {
           // Fullscreen editor open: right→left swipe closes it
           if (fullscreenDraftRef.current) {
             if (dx < 0) closeFullscreenDraft();
@@ -1525,7 +1525,7 @@ function App() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
             Ленты
           </button>
-          <h1 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)', flexShrink: 0, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center' }}>
+          <h1 className="app-header-title" style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)', flexShrink: 1, minWidth: 0, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
             {(() => {
               const avatar = activeFeed?.avatar ?? null;
               if (!avatar) return null;
@@ -1533,7 +1533,7 @@ function App() {
               if (LIcon) return <LIcon size={16} style={{ marginRight: '6px', flexShrink: 0, color: 'var(--text)' }} />;
               return <img src={avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '1.2rem', height: '1.2rem', objectFit: 'cover', borderRadius: '50%', marginRight: '6px', flexShrink: 0 }} />;
             })()}
-            {activeFeed?.name || 'Sheafy'}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{activeFeed?.name || 'Sheafy'}</span>
           </h1>
           <span style={{ color: 'var(--text-faint)', fontSize: '0.8rem', flexShrink: 0 }}>
             {focusedTweetId ? '/ ветка' : ''}
@@ -1745,8 +1745,8 @@ function App() {
         />
       )}
 
-      {/* ── Mobile FAB ── */}
-      {myFeedRole !== 'reader' && (
+      {/* ── Mobile FAB (hidden while scroll-to-top is visible to avoid stacking) ── */}
+      {myFeedRole !== 'reader' && !showScrollTop && (
         <button
           className="mobile-fab"
           onClick={() => openFullscreenDraft({ ast: '', propsJson: '{}', onSubmit: insertRootNote })}
@@ -1807,7 +1807,7 @@ function App() {
             icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>,
           },
           {
-            id: 'calendar' as const, label: 'Поиск',
+            id: 'calendar' as const, label: 'Фильтры',
             icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
           },
         ]).map(tab => (
@@ -1833,6 +1833,7 @@ function App() {
           onClick={() => setCopyNoteModal(null)}
         >
           <div
+            data-modal-panel
             style={{ background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius)', padding: '20px', minWidth: '260px', maxWidth: '380px', width: '100%' }}
             onClick={e => e.stopPropagation()}
           >

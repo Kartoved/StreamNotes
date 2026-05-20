@@ -976,7 +976,7 @@ export const Feed = ({
 
       {/* Touch drag ghost */}
       {touchDragActive && createPortal(
-        <div style={{
+        <div className="sn-portal-drag-ghost" style={{
           position: 'fixed',
           left: touchGhostPos.x - 110,
           top: touchGhostPos.y - 36,

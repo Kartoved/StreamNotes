@@ -418,6 +418,12 @@ export const TweetEditor = ({
     extensions: [
       StarterKit.configure({
         codeBlock: false, // We use our own
+        // StarterKit v3 ships Link + Underline by default; we register
+        // configured versions below (Link needs the note:// protocol), so
+        // disable the built-ins to avoid "Duplicate extension names" which
+        // breaks Suggestion plugin keys (hashtag/backlink dropdowns).
+        link: false,
+        underline: false,
         bulletList: { HTMLAttributes: { class: 'editor-ul' } },
         orderedList: { HTMLAttributes: { class: 'editor-ol' } },
         listItem: { HTMLAttributes: { class: 'editor-listitem' } },

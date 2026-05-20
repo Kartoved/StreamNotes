@@ -118,6 +118,7 @@ export const BacklinkDropdown: React.FC<Props> = ({ query, position, onSelect, o
   return createPortal((
     <div
       ref={rootRef}
+      className="sn-portal-dropdown"
       style={{
         position: 'fixed',
         top: adjusted.top,
