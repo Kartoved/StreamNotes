@@ -262,8 +262,8 @@ describe('Feed — context menu', () => {
     const card = screen.getByTestId('note-card');
     fireEvent.contextMenu(card);
 
-    // Context menu items include 'Ответить', 'Редактировать', etc.
-    expect(screen.getByText('Ответить')).toBeInTheDocument();
+    // Context menu items: Reply now lives as a chip on the card itself, not in
+    // this menu. Edit/Delete are still here.
     expect(screen.getByText('Редактировать')).toBeInTheDocument();
     expect(screen.getByText(/Удалить/)).toBeInTheDocument();
   });
@@ -275,14 +275,13 @@ describe('Feed — context menu', () => {
 
     const card = screen.getByTestId('note-card');
     fireEvent.contextMenu(card);
-    expect(screen.getByText('Ответить')).toBeInTheDocument();
+    expect(screen.getByText('Редактировать')).toBeInTheDocument();
 
     // Navigate up from the button → menu box → overlay (which has closeContextMenu)
-    // Structure: overlay > menuBox > button
-    const overlay = screen.getByText('Ответить').closest('[style*="4000"]') as HTMLElement;
+    const overlay = screen.getByText('Редактировать').closest('[style*="4000"]') as HTMLElement;
     fireEvent.click(overlay);
 
-    expect(screen.queryByText('Ответить')).not.toBeInTheDocument();
+    expect(screen.queryByText('Редактировать')).not.toBeInTheDocument();
   });
 
   it('shows delete confirmation modal when "Удалить" is clicked in context menu', async () => {

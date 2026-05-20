@@ -1058,6 +1058,25 @@ body {
 .drag-handle:hover  { opacity: 1; }
 .drag-handle:active { cursor: grabbing; }
 
+/* ── Reply chip — inline in footer, left of timestamp ───────────── */
+.note-reply-chip-inline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+.note-card-inner:hover .note-reply-chip-inline { opacity: 0.85; }
+.note-reply-chip-inline:hover { opacity: 1 !important; color: var(--accent); background: var(--bg-hover); }
+
 /* ── Swipe-to-reply hint ──────────────────────────────────────────── */
 .swipe-reply-hint {
   position: absolute;

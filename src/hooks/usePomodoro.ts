@@ -30,6 +30,43 @@ function secsForPhase(p: PomodoroPhase): number {
   }
 }
 
+// ── Session persistence (localStorage; taskTitle resolved from DB on load) ──
+const STATE_KEY = 'sn_pomodoro_state_v1';
+
+interface PersistedState {
+  phase: PomodoroPhase;
+  prevPhase: PomodoroPhase;
+  taskId: string | null;
+  isRunning: boolean;
+  secondsLeft: number;
+  endTime: number | null;
+  overtimeStartTime: number | null;
+  sessionCount: number;
+  accumulatedMinutes: number;
+  minuteAccrualStart: number | null;
+}
+
+function loadPersistedState(): PersistedState | null {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedState;
+  } catch {
+    return null;
+  }
+}
+
+function persistState(s: PersistedState) {
+  try {
+    // Don't persist a clean idle state — keep localStorage tidy.
+    if (s.phase === 'idle' && s.sessionCount === 0 && s.accumulatedMinutes === 0 && s.taskId === null) {
+      localStorage.removeItem(STATE_KEY);
+      return;
+    }
+    localStorage.setItem(STATE_KEY, JSON.stringify(s));
+  } catch { /* ignore quota errors */ }
+}
+
 export interface PomodoroState {
   phase: PomodoroPhase;
   secondsLeft: number;   // countdown for work/break; elapsed for overtime
@@ -56,29 +93,82 @@ export interface PomodoroActions {
   finish: () => void;      // end work/overtime → readyForBreak
   startBreak: () => void;  // readyForBreak → break/longBreak
   reset: () => void;
+  // Hydrate the task title after a page reload (taskId persists; title doesn't,
+  // because it's plaintext content that the master key has to decrypt first).
+  setTaskTitle: (title: string) => void;
 }
 
 export function usePomodoro(options?: PomodoroOptions): [PomodoroState, PomodoroActions] {
-  const [phase, setPhase] = useState<PomodoroPhase>('idle');
-  const [secondsLeft, setSecondsLeft] = useState(WORK_SECS);
-  const [isRunning, setIsRunning] = useState(false);
-  const [taskId, setTaskId] = useState<string | null>(null);
+  // ── Restore from localStorage if present ──────────────────────────────
+  // Compute fresh state from persisted snapshot — pure function, no side
+  // effects, suitable for useState lazy init.
+  const restored = (() => {
+    const p = loadPersistedState();
+    if (!p) return null;
+    const now = Date.now();
+    let phase = p.phase;
+    let isRunning = p.isRunning;
+    let secondsLeft = p.secondsLeft;
+    let endTime = p.endTime;
+    let overtimeStartTime = p.overtimeStartTime;
+
+    if (isRunning) {
+      // Running countdown — check if it expired during reload/while closed.
+      if ((phase === 'work' || phase === 'break' || phase === 'longBreak') && endTime !== null) {
+        if (now >= endTime) {
+          // Timer expired while away — transition to overtime, anchor start at endTime.
+          overtimeStartTime = endTime;
+          secondsLeft = Math.round((now - endTime) / 1000);
+          endTime = null;
+          phase = 'overtime';
+        } else {
+          secondsLeft = Math.round((endTime - now) / 1000);
+        }
+      } else if (phase === 'overtime' && overtimeStartTime !== null) {
+        secondsLeft = Math.round((now - overtimeStartTime) / 1000);
+      }
+    }
+
+    // Recompute minutes that ticked over while we were gone.
+    let extraMinutes = 0;
+    let minuteAccrualStart = p.minuteAccrualStart;
+    if (isRunning && minuteAccrualStart !== null) {
+      const elapsedMs = now - minuteAccrualStart;
+      const full = Math.floor(elapsedMs / 60_000);
+      if (full > 0) {
+        extraMinutes = full;
+        minuteAccrualStart += full * 60_000;
+      }
+    }
+
+    return {
+      phase, isRunning, secondsLeft, endTime, overtimeStartTime,
+      taskId: p.taskId, prevPhase: p.prevPhase,
+      sessionCount: p.sessionCount,
+      accumulatedMinutes: p.accumulatedMinutes + extraMinutes,
+      minuteAccrualStart,
+    };
+  })();
+
+  const [phase, setPhase] = useState<PomodoroPhase>(restored?.phase ?? 'idle');
+  const [secondsLeft, setSecondsLeft] = useState(restored?.secondsLeft ?? WORK_SECS);
+  const [isRunning, setIsRunning] = useState(restored?.isRunning ?? false);
+  const [taskId, setTaskId] = useState<string | null>(restored?.taskId ?? null);
   const [taskTitle, setTaskTitle] = useState<string | null>(null);
   const [completedToday, setCompletedToday] = useState(getCompletedToday);
-  const [sessionCount, setSessionCount] = useState(0);
-  const [accumulatedMinutes, setAccumulatedMinutes] = useState(0);
+  const [sessionCount, setSessionCount] = useState(restored?.sessionCount ?? 0);
+  const [accumulatedMinutes, setAccumulatedMinutes] = useState(restored?.accumulatedMinutes ?? 0);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const endTimeRef = useRef<number | null>(null);       // countdown end wall-clock
-  const overtimeStartRef = useRef<number | null>(null); // overtime start wall-clock
-  const phaseRef = useRef<PomodoroPhase>('idle');
-  const prevPhaseRef = useRef<PomodoroPhase>('idle');   // phase that led into overtime
-  const sessionCountRef = useRef(0);
-  const isRunningRef = useRef(false);
-  // XP minute tracking — wall-clock to survive bg/foreground transitions.
-  const minuteAccrualStartRef = useRef<number | null>(null); // when current accruing minute started
-  const accumulatedMinutesRef = useRef(0);
-  const taskIdRef = useRef<string | null>(null);
+  const endTimeRef = useRef<number | null>(restored?.endTime ?? null);
+  const overtimeStartRef = useRef<number | null>(restored?.overtimeStartTime ?? null);
+  const phaseRef = useRef<PomodoroPhase>(restored?.phase ?? 'idle');
+  const prevPhaseRef = useRef<PomodoroPhase>(restored?.prevPhase ?? 'idle');
+  const sessionCountRef = useRef(restored?.sessionCount ?? 0);
+  const isRunningRef = useRef(restored?.isRunning ?? false);
+  const minuteAccrualStartRef = useRef<number | null>(restored?.minuteAccrualStart ?? null);
+  const accumulatedMinutesRef = useRef(restored?.accumulatedMinutes ?? 0);
+  const taskIdRef = useRef<string | null>(restored?.taskId ?? null);
   const onSessionCompleteRef = useRef(options?.onSessionComplete);
   onSessionCompleteRef.current = options?.onSessionComplete;
 
@@ -87,6 +177,23 @@ export function usePomodoro(options?: PomodoroOptions): [PomodoroState, Pomodoro
   isRunningRef.current = isRunning;
   taskIdRef.current = taskId;
   accumulatedMinutesRef.current = accumulatedMinutes;
+
+  // Snapshot current state for persistence. Pull from refs (live values) where
+  // possible; React state lags by one render, but refs are always current.
+  const persist = useCallback((override?: { secondsLeft?: number }) => {
+    persistState({
+      phase: phaseRef.current,
+      prevPhase: prevPhaseRef.current,
+      taskId: taskIdRef.current,
+      isRunning: isRunningRef.current,
+      secondsLeft: override?.secondsLeft ?? secondsLeft,
+      endTime: endTimeRef.current,
+      overtimeStartTime: overtimeStartRef.current,
+      sessionCount: sessionCountRef.current,
+      accumulatedMinutes: accumulatedMinutesRef.current,
+      minuteAccrualStart: minuteAccrualStartRef.current,
+    });
+  }, [secondsLeft]);
 
   const notify = useCallback((msg: string) => {
     if ('Notification' in window && Notification.permission === 'granted') {
@@ -104,15 +211,18 @@ export function usePomodoro(options?: PomodoroOptions): [PomodoroState, Pomodoro
   // Accrue elapsed full minutes into accumulated counter (wall-clock based, so
   // background tabs don't miss ticks). Call from anywhere — recomputes from
   // minuteAccrualStartRef. Resets the anchor to the boundary remainder.
-  const accrueMinutes = useCallback(() => {
-    if (minuteAccrualStartRef.current === null) return;
+  // Returns true if any minutes were added (caller may want to persist).
+  const accrueMinutes = useCallback((): boolean => {
+    if (minuteAccrualStartRef.current === null) return false;
     const elapsedMs = Date.now() - minuteAccrualStartRef.current;
     const fullMin = Math.floor(elapsedMs / 60_000);
     if (fullMin > 0) {
       accumulatedMinutesRef.current += fullMin;
       setAccumulatedMinutes(accumulatedMinutesRef.current);
       minuteAccrualStartRef.current += fullMin * 60_000;
+      return true;
     }
+    return false;
   }, []);
 
   // Persist accumulated minutes to a callback (creates a "done" note in App).
@@ -139,9 +249,18 @@ export function usePomodoro(options?: PomodoroOptions): [PomodoroState, Pomodoro
       : 'Перерыв закончился! Нажми «Закончить» когда готов 🍅';
     notify(msg);
     phaseRef.current = 'overtime';
+    isRunningRef.current = true;
     setPhase('overtime');
     setSecondsLeft(0);
     setIsRunning(true);
+    persistState({
+      phase: 'overtime', prevPhase: prevPhaseRef.current,
+      taskId: taskIdRef.current, isRunning: true, secondsLeft: 0,
+      endTime: null, overtimeStartTime: overtimeStartRef.current,
+      sessionCount: sessionCountRef.current,
+      accumulatedMinutes: accumulatedMinutesRef.current,
+      minuteAccrualStart: minuteAccrualStartRef.current,
+    });
   }, [clearTick, notify]);
 
   // Tick — handles both countdown and overtime count-up, plus minute XP accrual.
@@ -193,7 +312,7 @@ export function usePomodoro(options?: PomodoroOptions): [PomodoroState, Pomodoro
       if (!isRunningRef.current) return;
 
       // Catch up any minutes that ticked over while tab was hidden.
-      accrueMinutes();
+      const accrued = accrueMinutes();
 
       const p = phaseRef.current;
 
@@ -201,6 +320,7 @@ export function usePomodoro(options?: PomodoroOptions): [PomodoroState, Pomodoro
         if (overtimeStartRef.current === null) return;
         const elapsed = Math.round((Date.now() - overtimeStartRef.current) / 1000);
         setSecondsLeft(elapsed);
+        if (accrued) persist({ secondsLeft: elapsed });
         return;
       }
 
@@ -210,11 +330,18 @@ export function usePomodoro(options?: PomodoroOptions): [PomodoroState, Pomodoro
         handleTimeUp();
       } else {
         setSecondsLeft(remaining);
+        if (accrued) persist({ secondsLeft: remaining });
       }
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [handleTimeUp, accrueMinutes]);
+  }, [handleTimeUp, accrueMinutes, persist]);
+
+  // Persist whenever accumulated minutes change (minute boundary while running).
+  useEffect(() => {
+    if (isRunningRef.current) persist();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accumulatedMinutes]);
 
   const requestNotificationPermission = useCallback(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -233,38 +360,45 @@ export function usePomodoro(options?: PomodoroOptions): [PomodoroState, Pomodoro
       prevPhaseRef.current = 'idle';
       sessionCountRef.current = 0;
       setSessionCount(0);
+      taskIdRef.current = tid ?? null;
       setTaskId(tid ?? null);
       setTaskTitle(title ?? null);
       phaseRef.current = 'work';
       setPhase('work');
       setSecondsLeft(WORK_SECS);
       minuteAccrualStartRef.current = Date.now();
+      isRunningRef.current = true;
       setIsRunning(true);
-    }, [requestNotificationPermission, clearTick, flushSession]),
+      persist({ secondsLeft: WORK_SECS });
+    }, [requestNotificationPermission, clearTick, flushSession, persist]),
 
     pause: useCallback(() => {
       // Bank earned minutes; stop accruing while paused.
       accrueMinutes();
       minuteAccrualStartRef.current = null;
+      let frozenSecs = secondsLeft;
       if (phaseRef.current === 'overtime') {
-        // freeze elapsed time
         if (overtimeStartRef.current !== null) {
-          const elapsed = Math.round((Date.now() - overtimeStartRef.current) / 1000);
-          setSecondsLeft(elapsed);
+          frozenSecs = Math.round((Date.now() - overtimeStartRef.current) / 1000);
+          setSecondsLeft(frozenSecs);
         }
         clearTick();
         overtimeStartRef.current = null;
+        isRunningRef.current = false;
         setIsRunning(false);
+        persist({ secondsLeft: frozenSecs });
         return;
       }
       if (endTimeRef.current !== null) {
-        const remaining = Math.round((endTimeRef.current - Date.now()) / 1000);
-        setSecondsLeft(Math.max(0, remaining));
+        frozenSecs = Math.max(0, Math.round((endTimeRef.current - Date.now()) / 1000));
+        setSecondsLeft(frozenSecs);
       }
       clearTick();
       endTimeRef.current = null;
+      isRunningRef.current = false;
       setIsRunning(false);
-    }, [clearTick, accrueMinutes]),
+      persist({ secondsLeft: frozenSecs });
+    }, [clearTick, accrueMinutes, persist, secondsLeft]),
 
     resume: useCallback(() => {
       minuteAccrualStartRef.current = Date.now();
@@ -272,23 +406,28 @@ export function usePomodoro(options?: PomodoroOptions): [PomodoroState, Pomodoro
         // Resume overtime: anchor start so elapsed is correct.
         // secondsLeft holds the elapsed time frozen at pause.
         overtimeStartRef.current = Date.now() - secondsLeft * 1000;
+        isRunningRef.current = true;
         setIsRunning(true);
+        persist();
         return;
       }
-      endTimeRef.current = null;
+      // Re-anchor end time from frozen secondsLeft.
+      endTimeRef.current = Date.now() + secondsLeft * 1000;
+      isRunningRef.current = true;
       setIsRunning(true);
-    // secondsLeft needed for overtime resume anchor
+      persist();
+    // secondsLeft needed for resume anchor calculation
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [secondsLeft]),
+    }, [secondsLeft, persist]),
 
     finish: useCallback(() => {
       clearTick();
       endTimeRef.current = null;
       overtimeStartRef.current = null;
       const fromWork = prevPhaseRef.current === 'work';
+      let finalSecs = 0;
       if (fromWork) {
         // Finishing work overtime — keep accruing through readyForBreak->break.
-        // No flush yet; session continues.
         const newSessions = sessionCountRef.current + 1;
         sessionCountRef.current = newSessions;
         setSessionCount(newSessions);
@@ -296,33 +435,40 @@ export function usePomodoro(options?: PomodoroOptions): [PomodoroState, Pomodoro
         phaseRef.current = 'readyForBreak';
         setPhase('readyForBreak');
         setSecondsLeft(0);
-        // Pause accrual while waiting for user to start break (idle wait).
         accrueMinutes();
         minuteAccrualStartRef.current = null;
       } else {
         // Finishing break overtime → session complete. Persist & reset.
         flushSession();
         phaseRef.current = 'idle';
+        prevPhaseRef.current = 'idle';
         setPhase('idle');
+        finalSecs = WORK_SECS;
         setSecondsLeft(WORK_SECS);
+        taskIdRef.current = null;
+        setTaskId(null);
+        setTaskTitle(null);
       }
+      isRunningRef.current = false;
       setIsRunning(false);
-    }, [clearTick, accrueMinutes, flushSession]),
+      persist({ secondsLeft: finalSecs });
+    }, [clearTick, accrueMinutes, flushSession, persist]),
 
     startBreak: useCallback(() => {
       const longBreak = sessionCountRef.current % 4 === 0;
       const nextPhase: PomodoroPhase = longBreak ? 'longBreak' : 'break';
       const nextSecs = secsForPhase(nextPhase);
       clearTick();
-      endTimeRef.current = null;
+      endTimeRef.current = Date.now() + nextSecs * 1000;
       overtimeStartRef.current = null;
       phaseRef.current = nextPhase;
       setPhase(nextPhase);
       setSecondsLeft(nextSecs);
-      // Resume accrual for the break phase.
       minuteAccrualStartRef.current = Date.now();
+      isRunningRef.current = true;
       setIsRunning(true);
-    }, [clearTick]),
+      persist({ secondsLeft: nextSecs });
+    }, [clearTick, persist]),
 
     reset: useCallback(() => {
       // Persist whatever was earned before wiping the session.
@@ -332,13 +478,23 @@ export function usePomodoro(options?: PomodoroOptions): [PomodoroState, Pomodoro
       overtimeStartRef.current = null;
       sessionCountRef.current = 0;
       phaseRef.current = 'idle';
+      prevPhaseRef.current = 'idle';
+      isRunningRef.current = false;
+      taskIdRef.current = null;
       setIsRunning(false);
       setPhase('idle');
       setSecondsLeft(WORK_SECS);
       setSessionCount(0);
       setTaskId(null);
       setTaskTitle(null);
-    }, [clearTick, flushSession]),
+      persist({ secondsLeft: WORK_SECS });
+    }, [clearTick, flushSession, persist]),
+
+    setTaskTitle: useCallback((title: string) => {
+      // Only used after page reload to hydrate title from decrypted DB content.
+      // No persistence — title isn't stored, taskId is.
+      setTaskTitle(title);
+    }, []),
   };
 
   const state: PomodoroState = {

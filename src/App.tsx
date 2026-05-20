@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useDB } from './db/DBContext';
-import { Feed, extractTags } from './components/Feed';
+import { Feed, extractTags, extractPlainText } from './components/Feed';
 import { TweetEditor } from './components/TiptapEditor';
 import { useNotes, useFeeds, useFeedRole, rescueOrphans } from './db/hooks';
 import { addOptimistic, removeOptimistic } from './db/optimisticNotes';
@@ -939,6 +939,18 @@ function App() {
   }, []);
 
   const allNotes = useNotes(null, activeFeedId);
+
+  // Restore pomodoro task title after reload — taskId persists in localStorage,
+  // but the title is plaintext content that we couldn't safely cache. Look it
+  // up from the (already-decrypted) notes once they're available.
+  useEffect(() => {
+    if (!pomodoroState.taskId || pomodoroState.taskTitle) return;
+    const note = allNotes.find(n => n.id === pomodoroState.taskId);
+    if (note) {
+      const title = extractPlainText(note.content).slice(0, 60) || 'Задача';
+      pomodoroActions.setTaskTitle(title);
+    }
+  }, [pomodoroState.taskId, pomodoroState.taskTitle, allNotes, pomodoroActions]);
 
   const allTags = React.useMemo(() => {
     const s = new Set<string>();

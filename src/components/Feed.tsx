@@ -720,17 +720,16 @@ export const Feed = ({
               const isCollapsed = collapsedIds.has(contextMenu.noteId);
 
               // ── Icon row: frequent actions ──────────────────────────
+              // Reply lives as a chip on the card itself — not in this menu.
               const quickActions: { icon: React.ReactNode; label: string; action: () => void }[] = [
-                ...(canWrite ? [{ icon: <IconReply size={16}/>, label: 'Ответить', action: () => { onStartReply?.(contextMenu.noteId); closeContextMenu(); } }] : []),
                 ...(userCanEdit ? [{ icon: <IconEdit size={16}/>, label: 'Редактировать', action: () => { if (ctxNote) onStartEdit?.(ctxNote); closeContextMenu(); } }] : []),
                 ...(canWrite ? [{ icon: <IconPin size={16}/>, label: isPinned ? 'Открепить' : 'Закрепить', action: async () => { await db.exec(`UPDATE notes SET is_pinned = ? WHERE id = ?`, [isPinned ? 0 : 1, contextMenu.noteId]); showToast(isPinned ? 'Заметка откреплена' : 'Заметка закреплена', 'success'); closeContextMenu(); } }] : []),
-                ...(onStartPomodoro ? [{ icon: <IconTimer size={16}/>, label: 'Запустить помодоро', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
+                ...(onStartPomodoro ? [{ icon: <IconTimer size={16}/>, label: 'Помодоро', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
               ];
 
               // ── Text list: secondary actions ────────────────────────
               type TextItem = { icon: React.ReactNode; text: string; action: () => void; danger?: boolean };
               const textActions: TextItem[] = [
-                { icon: <IconMaximize size={13}/>, text: 'Открыть', action: () => { handleNcExpandNote(contextMenu.noteId); closeContextMenu(); } },
                 { icon: isCollapsed ? <IconChevronDown size={13}/> : <IconChevronUp size={13}/>, text: isCollapsed ? 'Развернуть' : 'Свернуть', action: () => { setCollapsedIds(prev => { const next = new Set(prev); next.has(contextMenu.noteId) ? next.delete(contextMenu.noteId) : next.add(contextMenu.noteId); return next; }); closeContextMenu(); } },
                 { icon: <IconChevronRight size={13}/>, text: 'Перейти в ветку', action: () => { onNoteClick?.(contextMenu.noteId); closeContextMenu(); } },
                 { icon: <IconClipboard size={13}/>, text: 'Скопировать как ссылку', action: () => { if (ctxNote) { const title = extractPlainText(feedDecrypt(ctxNote.content)).slice(0, 80) || ctxNote.id; storePendingBacklink(ctxNote.id, title); } closeContextMenu(); } },

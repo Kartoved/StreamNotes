@@ -717,6 +717,17 @@ export const NoteCard = React.memo(function NoteCard({
                   {!!note.is_pinned && (
                     <span style={{ color: 'var(--text-faint)', opacity: 0.6, display: 'flex' }}><IconPin size={11} /></span>
                   )}
+                  {onStartReply && (
+                    <button
+                      type="button"
+                      className="note-reply-chip-inline"
+                      title="Ответить"
+                      aria-label="Ответить"
+                      onClick={(e) => { e.stopPropagation(); onStartReply(note.id); }}
+                    >
+                      <IconReply size={12} />
+                    </button>
+                  )}
                   <span style={{ fontSize: '0.68rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
                     {formatNoteDate(note.created_at)}
                   </span>
