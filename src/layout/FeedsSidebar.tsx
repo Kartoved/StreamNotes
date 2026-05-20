@@ -136,14 +136,13 @@ const FeedIcon = ({ feed, active }: { feed: FeedData; active: boolean }) => {
       overflow: 'hidden',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       cursor: 'inherit', flexShrink: 0,
-      pointerEvents: 'none',
       transition: 'all 0.15s ease',
     }}>
       {LIcon
-        ? <LIcon size={18} strokeWidth={1.5} color="white" />
+        ? <LIcon size={18} strokeWidth={1.5} color="white" style={{ pointerEvents: 'none' }} />
         : feed.avatar
-          ? <img src={feed.avatar} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <span style={{ color: 'white', fontWeight: 700, fontSize: '0.85rem', userSelect: 'none' }}>{initials}</span>
+          ? <img src={feed.avatar} draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+          : <span style={{ color: 'white', fontWeight: 700, fontSize: '0.85rem', userSelect: 'none', pointerEvents: 'none' }}>{initials}</span>
       }
     </div>
   );
@@ -229,8 +228,8 @@ export const FeedsSidebar = ({
     e.stopPropagation();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const menuW = 180;
-    const menuH = 180;
+    const menuW = 190;
+    const menuH = 220;
     const x = Math.min(e.clientX, vw - menuW - 8);
     const y = Math.min(e.clientY, vh - menuH - 8);
     setCtxMenu({ x, y, feed });
@@ -240,16 +239,9 @@ export const FeedsSidebar = ({
 
   useEffect(() => {
     if (!ctxMenu) return;
-    const close = () => closeCtxMenu();
-    window.addEventListener('click', close);
-    window.addEventListener('contextmenu', close);
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeCtxMenu(); };
     window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('click', close);
-      window.removeEventListener('contextmenu', close);
-      window.removeEventListener('keydown', onKey);
-    };
+    return () => window.removeEventListener('keydown', onKey);
   }, [ctxMenu, closeCtxMenu]);
 
   // ── Drag-to-reorder state (order stored in localStorage, no DB needed) ──
@@ -576,6 +568,7 @@ export const FeedsSidebar = ({
                 onTouchEnd={e => handleFeedTouchEnd(e, visibleFeeds)}
                 onClick={() => !draggedId && onSelect(feed.id)}
                 onContextMenu={e => openCtxMenu(e, feed)}
+                onMouseDown={e => { if (e.button === 2) openCtxMenu(e, feed); }}
                 style={{
                   padding: '6px 0', position: 'relative',
                   opacity: isBeingDragged ? 0.35 : 1,
@@ -660,12 +653,20 @@ export const FeedsSidebar = ({
 
       {/* Context menu + modals — rendered via portal to escape sidebar overflow/stacking context */}
       {ctxMenu && createPortal((
-        <div
-          onClick={e => e.stopPropagation()}
-          style={{
-            position: 'fixed',
-            left: ctxMenu.x, top: ctxMenu.y,
-            zIndex: 3000,
+        <>
+          {/* Transparent overlay — catches click/contextmenu outside menu */}
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 2999 }}
+            onClick={closeCtxMenu}
+            onContextMenu={e => { e.preventDefault(); closeCtxMenu(); }}
+          />
+          <div
+            onClick={e => e.stopPropagation()}
+            onContextMenu={e => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              left: ctxMenu.x, top: ctxMenu.y,
+              zIndex: 3000,
             background: 'var(--bg)',
             border: '1px solid var(--line-strong)',
             borderRadius: 'var(--radius-lg)',
@@ -737,6 +738,7 @@ export const FeedsSidebar = ({
             Удалить
           </button>
         </div>
+        </>
       ), document.body)}
 
       {/* Share modal */}

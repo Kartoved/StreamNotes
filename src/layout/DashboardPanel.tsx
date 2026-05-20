@@ -3,7 +3,7 @@ import { Play, Pause, SkipForward, Coffee, RotateCcw, X } from 'lucide-react';
 import type { DashboardStats } from '../db/useDashboardStats';
 import { PomodoroState, PomodoroActions, formatPomodoroTime } from '../hooks/usePomodoro';
 import type { StreakInfo } from '../hooks/useStreak';
-import { IconX, IconTarget2, IconChevronRight, StreakFlame, FreezeCrystal, XpBolt } from '../components/icons';
+import { IconX, IconChevronRight, StreakFlame, FreezeCrystal, XpBolt } from '../components/icons';
 
 // ── Progress Ring ─────────────────────────────────────────────────────
 const ProgressRing = ({ done, total, size = 72 }: { done: number; total: number; size?: number }) => {
