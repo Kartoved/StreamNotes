@@ -250,40 +250,36 @@ export const DashboardPanel = ({
           </span>
           <span style={{ color: 'var(--text-faint)', fontSize: '0.68rem' }}>бонус XP</span>
         </div>
+
       </button>
 
       {/* ── 3. DIVIDER ── */}
       <div style={{ height: '1px', background: 'var(--line)', margin: '0 4px' }} />
 
-      {/* ── 4. DATE ── */}
-      <div style={{ paddingLeft: '8px' }}>
-        <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
-          {dayLabel}
-        </span>
-        <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase', marginLeft: '6px' }}>
-          {dateLabel}
-        </span>
-      </div>
-
-      {/* ── 5. PROGRESS RING ── */}
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '0 4px' }}>
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <ProgressRing done={doneToday} total={totalToday || 1} size={120} />
-          <div style={{
-            position: 'absolute', inset: 0,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px',
-          }}>
-            <span style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>
+      {/* ── 4. PROGRESS BAR ── */}
+      {totalToday > 0 && (
+        <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span style={{ fontSize: '0.62rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', letterSpacing: '0.02em' }}>
+              сегодня
+            </span>
+            <span style={{ fontSize: '0.62rem', fontFamily: 'var(--font-mono)', fontWeight: 600, color: doneToday === totalToday ? 'var(--note-accent-done)' : 'var(--text-faint)' }}>
               {doneToday}/{totalToday}
             </span>
-            <span style={{ fontSize: '0.62rem', color: 'var(--text-faint)', lineHeight: 1, letterSpacing: '0.04em' }}>
-              выполнено
-            </span>
+          </div>
+          <div style={{ height: '3px', borderRadius: '2px', background: 'var(--line)', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${Math.round((doneToday / totalToday) * 100)}%`,
+              borderRadius: '2px',
+              background: doneToday === totalToday ? 'var(--note-accent-done)' : 'var(--text-faint)',
+              transition: 'width 0.5s ease, background 0.3s',
+            }} />
           </div>
         </div>
-      </div>
+      )}
 
-      {/* ── 6. STAT ROWS ── */}
+      {/* ── 5. STAT ROWS ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
         <StatRow label="Нужно сделать" count={todoToday} active={activeStatusFilter === 'todo'} onClick={() => handleClick('todo')} accent="#f97316" />
         <StatRow label="В процессе"    count={doingToday} active={activeStatusFilter === 'doing'} onClick={() => handleClick('doing')} accent="var(--note-accent-doing)" />
@@ -292,6 +288,7 @@ export const DashboardPanel = ({
         <StatRow label="Неразобранные" count={somedayCount} active={activeStatusFilter === 'todo-no-date'} onClick={() => handleClick('todo-no-date')} accent="#f97316" />
         <StatRow label="Будущие"       count={futureCount}  active={activeStatusFilter === 'todo-future'}  onClick={() => handleClick('todo-future')} />
       </div>
+
 
       {/* Clear filter */}
       {activeStatusFilter && (
