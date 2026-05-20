@@ -716,52 +716,80 @@ export const Feed = ({
               const isOwn = !ctxNote || ctxNote.author_id === localNpub;
               const userCanEdit = canEditAll || (canEditOwn && isOwn);
               const userCanDelete = canEditAll || (canEditOwn && isOwn);
-              // Build items: true-null = separator, false = omitted
-              const MI = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>{icon}{text}</span>
-              );
-              const raw: (false | null | { label: React.ReactNode; action: () => void; danger?: boolean })[] = [
-                canWrite && { label: <MI icon={<IconReply size={14}/>} text="Ответить" />, action: () => { onStartReply?.(contextMenu.noteId); closeContextMenu(); } },
-                userCanEdit && { label: <MI icon={<IconEdit size={14}/>} text="Редактировать" />, action: () => { if (ctxNote) onStartEdit?.(ctxNote); closeContextMenu(); } },
-                { label: <MI icon={<IconMaximize size={14}/>} text="Открыть" />, action: () => { handleNcExpandNote(contextMenu.noteId); closeContextMenu(); } },
-                { label: <MI icon={collapsedIds.has(contextMenu.noteId) ? <IconChevronDown size={14}/> : <IconChevronUp size={14}/>} text={collapsedIds.has(contextMenu.noteId) ? 'Развернуть' : 'Свернуть'} />, action: () => { setCollapsedIds(prev => { const next = new Set(prev); next.has(contextMenu.noteId) ? next.delete(contextMenu.noteId) : next.add(contextMenu.noteId); return next; }); closeContextMenu(); } },
-                { label: <MI icon={<IconChevronRight size={14}/>} text="Перейти в ветку" />, action: () => { onNoteClick?.(contextMenu.noteId); closeContextMenu(); } },
-                { label: <MI icon={<IconClipboard size={14}/>} text="Скопировать как ссылку" />, action: () => {
-                  if (ctxNote) {
-                    const title = extractPlainText(feedDecrypt(ctxNote.content)).slice(0, 80) || ctxNote.id;
-                    storePendingBacklink(ctxNote.id, title);
-                  }
-                  closeContextMenu();
-                }},
-                onCopyNote ? { label: <MI icon={<IconTarget size={14}/>} text="Копировать в ленту..." />, action: () => { onCopyNote(contextMenu.noteId); closeContextMenu(); } } : false,
-                ...(canWrite ? [null as null, { label: <MI icon={<IconPin size={14}/>} text={ctxNote?.is_pinned ? 'Открепить' : 'Закрепить'} />, action: async () => { const wasPinned = !!ctxNote?.is_pinned; await db.exec(`UPDATE notes SET is_pinned = ? WHERE id = ?`, [wasPinned ? 0 : 1, contextMenu.noteId]); showToast(wasPinned ? 'Заметка откреплена' : 'Заметка закреплена', 'success'); closeContextMenu(); } }] : []),
-                ...(onStartPomodoro ? [null as null, { label: <MI icon={<IconTimer size={14}/>} text="Запустить помодоро" />, action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
-                ...(userCanDelete ? [null as null, { label: <MI icon={<IconTrash size={14}/>} text="Удалить" />, action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true }] : []),
+              const isPinned = !!ctxNote?.is_pinned;
+              const isCollapsed = collapsedIds.has(contextMenu.noteId);
+
+              // ── Icon row: frequent actions ──────────────────────────
+              const quickActions: { icon: React.ReactNode; label: string; action: () => void }[] = [
+                ...(canWrite ? [{ icon: <IconReply size={16}/>, label: 'Ответить', action: () => { onStartReply?.(contextMenu.noteId); closeContextMenu(); } }] : []),
+                ...(userCanEdit ? [{ icon: <IconEdit size={16}/>, label: 'Редактировать', action: () => { if (ctxNote) onStartEdit?.(ctxNote); closeContextMenu(); } }] : []),
+                ...(canWrite ? [{ icon: <IconPin size={16}/>, label: isPinned ? 'Открепить' : 'Закрепить', action: async () => { await db.exec(`UPDATE notes SET is_pinned = ? WHERE id = ?`, [isPinned ? 0 : 1, contextMenu.noteId]); showToast(isPinned ? 'Заметка откреплена' : 'Заметка закреплена', 'success'); closeContextMenu(); } }] : []),
+                ...(onStartPomodoro ? [{ icon: <IconTimer size={16}/>, label: 'Запустить помодоро', action: () => { const note = notes.find(n => n.id === contextMenu.noteId); const title = note ? extractPlainText(note.content).slice(0, 60) || 'Задача' : 'Задача'; onStartPomodoro(contextMenu.noteId, title); closeContextMenu(); } }] : []),
               ];
-              return raw.filter(x => x !== false);
-            })().map((item, i) =>
-              item === null ? (
-                <div key={i} style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
-              ) : (
-                <button
-                  key={i}
-                  onClick={item.action}
-                  style={{
-                    display: 'block', width: '100%', textAlign: 'left',
-                    background: 'transparent', border: 'none',
-                    color: (item as any).danger ? '#f87171' : 'var(--text)',
-                    padding: '10px 14px', borderRadius: '8px', cursor: 'pointer',
-                    fontSize: '14px', fontFamily: 'inherit',
-                    transition: 'background 0.1s',
-                    minHeight: '44px',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = (item as any).danger ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.07)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  {item.label}
-                </button>
-              )
-            )}
+
+              // ── Text list: secondary actions ────────────────────────
+              type TextItem = { icon: React.ReactNode; text: string; action: () => void; danger?: boolean };
+              const textActions: TextItem[] = [
+                { icon: <IconMaximize size={13}/>, text: 'Открыть', action: () => { handleNcExpandNote(contextMenu.noteId); closeContextMenu(); } },
+                { icon: isCollapsed ? <IconChevronDown size={13}/> : <IconChevronUp size={13}/>, text: isCollapsed ? 'Развернуть' : 'Свернуть', action: () => { setCollapsedIds(prev => { const next = new Set(prev); next.has(contextMenu.noteId) ? next.delete(contextMenu.noteId) : next.add(contextMenu.noteId); return next; }); closeContextMenu(); } },
+                { icon: <IconChevronRight size={13}/>, text: 'Перейти в ветку', action: () => { onNoteClick?.(contextMenu.noteId); closeContextMenu(); } },
+                { icon: <IconClipboard size={13}/>, text: 'Скопировать как ссылку', action: () => { if (ctxNote) { const title = extractPlainText(feedDecrypt(ctxNote.content)).slice(0, 80) || ctxNote.id; storePendingBacklink(ctxNote.id, title); } closeContextMenu(); } },
+                ...(onCopyNote ? [{ icon: <IconTarget size={13}/>, text: 'Копировать в ленту...', action: () => { onCopyNote(contextMenu.noteId); closeContextMenu(); } }] : []),
+                ...(userCanDelete ? [{ icon: <IconTrash size={13}/>, text: 'Удалить', action: () => { setDeleteConfirmId(contextMenu.noteId); closeContextMenu(); }, danger: true }] : []),
+              ];
+
+              const iconBtn: React.CSSProperties = {
+                flex: 1, aspectRatio: '1', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: '4px',
+                background: 'transparent', border: '1px solid var(--line)',
+                borderRadius: 'var(--radius)', cursor: 'pointer',
+                color: 'var(--text-sub)', padding: '8px 4px',
+                transition: 'background 0.1s, color 0.1s, border-color 0.1s',
+              };
+
+              return (
+                <>
+                  {/* Icon row */}
+                  {quickActions.length > 0 && (
+                    <div style={{ display: 'flex', gap: '6px', padding: '10px 10px 6px' }}>
+                      {quickActions.map((a, i) => (
+                        <button key={i} title={a.label} onClick={a.action} style={iconBtn}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--line-strong)'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-sub)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; }}
+                        >
+                          {a.icon}
+                          <span style={{ fontSize: '0.55rem', letterSpacing: '0.02em', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', padding: '0 2px' }}>{a.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Divider */}
+                  <div style={{ height: '1px', background: 'var(--line)', margin: '2px 0' }} />
+
+                  {/* Text list */}
+                  <div style={{ padding: '4px 6px 6px' }}>
+                    {textActions.map((item, i) => (
+                      <button key={i} onClick={item.action} style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        width: '100%', textAlign: 'left',
+                        background: 'transparent', border: 'none',
+                        color: item.danger ? '#f87171' : 'var(--text-sub)',
+                        padding: '7px 8px', borderRadius: '6px', cursor: 'pointer',
+                        fontSize: '0.82rem', fontFamily: 'inherit',
+                        transition: 'background 0.1s, color 0.1s',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = item.danger ? 'rgba(239,68,68,0.1)' : 'var(--bg-hover)'; (e.currentTarget as HTMLElement).style.color = item.danger ? '#f87171' : 'var(--text)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = item.danger ? '#f87171' : 'var(--text-sub)'; }}
+                      >
+                        <span style={{ flexShrink: 0, opacity: 0.7 }}>{item.icon}</span>
+                        {item.text}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
           </ContextMenuPanel>
         </div>
       )}
