@@ -70,14 +70,14 @@ const PomodoroRing = ({ secondsLeft, totalSecs, size = 120, phase }: {
 
 // ── Stat Row ──────────────────────────────────────────────────────────
 const StatRow = ({
-  label, count, active, onClick,
+  label, count, active, onClick, accent,
 }: {
-  label: string; count: number; active?: boolean; onClick?: () => void;
+  label: string; count: number; active?: boolean; onClick?: () => void; accent?: string;
 }) => (
   <div
     onClick={onClick}
     style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      display: 'flex', alignItems: 'center', gap: '7px',
       padding: '5px 8px', borderRadius: 'var(--radius)',
       cursor: onClick ? 'pointer' : 'default',
       background: active ? 'var(--bg-active)' : 'transparent',
@@ -87,10 +87,20 @@ const StatRow = ({
     onMouseEnter={e => { if (onClick) (e.currentTarget as HTMLElement).style.background = active ? 'var(--bg-active)' : 'var(--bg-hover)'; }}
     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = active ? 'var(--bg-active)' : 'transparent'; }}
   >
-    <span style={{ fontSize: '0.75rem', color: 'var(--text-sub)', letterSpacing: '0.02em' }}>{label}</span>
+    {accent && (
+      <div style={{
+        width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0,
+        background: count > 0 ? accent : 'var(--text-faint)',
+        opacity: count > 0 ? 1 : 0.35,
+        transition: 'background 0.2s',
+      }} />
+    )}
+    <span style={{ flex: 1, fontSize: '0.75rem', color: 'var(--text-sub)', letterSpacing: '0.01em' }}>{label}</span>
     <span style={{
-      fontSize: '0.9rem', fontWeight: 600, color: active ? 'var(--text)' : 'var(--text-sub)',
+      fontSize: '0.88rem', fontWeight: 700,
+      color: count > 0 && accent ? accent : active ? 'var(--text)' : 'var(--text-faint)',
       minWidth: '20px', textAlign: 'right', fontFamily: 'var(--font-mono)',
+      transition: 'color 0.2s',
     }}>{count}</span>
   </div>
 );
@@ -132,6 +142,7 @@ export const DashboardPanel = ({
 
   const today = new Date();
   const dateLabel = today.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  const dayLabel = today.toLocaleDateString('ru-RU', { weekday: 'short' }).toUpperCase();
 
   const handleClick = (status: string) => {
     const next = activeStatusFilter === status ? null : status;
@@ -153,30 +164,30 @@ export const DashboardPanel = ({
       overflowY: 'auto',
     }}>
       {/* Date label */}
-      <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase', paddingLeft: '8px' }}>
-        Сегодня · {dateLabel}
+      <div style={{ paddingLeft: '8px' }}>
+        <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
+          {dayLabel}
+        </span>
+        <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase', marginLeft: '6px' }}>
+          {dateLabel}
+        </span>
       </div>
 
-      {/* Ring + numbers */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 4px' }}>
+      {/* Ring */}
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '0 4px' }}>
         <div style={{ position: 'relative', flexShrink: 0 }}>
-          <ProgressRing done={doneToday} total={totalToday || 1} size={64} />
+          <ProgressRing done={doneToday} total={totalToday || 1} size={120} />
           <div style={{
             position: 'absolute', inset: 0,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px',
           }}>
-            <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>
-              {doneToday}
+            <span style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>
+              {doneToday}/{totalToday}
             </span>
-            <span style={{ fontSize: '0.6rem', color: 'var(--text-faint)', lineHeight: 1 }}>
-              /{totalToday}
+            <span style={{ fontSize: '0.62rem', color: 'var(--text-faint)', lineHeight: 1, letterSpacing: '0.04em' }}>
+              выполнено
             </span>
           </div>
-        </div>
-        <div style={{ fontSize: '0.72rem', color: 'var(--text-sub)', lineHeight: 1.5 }}>
-          {totalToday === 0
-            ? 'Нет дел\nна сегодня'
-            : `${doneToday} из ${totalToday}\nвыполнено`}
         </div>
       </div>
 
@@ -185,12 +196,12 @@ export const DashboardPanel = ({
 
       {/* Stat rows */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        <StatRow label="Нужно сделать" count={todoToday} active={activeStatusFilter === 'todo'} onClick={() => handleClick('todo')} />
-        <StatRow label="В процессе" count={doingToday} active={activeStatusFilter === 'doing'} onClick={() => handleClick('doing')} />
-        <StatRow label="Выполнено" count={doneToday} active={activeStatusFilter === 'done'} onClick={() => handleClick('done')} />
+        <StatRow label="Нужно сделать" count={todoToday} active={activeStatusFilter === 'todo'} onClick={() => handleClick('todo')} accent="#f97316" />
+        <StatRow label="В процессе"    count={doingToday} active={activeStatusFilter === 'doing'} onClick={() => handleClick('doing')} accent="var(--note-accent-doing)" />
+        <StatRow label="Выполнено"     count={doneToday}  active={activeStatusFilter === 'done'}  onClick={() => handleClick('done')}  accent="var(--note-accent-done)" />
         <div style={{ height: '1px', background: 'var(--line)', margin: '4px 4px 8px 4px' }} />
-        <StatRow label="Неразобранные" count={somedayCount} active={activeStatusFilter === 'todo-no-date'} onClick={() => handleClick('todo-no-date')} />
-        <StatRow label="Будущие" count={futureCount} active={activeStatusFilter === 'todo-future'} onClick={() => handleClick('todo-future')} />
+        <StatRow label="Неразобранные" count={somedayCount} active={activeStatusFilter === 'todo-no-date'} onClick={() => handleClick('todo-no-date')} accent="#f97316" />
+        <StatRow label="Будущие"       count={futureCount}  active={activeStatusFilter === 'todo-future'}  onClick={() => handleClick('todo-future')} />
       </div>
 
       {/* Clear filter */}

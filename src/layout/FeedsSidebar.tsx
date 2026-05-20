@@ -220,6 +220,37 @@ export const FeedsSidebar = ({
   // Archive view toggle
   const [showArchive, setShowArchive] = useState(false);
 
+  // ── Context menu ──────────────────────────────────────────────────────
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; feed: FeedData } | null>(null);
+
+  const openCtxMenu = useCallback((e: React.MouseEvent, feed: FeedData) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const menuW = 180;
+    const menuH = 180;
+    const x = Math.min(e.clientX, vw - menuW - 8);
+    const y = Math.min(e.clientY, vh - menuH - 8);
+    setCtxMenu({ x, y, feed });
+  }, []);
+
+  const closeCtxMenu = useCallback(() => setCtxMenu(null), []);
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => closeCtxMenu();
+    window.addEventListener('click', close);
+    window.addEventListener('contextmenu', close);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeCtxMenu(); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('contextmenu', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [ctxMenu, closeCtxMenu]);
+
   // ── Drag-to-reorder state (order stored in localStorage, no DB needed) ──
   const [feedOrder, setFeedOrder] = useState<string[]>(loadFeedOrder);
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -543,6 +574,7 @@ export const FeedsSidebar = ({
                 onTouchMove={handleFeedTouchMove}
                 onTouchEnd={e => handleFeedTouchEnd(e, visibleFeeds)}
                 onClick={() => !draggedId && onSelect(feed.id)}
+                onContextMenu={e => openCtxMenu(e, feed)}
                 style={{
                   padding: '6px 0', position: 'relative',
                   opacity: isBeingDragged ? 0.35 : 1,
@@ -555,25 +587,8 @@ export const FeedsSidebar = ({
                 }}
               >
                 <FeedIcon feed={feed} active={feed.id === activeFeedId} />
-                <div className="feed-tooltip" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1, minWidth: 0 }}>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {showArchive ? `[архив] ${feed.name}` : feed.name}
-                  </span>
-                  <button
-                    className="feed-edit-btn"
-                    onClick={e => { e.stopPropagation(); openEdit(feed); }}
-                    title="Настройки ленты"
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: 'var(--text-faint)', padding: '2px 4px', flexShrink: 0,
-                      display: 'flex', alignItems: 'center', borderRadius: '4px',
-                    }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                  </button>
+                <div className="feed-tooltip">
+                  {showArchive ? `[архив] ${feed.name}` : feed.name}
                 </div>
               </div>
             );
@@ -641,6 +656,87 @@ export const FeedsSidebar = ({
           <div className="feed-tooltip">{showArchive ? 'Назад к лентам' : 'Архив'}</div>
         </div>
       </div>
+
+      {/* Context menu */}
+      {ctxMenu && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            left: ctxMenu.x, top: ctxMenu.y,
+            zIndex: 3000,
+            background: 'var(--bg)',
+            border: '1px solid var(--line-strong)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: 'var(--shadow-lg)',
+            padding: '4px',
+            minWidth: '180px',
+            display: 'flex', flexDirection: 'column', gap: '1px',
+          }}
+        >
+          {/* Feed name header */}
+          <div style={{ padding: '6px 10px 8px', fontSize: '0.72rem', color: 'var(--text-faint)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', borderBottom: '1px solid var(--line)', marginBottom: '3px' }}>
+            {ctxMenu.feed.name}
+          </div>
+
+          {[
+            {
+              label: 'Настройки',
+              icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.39a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg>,
+              action: () => { openEdit(ctxMenu.feed); closeCtxMenu(); },
+            },
+            ...(ctxMenu.feed.encryption_key ? [{
+              label: 'Поделиться',
+              icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
+              action: () => { openShare(ctxMenu.feed); closeCtxMenu(); },
+            }] : []),
+            ...(onExportFeedMD ? [{
+              label: 'Экспорт MD',
+              icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+              action: () => { onExportFeedMD(ctxMenu.feed.id, ctxMenu.feed.name); closeCtxMenu(); },
+            }] : []),
+            ...(onArchiveFeed ? [{
+              label: ctxMenu.feed.is_archived ? 'Из архива' : 'Архивировать',
+              icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>,
+              action: () => { onArchiveFeed(ctxMenu.feed.id, !ctxMenu.feed.is_archived); closeCtxMenu(); },
+            }] : []),
+          ].map(item => (
+            <button key={item.label} onClick={item.action} style={{
+              display: 'flex', alignItems: 'center', gap: '9px',
+              padding: '7px 10px', borderRadius: '6px',
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-sub)', fontSize: '0.82rem',
+              textAlign: 'left', width: '100%',
+              transition: 'background 0.1s, color 0.1s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'none'; (e.currentTarget as HTMLElement).style.color = 'var(--text-sub)'; }}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+
+          {/* Destructive */}
+          <div style={{ height: '1px', background: 'var(--line)', margin: '3px 6px' }} />
+          <button
+            onClick={() => { onDeleteFeed(ctxMenu.feed.id, !!ctxMenu.feed.encryption_key); closeCtxMenu(); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '9px',
+              padding: '7px 10px', borderRadius: '6px',
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-faint)', fontSize: '0.82rem',
+              textAlign: 'left', width: '100%',
+              transition: 'background 0.1s, color 0.1s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(220,60,60,0.1)'; (e.currentTarget as HTMLElement).style.color = '#e05555'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'none'; (e.currentTarget as HTMLElement).style.color = 'var(--text-faint)'; }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            Удалить
+          </button>
+        </div>
+      )}
 
       {/* Share modal */}
       {modal === 'share' && (
